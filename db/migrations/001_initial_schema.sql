@@ -739,7 +739,7 @@ create policy "plans admin write" on plans for all to authenticated using (publi
 
 create policy "feature flags read" on feature_flags
   for select to authenticated
-  using (organization_id is null or public.is_org_member(organization_id));
+  using (true);
 
 create policy "feature flags admin write" on feature_flags
   for all to authenticated

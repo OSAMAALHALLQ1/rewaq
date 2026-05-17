@@ -69,6 +69,13 @@ db/migrations/001_initial_schema.sql
 db/migrations/002_pos_inventory_backend.sql
 ```
 
+On Windows, if the direct database host resolves to IPv6 only, use the Supabase
+**Transaction Pooler** connection string in `DATABASE_URL`, then run:
+
+```bash
+npm run db:apply
+```
+
 6. Seed demo data:
 
 ```bash

@@ -10,6 +10,7 @@
     "db:link": "supabase link --project-ref thusfzjbzzcevvgddoxs",
     "db:push": "supabase db push",
     "db:reset": "supabase db reset",
+    "db:apply": "powershell -ExecutionPolicy Bypass -File scripts/apply-supabase-sql.ps1",
     "db:types": "supabase gen types typescript --project-id thusfzjbzzcevvgddoxs --schema public > src/types/supabase.generated.ts"
   },
   "dependencies": {

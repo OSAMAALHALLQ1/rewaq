@@ -473,7 +473,8 @@ begin
 end;
 $$;
 
-create or replace view public.amwali_daily_summary as
+create or replace view public.amwali_daily_summary
+with (security_invoker = true) as
 select
   s.organization_id,
   s.branch_id,
