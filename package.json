@@ -6,7 +6,11 @@
     "dev": "next dev --webpack",
     "build": "next build --webpack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:link": "supabase link --project-ref thusfzjbzzcevvgddoxs",
+    "db:push": "supabase db push",
+    "db:reset": "supabase db reset",
+    "db:types": "supabase gen types typescript --project-id thusfzjbzzcevvgddoxs --schema public > src/types/supabase.generated.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

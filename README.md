@@ -32,32 +32,56 @@ The app runs in Demo Mode when Supabase env vars are not configured. Demo Mode u
 
 ## Supabase setup
 
-1. Create a Supabase project.
+1. Use the configured Supabase project:
+
+```bash
+https://thusfzjbzzcevvgddoxs.supabase.co
+```
+
 2. Copy `.env.example` to `.env.local`.
 3. Set:
 
 ```bash
-NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_URL=https://thusfzjbzzcevvgddoxs.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
-4. Apply the migration:
+4. Install and login to Supabase CLI, then link the project:
 
 ```bash
-supabase db push
+npm install -g supabase
+supabase login
+npm run db:link
 ```
 
-Or paste `db/migrations/001_initial_schema.sql` into Supabase SQL editor.
-
-5. Seed demo data:
+5. Apply the migrations:
 
 ```bash
-supabase db reset
+npm run db:push
+```
+
+If you do not use the CLI, paste these files into Supabase SQL editor in order:
+
+```bash
+db/migrations/001_initial_schema.sql
+db/migrations/002_pos_inventory_backend.sql
+```
+
+6. Seed demo data:
+
+```bash
+npm run db:reset
 ```
 
 Or run `db/seed.sql` in the SQL editor after the migration.
+
+7. Generate fresh database types after the remote schema is applied:
+
+```bash
+npm run db:types
+```
 
 ## Database
 
@@ -68,6 +92,8 @@ Main tables:
 - Waste/transfers: `waste_logs`, `transfers`, `transfer_items`
 - Purchasing: `suppliers`, `purchase_orders`, `purchase_order_items`, `invoices`, `invoice_items`, `supplier_price_history`
 - Recipes/menu: `recipes`, `recipe_ingredients`, `menu_items`, `menu_item_recipe_mapping`
+- POS/backend: `catalog_items`, `item_barcodes`, `customer_invoice_payments`
+- Cost tracking: `daily_cost_entries`, `sales_daily_summaries`, `amwali_daily_summary`
 - Marketing: `social_accounts`, `social_posts`, `social_post_targets`, `social_media_assets`, `social_publish_jobs`, `social_publish_logs`, `social_templates`
 - Automation/notifications: `automation_rules`, `automation_runs`, `notifications`
 - Admin: `plans`, `subscriptions`, `feature_flags`, `system_logs`, `support_tickets`
@@ -117,5 +143,7 @@ Seed data includes:
 ## Notes
 
 - Do not mutate stock quantities directly in production flows. Post `stock_movements` and update `branch_stock` in the same transaction.
+- Real POS issuing is handled by `issue_customer_invoice(...)`, which saves the invoice, deducts recipe ingredients, writes `stock_movements`, and updates daily sales summaries in one database transaction.
+- Barcode lookup is handled by `find_catalog_item_by_barcode(...)` against `item_barcodes`.
 - Do not store social tokens as plain text in production.
 - Server code uses `@supabase/ssr` and `src/proxy.ts` to refresh sessions.
