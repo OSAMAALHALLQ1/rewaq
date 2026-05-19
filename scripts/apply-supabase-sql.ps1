@@ -31,7 +31,11 @@ if ($DatabaseUrl -notmatch "sslmode=") {
 $root = Resolve-Path (Join-Path $PSScriptRoot "..")
 $files = @(
   "db\migrations\001_initial_schema.sql",
-  "db\migrations\002_pos_inventory_backend.sql"
+  "db\migrations\002_pos_inventory_backend.sql",
+  "db\migrations\003_social_platform_expansion.sql",
+  "db\migrations\004_social_publishing_engine.sql",
+  "db\migrations\005_business_profiles_and_cashier_role.sql",
+  "db\migrations\006_email_approval_and_team_invites.sql"
 )
 
 if (-not $SkipSeed) {
@@ -45,7 +49,8 @@ foreach ($file in $files) {
   }
 
   Write-Host "Running: $file" -ForegroundColor Cyan
-  npx supabase db query --db-url $DatabaseUrl --file $fullPath --output table
+  npx supabase db query --db-url $DatabaseUrl --file $fullPath --output json
+  if ($LASTEXITCODE -ne 0) { throw "Failed to apply: $file" }
 }
 
 Write-Host "Database SQL files were applied successfully." -ForegroundColor Green

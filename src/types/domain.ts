@@ -2,6 +2,7 @@ export type Role =
   | "super_admin"
   | "organization_owner"
   | "branch_manager"
+  | "cashier"
   | "inventory_manager"
   | "purchasing_manager"
   | "chef"
@@ -405,7 +406,10 @@ export type SocialPlatform =
   | "telegram"
   | "tiktok"
   | "x"
-  | "google_business";
+  | "google_business"
+  | "linkedin"
+  | "youtube_shorts"
+  | "pinterest";
 
 export type SocialAccount = {
   id: string;

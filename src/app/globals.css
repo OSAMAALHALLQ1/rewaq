@@ -2,30 +2,33 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Import mobile-responsive design system */
+@import './mobile-responsive.css';
+
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
+  --background: #f6f8fc;
+  --foreground: #0b1744;
   --card: #ffffff;
-  --card-foreground: #0f172a;
+  --card-foreground: #0b1744;
   --popover: #ffffff;
-  --popover-foreground: #0f172a;
-  --primary: #0f766e;
+  --popover-foreground: #0b1744;
+  --primary: #2563eb;
   --primary-foreground: #ffffff;
-  --secondary: #eef2f7;
-  --secondary-foreground: #0f172a;
-  --muted: #f1f5f9;
-  --muted-foreground: #64748b;
-  --accent: #f97316;
+  --secondary: #eef4ff;
+  --secondary-foreground: #0b1744;
+  --muted: #f3f6fb;
+  --muted-foreground: #63708a;
+  --accent: #0ea5e9;
   --accent-foreground: #ffffff;
   --destructive: #dc2626;
   --destructive-foreground: #ffffff;
-  --border: #e2e8f0;
-  --input: #cbd5e1;
-  --ring: #0f766e;
+  --border: #dbe4f0;
+  --input: #cbd7e8;
+  --ring: #2563eb;
   --success: #16a34a;
   --warning: #f59e0b;
-  --chart-1: #0f766e;
-  --chart-2: #f97316;
+  --chart-1: #2563eb;
+  --chart-2: #16a34a;
   --chart-3: #2563eb;
   --chart-4: #8b5cf6;
   --chart-5: #dc2626;
@@ -44,14 +47,14 @@ html {
 body {
   min-height: 100vh;
   background:
-    radial-gradient(circle at top right, rgba(15, 118, 110, 0.08), transparent 34rem),
-    linear-gradient(180deg, #ffffff 0%, #f8fafc 45%, #f8fafc 100%);
+    radial-gradient(circle at top left, rgba(37, 99, 235, 0.08), transparent 34rem),
+    #f6f8fc;
   color: var(--foreground);
   font-family: "Noto Sans Arabic", "Geist", "Segoe UI", Arial, sans-serif;
 }
 
 ::selection {
-  background: rgba(15, 118, 110, 0.18);
+  background: rgba(37, 99, 235, 0.18);
 }
 
 button,
@@ -68,4 +71,122 @@ select {
 
 .focus-ring:focus-visible {
   outline-color: var(--ring);
+}
+
+@media print {
+  body:has(.invoice-print-root) {
+    background: #ffffff !important;
+  }
+
+  body:has(.invoice-print-root) * {
+    visibility: hidden;
+  }
+
+  body:has(.invoice-print-root) .invoice-print-root,
+  body:has(.invoice-print-root) .invoice-print-root * {
+    visibility: visible;
+  }
+
+  body:has(.invoice-print-root) .invoice-print-root {
+    display: block !important;
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+}
+
+/* Responsive Touch Improvements */
+@layer base {
+  html {
+    font-size: 16px;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Better touch targets for mobile */
+  button, 
+  a, 
+  input, 
+  select, 
+  textarea {
+    min-height: 44px;
+    touch-action: manipulation;
+  }
+
+  /* Prevent text selection on buttons during tap */
+  button, 
+  .tap-no-select {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}
+
+/* Mobile-first responsive spacing */
+@layer utilities {
+  .px-mobile {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  
+  .py-mobile {
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+  }
+}
+
+/* Card responsive fixes */
+@media (max-width: 640px) {
+  .card {
+    border-radius: 0.75rem;
+    margin-left: -0.5rem;
+    margin-right: -0.5rem;
+    width: calc(100% + 1rem);
+  }
+  
+  /* Smaller text on mobile */
+  body {
+    font-size: 14px;
+  }
+  
+  h1 {
+    font-size: 1.5rem;
+  }
+  
+  h2 {
+    font-size: 1.25rem;
+  }
+  
+  h3 {
+    font-size: 1.125rem;
+  }
+}
+
+/* Better table scrolling on mobile */
+@media (max-width: 768px) {
+  .table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  table {
+    font-size: 13px;
+  }
+  
+  /* Hide less important columns on mobile */
+  .hide-mobile {
+    display: none;
+  }
+}
+
+/* Fix for fixed bottom navigation on mobile */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
 }

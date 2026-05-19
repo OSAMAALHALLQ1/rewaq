@@ -39,7 +39,7 @@ export default function RequestDemoPage() {
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="restaurant">اسم المطعم</Label>
-                <Input id="restaurant" name="restaurant" placeholder="مثال: مطعم التايلندي" required />
+                <Input id="restaurant" name="restaurant" placeholder="مثال: مطعم إيوان" required />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="phone">الهاتف</Label>

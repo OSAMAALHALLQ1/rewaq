@@ -34,6 +34,34 @@ export type SalesInventoryImpact = {
   insufficientCount: number;
 };
 
+function normalizeUnit(value: string | undefined) {
+  return value?.trim().toLowerCase() ?? "";
+}
+
+function convertQuantity(quantity: number, fromUnit: string | undefined, toUnit: string | undefined) {
+  const from = normalizeUnit(fromUnit);
+  const to = normalizeUnit(toUnit);
+  if (!from || !to || from === to) return quantity;
+
+  if (["غم", "g", "gram", "grams", "جرام"].includes(from) && ["كغم", "kg", "كيلو", "كيلوغرام"].includes(to)) {
+    return quantity / 1000;
+  }
+
+  if (["كغم", "kg", "كيلو", "كيلوغرام"].includes(from) && ["غم", "g", "gram", "grams", "جرام"].includes(to)) {
+    return quantity * 1000;
+  }
+
+  if (["مل", "ml"].includes(from) && ["لتر", "l"].includes(to)) {
+    return quantity / 1000;
+  }
+
+  if (["لتر", "l"].includes(from) && ["مل", "ml"].includes(to)) {
+    return quantity * 1000;
+  }
+
+  return quantity;
+}
+
 export function calculateSalesInventoryImpact({
   cart,
   menuItems,
@@ -71,14 +99,15 @@ export function calculateSalesInventoryImpact({
 
     recipe.ingredients.forEach((ingredient) => {
       const inventoryItem = inventoryItems.find((item) => item.id === ingredient.itemId);
+      const requiredPerPortion = convertQuantity(ingredient.quantity, ingredient.unit, inventoryItem?.usageUnit);
       const branchQuantity =
         branchStock
           .filter((stock) => stock.branchId === branchId && stock.itemId === ingredient.itemId)
           .reduce((sum, stock) => sum + stock.quantity, 0) - (committedDeductions[ingredient.itemId] ?? 0);
-      const requiredQuantity = ingredient.quantity * line.quantity;
+      const requiredQuantity = requiredPerPortion * line.quantity;
       const previous = deductions.get(ingredient.itemId);
       const nextRequired = (previous?.requiredQuantity ?? 0) + requiredQuantity;
-      const unitCost = ingredient.unitCost;
+      const unitCost = inventoryItem?.averageCost ?? ingredient.unitCost;
       const totalCost = (previous?.totalCost ?? 0) + requiredQuantity * unitCost;
       const minimumQuantity = inventoryItem?.minimumQuantity ?? 0;
       const projectedQuantity = branchQuantity - nextRequired;
@@ -90,7 +119,7 @@ export function calculateSalesInventoryImpact({
         itemName: ingredient.itemName,
         categoryName: inventoryItem?.categoryName ?? "غير مصنف",
         requiredQuantity: nextRequired,
-        unit: ingredient.unit,
+        unit: inventoryItem?.usageUnit ?? ingredient.unit,
         unitCost,
         totalCost,
         currentQuantity: branchQuantity,

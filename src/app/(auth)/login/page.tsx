@@ -9,7 +9,7 @@ export default function LoginPage() {
   return (
     <AuthCard
       title="تسجيل الدخول"
-      description="ادخل إلى لوحة رواق لإدارة عمليات مطعمك."
+      description="الدخول متاح بعد تفعيل البريد واعتماد الحساب. كل لوحة تحكم مرتبطة بحساب وصلاحية."
       footer={
         <>
           ليس لديك حساب؟{" "}
@@ -22,7 +22,7 @@ export default function LoginPage() {
       <ActionForm action={loginAction} submitLabel="دخول" className="space-y-4">
         <div className="grid gap-2">
           <Label htmlFor="email">البريد الإلكتروني</Label>
-          <Input id="email" name="email" type="email" defaultValue="owner@rewaq.app" required />
+          <Input id="email" name="email" type="email" placeholder="owner@example.com" required />
         </div>
         <div className="grid gap-2">
           <div className="flex items-center justify-between">
@@ -31,7 +31,10 @@ export default function LoginPage() {
               نسيت كلمة المرور؟
             </Link>
           </div>
-          <Input id="password" name="password" type="password" defaultValue="password123" required />
+          <Input id="password" name="password" type="password" required />
+        </div>
+        <div className="rounded-lg border bg-slate-50 p-3 text-sm leading-6 text-muted-foreground">
+          صاحب الحساب يستطيع بعد الدخول دعوة الكاشير وأمين المخزن بالإيميل وكود دعوة، وكل شخص يدخل بلوحته وصلاحيته.
         </div>
       </ActionForm>
     </AuthCard>

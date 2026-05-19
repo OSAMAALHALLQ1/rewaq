@@ -8,11 +8,15 @@ export type PublishInput = {
   accountName: string;
   body: string;
   assetUrl?: string;
+  mediaKind?: string;
+  scheduleKind?: string;
+  approvalRequired?: boolean;
+  errorPolicy?: string;
 };
 
 export type PublishResult = {
   platform: SocialPlatform;
-  status: "published" | "failed";
+  status: "published" | "queued" | "failed";
   providerPostId?: string;
   providerUrl?: string;
   error?: string;

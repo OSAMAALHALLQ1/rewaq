@@ -9,7 +9,7 @@ export default async function NewCustomerInvoicePage() {
     <>
       <PageHeader
         title="شاشة الكاشير"
-        description="اختر أصناف الزبون من المنيو، عدل الكميات والخصم، ثم أصدر الفاتورة واطبعها مباشرة."
+        description="بحث سريع، تبويبات عمل، وسلة بيع مختصرة. الكاشير لا يحتاج النزول بين قوائم طويلة لإنهاء الطلب."
       />
       <CashierTerminal
         menuItems={menuItems}

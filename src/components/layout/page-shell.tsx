@@ -1,29 +1,64 @@
+"use client";
+
+import { useState } from "react";
 import { AppHeader } from "@/components/layout/app-header";
 import { AppSidebar } from "@/components/layout/app-sidebar";
-import { getCurrentSession } from "@/lib/auth/session";
-import { getNotifications, getOrganizationContext } from "@/server/queries/app";
+import { X } from "lucide-react";
+import type { AppSession } from "@/lib/auth/session";
+import type { Branch, Notification } from "@/types/domain";
 
-export async function PageShell({
-  children,
-  mode = "app",
-}: {
+type PageShellProps = {
   children: React.ReactNode;
+  session: AppSession;
+  branches: Branch[];
+  notifications: Notification[];
   mode?: "app" | "admin";
-}) {
-  const [session, context, notifications] = await Promise.all([
-    getCurrentSession(),
-    getOrganizationContext(),
-    getNotifications(),
-  ]);
+};
+
+export function PageShellClient({
+  children,
+  session,
+  branches,
+  notifications,
+  mode = "app",
+}: PageShellProps) {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="flex">
-        <AppSidebar mode={mode} />
-        <div className="min-w-0 flex-1">
-          <AppHeader session={session} branches={context.branches} notifications={notifications} />
-          <main className="mx-auto w-full max-w-7xl px-4 py-6 lg:px-6">{children}</main>
-        </div>
+    <div className="flex relative">
+      {/* Mobile Overlay */}
+      <div
+        className={`fixed inset-0 z-40 bg-slate-950/50 backdrop-blur-sm transition-opacity lg:hidden ${
+          sidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+        }`}
+        onClick={() => setSidebarOpen(false)}
+        aria-hidden="true"
+      />
+
+      {/* Sidebar - end-0 = left side in RTL */}
+      <div
+        className={`fixed inset-y-0 end-0 z-50 w-72 shrink-0 border-s border-border bg-white transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 lg:z-30 ${
+          sidebarOpen ? "translate-x-0" : "translate-x-full"
+        }`}
+      >
+        {/* Mobile close button */}
+        <button
+          onClick={() => setSidebarOpen(false)}
+          className="lg:hidden absolute top-4 end-4 z-10 flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-600 transition hover:bg-slate-200"
+          aria-label="إغلاق القائمة"
+        >
+          <X className="h-5 w-5" />
+        </button>
+
+        <AppSidebar mode={mode} onNavigate={() => setSidebarOpen(false)} />
+      </div>
+
+      {/* Main Content */}
+      <div className="min-w-0 flex-1 flex flex-col">
+        <AppHeader session={session} branches={branches} notifications={notifications} />
+        <main className="mx-auto w-full max-w-7xl px-3 py-4 md:px-4 md:py-6 lg:px-6">
+          {children}
+        </main>
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Menu, Plus, Search } from "lucide-react";
+import { Boxes, FileText, Megaphone, Menu, ReceiptText, Search, ShoppingCart } from "lucide-react";
 import { NotificationBell } from "@/components/layout/notification-bell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,16 +16,15 @@ type AppHeaderProps = {
 
 export function AppHeader({ session, branches, notifications }: AppHeaderProps) {
   return (
-    <header className="sticky top-0 z-20 border-b border-border bg-background/90 backdrop-blur">
-      <div className="flex min-h-16 items-center gap-3 px-4 lg:px-6">
-        <Button variant="outline" size="icon" className="lg:hidden" aria-label="فتح القائمة">
-          <Menu className="h-4 w-4" />
-        </Button>
+    <header className="sticky top-0 z-20 border-b border-border bg-white/88 backdrop-blur">
+      <div className="flex min-h-16 items-center gap-2 px-3 md:gap-3 md:px-4 lg:px-6">
+        {/* Mobile spacer for menu button - handled in page-shell */}
+        <div className="w-10 lg:hidden" />
 
         <div className="hidden min-w-0 flex-1 items-center gap-3 md:flex">
-          <div className="relative w-full max-w-md">
-            <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input className="pe-3 ps-9" placeholder="ابحث عن مادة، مورد، وصفة، أو منشور..." />
+          <div className="relative w-full max-w-lg">
+            <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-primary" />
+            <Input className="border-blue-100 bg-blue-50/50 pe-3 ps-9" placeholder="بحث عام: صنف، فاتورة، مورد، عميل، منشور..." />
           </div>
           <Select className="max-w-64" defaultValue={session.branchId ?? "all"} aria-label="اختيار الفرع">
             <option value="all">كل الفروع</option>
@@ -39,13 +38,38 @@ export function AppHeader({ session, branches, notifications }: AppHeaderProps) 
 
         <div className="me-auto flex items-center gap-2">
           {session.isDemo ? <Badge tone="warning">وضع التجربة</Badge> : null}
-          <Link
-            href="/dashboard/marketing/create"
-            className="focus-ring hidden h-10 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm transition hover:bg-teal-800 sm:inline-flex"
-          >
-            <Plus className="h-4 w-4" />
-            منشور جديد
-          </Link>
+          <div className="hidden items-center gap-2 xl:flex">
+            <Button asChild variant="outline">
+              <Link href="/dashboard/inventory">
+                <Boxes className="h-4 w-4" />
+                مخزون
+              </Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href="/dashboard/invoices">
+                <FileText className="h-4 w-4" />
+                فاتورة
+              </Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href="/dashboard/purchase-orders">
+                <ShoppingCart className="h-4 w-4" />
+                طلب شراء
+              </Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href="/dashboard/marketing/create">
+                <Megaphone className="h-4 w-4" />
+                منشور
+              </Link>
+            </Button>
+          </div>
+          <Button asChild className="hidden sm:inline-flex">
+            <Link href="/dashboard/customer-invoices/new">
+              <ReceiptText className="h-4 w-4" />
+              بيع سريع
+            </Link>
+          </Button>
           <NotificationBell notifications={notifications} />
           <div className="hidden text-end sm:block">
             <p className="text-sm font-semibold">{session.user.name}</p>

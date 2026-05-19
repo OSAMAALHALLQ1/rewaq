@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { SOCIAL_PLATFORM_IDS } from "@/lib/social/platforms";
 
 export const authSchema = z.object({
   email: z.email("أدخل بريدًا صحيحًا"),
@@ -8,6 +9,14 @@ export const authSchema = z.object({
 export const registerSchema = authSchema.extend({
   name: z.string().min(2, "أدخل الاسم"),
   organizationName: z.string().min(2, "أدخل اسم المطعم أو الشركة"),
+  businessType: z.string().min(2, "اختر نوع النشاط"),
+  phone: z.string().optional(),
+});
+
+export const teamInviteSchema = z.object({
+  email: z.email("أدخل بريدًا صحيحًا"),
+  role: z.enum(["cashier", "inventory_manager", "branch_manager", "accountant", "marketing_manager", "chef", "staff"]),
+  branchId: z.string().optional(),
 });
 
 export const supplierSchema = z.object({
@@ -59,7 +68,7 @@ export const menuItemSchema = z.object({
 export const socialPostSchema = z.object({
   title: z.string().min(2, "عنوان داخلي مطلوب"),
   body: z.string().min(5, "نص المنشور مطلوب"),
-  platforms: z.array(z.enum(["facebook", "instagram", "telegram"])).min(1, "اختر منصة واحدة على الأقل"),
+  platforms: z.array(z.enum(SOCIAL_PLATFORM_IDS)).min(1, "اختر منصة واحدة على الأقل"),
   publishMode: z.enum(["now", "schedule", "draft"]),
   scheduledAt: z.string().optional(),
 });

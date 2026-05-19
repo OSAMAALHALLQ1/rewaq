@@ -1,4 +1,5 @@
 import "server-only";
+import { redirect } from "next/navigation";
 import { demoBranches, demoOrganization } from "@/lib/demo-data";
 import { hasSupabaseEnv } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
@@ -43,13 +44,17 @@ export async function getCurrentSession(): Promise<AppSession> {
     } catch {
       // Fall through to demo mode so local UI stays usable without Supabase.
     }
+
+    if (process.env.NODE_ENV === "production") {
+      redirect("/login");
+    }
   }
 
   return {
     user: {
       id: "demo-user",
       email: "owner@rewaq.app",
-      name: "مالك مطعم التايلندي",
+      name: "مالك مطعم إيوان",
     },
     organizationId: demoOrganization.id,
     organizationName: demoOrganization.name,

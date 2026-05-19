@@ -43,7 +43,7 @@ export default async function DigitalReceiptPage({
             <div>
               <p className="text-sm opacity-80">فاتورة رقمية رسمية</p>
               <h1 className="mt-1 text-4xl font-black">رواق</h1>
-              <p className="mt-2 font-semibold">مطعم التايلندي</p>
+              <p className="mt-2 font-semibold">مطعم إيوان</p>
               <p className="text-sm opacity-80">فاتورة محفوظة للزبون على الجوال</p>
             </div>
             <div className="rounded-lg bg-white/15 px-4 py-3 text-end">
@@ -59,7 +59,7 @@ export default async function DigitalReceiptPage({
             <div className="grid gap-4 border-b pb-5 md:grid-cols-2">
               <div>
                 <p className="text-sm text-muted-foreground">البائع</p>
-                <p className="mt-1 font-bold">مطعم التايلندي</p>
+                <p className="mt-1 font-bold">مطعم إيوان</p>
                 <p className="text-sm">فرع شارع عبد القادر الحسيني</p>
               </div>
               <div>

@@ -1,4 +1,5 @@
 import {
+  Activity,
   BarChart3,
   Barcode,
   Bell,
@@ -11,6 +12,7 @@ import {
   CircleDollarSign,
   FileText,
   Gauge,
+  Link2,
   Megaphone,
   PackageSearch,
   Receipt,
@@ -24,6 +26,7 @@ import {
   Store,
   Table2,
   Truck,
+  UserCheck,
   Users,
   Utensils,
   WalletCards,
@@ -88,7 +91,8 @@ export const appNav = [
     items: [
       { title: "مركز التسويق", href: "/dashboard/marketing", icon: Megaphone },
       { title: "تقويم النشر", href: "/dashboard/marketing/calendar", icon: CalendarDays },
-      { title: "حسابات التواصل", href: "/dashboard/marketing/accounts", icon: Bell },
+      { title: "حسابات التواصل", href: "/dashboard/marketing/accounts", icon: Link2 },
+      { title: "سجلات النشر", href: "/dashboard/marketing/logs", icon: Activity },
     ],
   },
   {
@@ -111,6 +115,7 @@ export const appNav = [
 
 export const adminNav = [
   { title: "لوحة الأدمن", href: "/admin", icon: Shield },
+  { title: "طلبات التسجيل", href: "/admin/account-requests", icon: UserCheck },
   { title: "المؤسسات", href: "/admin/organizations", icon: Building2 },
   { title: "المستخدمون", href: "/admin/users", icon: Users },
   { title: "الخطط", href: "/admin/plans", icon: WalletCards },

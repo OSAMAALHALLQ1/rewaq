@@ -18,6 +18,7 @@ const statusMap: Record<string, { label: string; tone: StatusTone }> = {
   scheduled: { label: "مجدول", tone: "warning" },
   publishing: { label: "قيد النشر", tone: "default" },
   published: { label: "منشور", tone: "success" },
+  queued: { label: "في الطابور", tone: "default" },
   failed: { label: "فشل", tone: "danger" },
   pending: { label: "بانتظار", tone: "warning" },
   connected: { label: "مرتبط", tone: "success" },

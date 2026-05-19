@@ -14,9 +14,9 @@ import {
   Printer,
   QrCode,
   ReceiptText,
-  RotateCcw,
   Scissors,
   Search,
+  StickyNote,
   Smartphone,
   Trash2,
   UserRound,
@@ -35,6 +35,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Modal } from "@/components/ui/modal";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { createQrDataUrl } from "@/lib/qr-code";
@@ -62,6 +63,19 @@ type HeldInvoice = {
 };
 
 type SplitMode = "equal" | "items";
+type TerminalView = "fast" | "invoice" | "operations" | "all";
+type CashierModal =
+  | "held"
+  | "customer"
+  | "discount"
+  | "payment"
+  | "notes"
+  | "details"
+  | "inventory"
+  | "receipt"
+  | "split"
+  | "cancel"
+  | "item";
 
 type SalesLedgerEntry = {
   id: string;
@@ -118,15 +132,18 @@ export function CashierTerminal({
   const [cart, setCart] = useState<CartItem[]>([]);
   const [heldInvoices, setHeldInvoices] = useState<HeldInvoice[]>([]);
   const [query, setQuery] = useState("");
+  const [terminalView, setTerminalView] = useState<TerminalView>("fast");
+  const [activeModal, setActiveModal] = useState<CashierModal | null>(null);
+  const [selectedItem, setSelectedItem] = useState<CatalogItem | null>(null);
   const [barcodeValue, setBarcodeValue] = useState("");
   const [category, setCategory] = useState("الكل");
   const [invoiceDiscount, setInvoiceDiscount] = useState(0);
   const [taxRate, setTaxRate] = useState(0);
   const [serviceFee, setServiceFee] = useState(0);
   const [deliveryFee, setDeliveryFee] = useState(0);
+  const [paidAmount, setPaidAmount] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState("cash");
   const [documentType, setDocumentType] = useState("فاتورة بيع");
-  const [managerMode, setManagerMode] = useState(false);
   const [splitMode, setSplitMode] = useState<SplitMode>("equal");
   const [splitPeople, setSplitPeople] = useState(2);
   const [splitAssignments, setSplitAssignments] = useState<Record<string, number>>({});
@@ -141,6 +158,7 @@ export function CashierTerminal({
   const [committedDeductions, setCommittedDeductions] = useState<Record<string, number>>({});
   const [salesLedger, setSalesLedger] = useState<SalesLedgerEntry[]>([]);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+  const barcodeInputRef = useRef<HTMLInputElement>(null);
 
   const categories = useMemo(() => ["الكل", ...Array.from(new Set(catalogItems.map((item) => item.categoryName)))], [catalogItems]);
   const filteredItems = useMemo(() => {
@@ -153,12 +171,14 @@ export function CashierTerminal({
       return matchesQuery && matchesCategory;
     });
   }, [catalogItems, category, query]);
+  const quickMatches = useMemo(() => filteredItems.slice(0, 6), [filteredItems]);
 
   const subtotal = cart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
   const itemDiscountTotal = cart.reduce((sum, item) => sum + item.itemDiscount * item.quantity, 0);
   const taxableAmount = Math.max(subtotal - itemDiscountTotal - invoiceDiscount + serviceFee + deliveryFee, 0);
   const taxTotal = taxableAmount * (taxRate / 100);
   const total = taxableAmount + taxTotal;
+  const remainingAmount = Math.max(total - paidAmount, 0);
   const invoiceNumber = useMemo(() => {
     const stamp = new Date();
     return `فاتورة-${stamp.getFullYear()}${String(stamp.getMonth() + 1).padStart(2, "0")}-${String(stamp.getHours()).padStart(2, "0")}${String(stamp.getMinutes()).padStart(2, "0")}`;
@@ -169,7 +189,6 @@ export function CashierTerminal({
   const receiptQr = useMemo(() => createQrDataUrl(receiptUrl), [receiptUrl]);
   const selectedBranch = branches.find((branch) => branch.id === selectedBranchId) ?? branches[0];
   const paymentLabel = paymentOptions.find((option) => option.value === paymentMethod)?.label ?? "نقدي";
-  const canEditPrice = managerMode;
   const inventoryImpact = useMemo(
     () =>
       calculateSalesInventoryImpact({
@@ -263,6 +282,22 @@ export function CashierTerminal({
     });
   }, [cart, itemDiscountTotal, splitAssignments, splitMode, splitPeople, subtotal, total]);
 
+  function normalizeScannedCode(value: string) {
+    const arabicDigits = "٠١٢٣٤٥٦٧٨٩";
+    const easternArabicDigits = "۰۱۲۳۴۵۶۷۸۹";
+    return value
+      .trim()
+      .replace(/[٠-٩]/g, (digit) => String(arabicDigits.indexOf(digit)))
+      .replace(/[۰-۹]/g, (digit) => String(easternArabicDigits.indexOf(digit)))
+      .replace(/\s+/g, "")
+      .toUpperCase();
+  }
+
+  function itemMatchesScannedCode(item: CatalogItem, scannedCode: string) {
+    const codes = [item.code, ...item.barcodes, ...item.units.map((unit) => unit.barcode)].filter((code): code is string => Boolean(code));
+    return codes.some((code) => normalizeScannedCode(code) === scannedCode);
+  }
+
   function addCatalogItem(item: CatalogItem, barcode = item.barcodes[0] ?? "") {
     setCart((current) => {
       const existing = current.find((cartItem) => cartItem.id === item.id && cartItem.unit === item.mainUnit);
@@ -288,17 +323,19 @@ export function CashierTerminal({
     });
   }
 
-  function scanBarcode() {
-    const normalized = barcodeValue.trim();
+  function scanBarcode(value = barcodeValue) {
+    const normalized = normalizeScannedCode(value);
     if (!normalized) return;
-    const found = catalogItems.find((item) => item.barcodes.includes(normalized) || item.units.some((unit) => unit.barcode === normalized));
+    const found = catalogItems.find((item) => itemMatchesScannedCode(item, normalized));
     if (!found) {
-      setNotice("لم يتم العثور على صنف بهذا الباركود");
+      setNotice(`لم يتم العثور على صنف بهذا الكود: ${normalized}`);
+      barcodeInputRef.current?.select();
       return;
     }
     addCatalogItem(found, normalized);
     setBarcodeValue("");
     setNotice(`تمت إضافة ${found.name} إلى الفاتورة`);
+    barcodeInputRef.current?.focus();
   }
 
   function openPhoneCamera() {
@@ -324,12 +361,12 @@ export function CashierTerminal({
         formats: ["ean_13", "ean_8", "code_128", "code_39", "qr_code", "upc_a", "upc_e"],
       });
       const results = await detector.detect(bitmap);
-      const rawValue = results[0]?.rawValue?.trim();
+      const rawValue = normalizeScannedCode(results[0]?.rawValue ?? "");
       if (!rawValue) {
         setNotice("لم يتم العثور على باركود واضح في الصورة.");
         return;
       }
-      const found = catalogItems.find((item) => item.barcodes.includes(rawValue) || item.units.some((unit) => unit.barcode === rawValue));
+      const found = catalogItems.find((item) => itemMatchesScannedCode(item, rawValue));
       if (!found) {
         setNotice(`تمت قراءة الباركود ${rawValue} لكنه غير مربوط بأي صنف.`);
         return;
@@ -347,10 +384,6 @@ export function CashierTerminal({
       return;
     }
     setCart((current) => current.map((item) => (item.id === id ? { ...item, quantity } : item)));
-  }
-
-  function updateLine(id: string, changes: Partial<Pick<CartItem, "unitPrice" | "itemDiscount" | "unit">>) {
-    setCart((current) => current.map((item) => (item.id === id ? { ...item, ...changes } : item)));
   }
 
   function suspendInvoice() {
@@ -383,17 +416,13 @@ export function CashierTerminal({
     setNotice("تم إلغاء الفاتورة الحالية");
   }
 
-  function makeReturn() {
-    setDocumentType("مرتجع بيع");
-    setNotice("تم تحويل العملية إلى مرتجع بيع");
-  }
-
-  function closeShift() {
-    setNotice("تم تجهيز تقرير إغلاق الوردية للمراجعة");
-  }
-
   function printInvoice() {
     window.print();
+  }
+
+  function updateInvoiceTemplateOptions(options: InvoiceTemplateOptions) {
+    setInvoiceTemplateOptions(options);
+    setDigitalReceipt(options.qrMode !== "none");
   }
 
   function issueAndDeductInventory() {
@@ -434,372 +463,421 @@ export function CashierTerminal({
   }
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_500px]">
-      <section className="space-y-4 print:hidden">
-        <Card>
-          <CardContent className="space-y-3 p-4">
-            <div className="grid gap-3 lg:grid-cols-[1fr_1fr_180px]">
-              <div className="relative">
-                <Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input className="ps-9" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="بحث بالصنف أو الكود" />
-              </div>
-              <div className="relative">
-                <Barcode className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  className="ps-9"
-                  value={barcodeValue}
-                  onChange={(event) => setBarcodeValue(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") scanBarcode();
-                  }}
-                  placeholder="مسح باركود"
-                />
-              </div>
-              <Button type="button" variant="outline" onClick={scanBarcode}>
-                <Barcode className="h-4 w-4" />
-                إدخال الباركود
-              </Button>
+    <div className="space-y-4">
+      <Card className="print:hidden">
+        <CardContent className="p-4">
+          <div className="grid gap-3 lg:grid-cols-[1fr_220px_220px] lg:items-center">
+            <div>
+              <h2 className="text-xl font-black">كاشير سريع</h2>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                {shift.cashierName} · شاشة واحدة للبيع: ابحث، أضف، عدل الكمية، ادفع. أي شيء ثانوي خلف زر واضح.
+              </p>
             </div>
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-teal-50 p-3">
-              <div>
-                <p className="font-bold text-teal-950">الجوال ماسح باركود</p>
-                <p className="text-sm text-teal-800">استخدم كاميرا الجوال لإضافة الصنف بدون جهاز ماسح منفصل.</p>
-              </div>
-              <Button type="button" onClick={openPhoneCamera}>
-                <Smartphone className="h-4 w-4" />
-                مسح من كاميرا الجوال
-              </Button>
-              <input
-                ref={cameraInputRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="hidden"
-                onChange={(event) => {
-                  void scanFromPhoneCamera(event.target.files?.[0]);
-                  event.currentTarget.value = "";
-                }}
-              />
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              {categories.map((label) => (
-                <Button key={label} variant={category === label ? "default" : "outline"} size="sm" onClick={() => setCategory(label)}>
-                  {label}
+            <Select value={selectedBranchId} onChange={(event) => setSelectedBranchId(event.target.value)} aria-label="اختيار الفرع">
+              {branches.map((branch) => (
+                <option key={branch.id} value={branch.id}>{branch.name}</option>
+              ))}
+            </Select>
+            <div className="grid grid-cols-3 gap-2">
+              {(["fast", "invoice", "operations"] as TerminalView[]).map((mode) => (
+                <Button key={mode} type="button" size="sm" variant={terminalView === mode ? "default" : "outline"} onClick={() => setTerminalView(mode)}>
+                  {mode === "fast" ? "بيع" : mode === "invoice" ? "طاولات" : "إدارة"}
                 </Button>
               ))}
             </div>
-            <p className="text-xs text-muted-foreground">الأصناف مرتبطة بقائمة الطعام وعدد أطباق المنيو الجاهزة للبيع {formatNumber(menuItems.length)}</p>
-          </CardContent>
-        </Card>
+          </div>
+        </CardContent>
+      </Card>
 
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {filteredItems.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => addCatalogItem(item)}
-              className="focus-ring rounded-lg border bg-white p-4 text-start shadow-sm transition hover:border-primary hover:bg-teal-50"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-xs text-muted-foreground">كود {item.code}</p>
-                  <h3 className="mt-1 font-bold">{item.name}</h3>
-                  <p className="mt-1 text-xs text-muted-foreground">{item.categoryName} · {item.mainUnit}</p>
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_430px]">
+        <section className="space-y-4 print:hidden">
+          <Card>
+            <CardContent className="space-y-3 p-3 sm:p-4">
+              <div className="grid gap-2 sm:grid-cols-[1fr_auto] lg:grid-cols-[minmax(0,1fr)_220px_160px]">
+                <div className="relative">
+                  <Search className="absolute start-3 top-1/2 h-5 w-5 -translate-y-1/2 text-primary" />
+                  <Input
+                    className="h-11 sm:h-12 border-blue-100 bg-blue-50/60 ps-10 text-base font-semibold"
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    placeholder="ابحث..."
+                  />
                 </div>
-                <Badge tone={item.isActive ? "success" : "muted"}>{item.isActive ? "نشط" : "متوقف"}</Badge>
-              </div>
-              <div className="mt-5 flex items-center justify-between">
-                <span className="text-2xl font-black text-primary">{formatCurrency(item.retailPrice)}</span>
-                <span className="grid h-9 w-9 place-items-center rounded-lg bg-primary text-white">
-                  <Plus className="h-4 w-4" />
-                </span>
-              </div>
-              <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-                <span>المخزون {formatNumber(item.stockQuantity)}</span>
-                <span>{item.barcodes[0]}</span>
-              </div>
-            </button>
-          ))}
-        </div>
-      </section>
-
-      <aside className="space-y-4 print:hidden">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <ReceiptText className="h-5 w-5 text-primary" />
-              شاشة بيع سريعة
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="rounded-lg border bg-teal-50 px-3 py-2 text-sm text-teal-900">{notice}</div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="grid gap-2">
-                <Label>نوع المستند</Label>
-                <Select value={documentType} onChange={(event) => setDocumentType(event.target.value)}>
-                  {documentTypes.map((type) => (
-                    <option key={type}>{type}</option>
-                  ))}
-                </Select>
-              </div>
-              <div className="grid gap-2">
-                <Label>الفرع</Label>
-                <Select value={selectedBranchId} onChange={(event) => setSelectedBranchId(event.target.value)}>
-                  {branches.map((branch) => (
-                    <option key={branch.id} value={branch.id}>
-                      {branch.name}
-                    </option>
-                  ))}
-                </Select>
-              </div>
-            </div>
-
-            <div className="grid gap-3 rounded-lg border bg-slate-50 p-3">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 font-bold">
-                  <UserRound className="h-4 w-4 text-primary" />
-                  عميل/مورد
+                <div className="flex gap-2">
+                  <div className="relative flex-1 sm:flex-none sm:w-40">
+                    <Barcode className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      ref={barcodeInputRef}
+                      className="h-11 sm:h-12 ps-9"
+                      value={barcodeValue}
+                      onChange={(event) => setBarcodeValue(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") scanBarcode();
+                      }}
+                      placeholder="باركود"
+                    />
+                  </div>
+                  <Button className="h-11 sm:h-12" type="button" variant="outline" onClick={openPhoneCamera}>
+                    <Smartphone className="h-4 w-4 sm:hidden" />
+                    <span className="hidden sm:inline"><Smartphone className="h-4 w-4" /> كاميرا</span>
+                  </Button>
                 </div>
-                <Button type="button" variant={managerMode ? "default" : "outline"} size="sm" onClick={() => setManagerMode((value) => !value)}>
-                  صلاحية تعديل السعر
+                <input
+                  ref={cameraInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={(event) => {
+                    void scanFromPhoneCamera(event.target.files?.[0]);
+                    event.currentTarget.value = "";
+                  }}
+                />
+              </div>
+
+              {query ? (
+                <div className="grid gap-2 rounded-lg border border-blue-100 bg-white p-3 md:grid-cols-2 xl:grid-cols-3">
+                  {quickMatches.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => addCatalogItem(item)}
+                      className="flex items-center justify-between rounded-lg border bg-slate-50 px-3 py-2 text-start text-sm transition hover:border-primary hover:bg-blue-50"
+                    >
+                      <span>
+                        <span className="block font-semibold">{item.name}</span>
+                        <span className="text-xs text-muted-foreground">{item.code}</span>
+                      </span>
+                      <span className="font-bold text-primary">{formatCurrency(item.retailPrice)}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {categories.map((label) => (
+                  <Button key={label} className="shrink-0" variant={category === label ? "default" : "outline"} size="sm" onClick={() => setCategory(label)}>
+                    {label}
+                  </Button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
+            {filteredItems.map((item) => (
+              <div key={item.id} className="rounded-lg border bg-white p-3 sm:p-4 shadow-sm transition hover:border-primary hover:bg-blue-50">
+                <button type="button" className="w-full text-start" onClick={() => addCatalogItem(item)}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-xs text-muted-foreground truncate">كود {item.code}</p>
+                      <h3 className="mt-0.5 font-bold text-sm sm:text-base truncate">{item.name}</h3>
+                      <p className="mt-1 text-xs text-muted-foreground hidden sm:block">{item.categoryName} · مخزون {formatNumber(item.stockQuantity)}</p>
+                    </div>
+                    <Badge className="shrink-0" tone={item.isActive ? "success" : "muted"}>{item.isActive ? "متاح" : "متوقف"}</Badge>
+                  </div>
+                  <div className="mt-3 sm:mt-5 flex items-center justify-between">
+                    <span className="text-xl sm:text-2xl font-black text-primary">{formatCurrency(item.retailPrice)}</span>
+                    <span className="grid h-8 w-8 sm:h-9 sm:w-9 place-items-center rounded-lg bg-primary text-white"><Plus className="h-4 w-4" /></span>
+                  </div>
+                </button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="mt-1 sm:mt-2 w-full text-xs"
+                  onClick={() => {
+                    setSelectedItem(item);
+                    setActiveModal("item");
+                  }}
+                >
+                  تفاصيل
                 </Button>
               </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="grid gap-2">
-                  <Label>الاسم</Label>
-                  <Input value={customerName} onChange={(event) => setCustomerName(event.target.value)} />
-                </div>
-                <div className="grid gap-2">
-                  <Label>الهاتف</Label>
-                  <Input value={customerPhone} onChange={(event) => setCustomerPhone(event.target.value)} placeholder="اختياري" />
-                </div>
+            ))}
+          </div>
+        </section>
+
+        <aside className="space-y-4 print:hidden">
+          <Card className="sticky top-20">
+            <CardHeader className="p-3 sm:p-4">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <ReceiptText className="h-5 w-5 text-primary" />
+                <span className="hidden sm:inline">الطلب الحالي</span>
+                <span className="sm:hidden">السلة</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 p-3 sm:p-4">
+              <div className="rounded-lg border bg-blue-50 px-2 py-2 text-xs sm:text-sm text-blue-900">{notice}</div>
+
+              <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
+                <Button className="text-xs py-1.5 sm:py-2" type="button" variant="outline" size="sm" onClick={() => setActiveModal("customer")}><UserRound className="h-3 w-3 sm:h-4 sm:w-4" /><span className="hidden sm:inline">{customerName || "عميل"}</span><span className="sm:hidden">عميل</span></Button>
+                <Button className="text-xs py-1.5 sm:py-2" type="button" variant="outline" size="sm" onClick={() => setActiveModal("held")}><PauseCircle className="h-3 w-3 sm:h-4 sm:w-4" />معلقات</Button>
+                <Button className="text-xs py-1.5 sm:py-2" type="button" variant="outline" size="sm" onClick={() => setActiveModal("discount")}><BadgePercent className="h-3 w-3 sm:h-4 sm:w-4" />خصم</Button>
+                <Button className="text-xs py-1.5 sm:py-2" type="button" variant="outline" size="sm" onClick={() => setActiveModal("notes")}><StickyNote className="h-3 w-3 sm:h-4 sm:w-4" />ملاحظات</Button>
               </div>
-              <div className="grid gap-2">
-                <Label>الرقم الضريبي</Label>
-                <Input value={customerTaxNumber} onChange={(event) => setCustomerTaxNumber(event.target.value)} placeholder="اختياري" />
-              </div>
-            </div>
 
-            <div className="rounded-lg border">
-              {cart.length === 0 ? (
-                <div className="p-8 text-center text-sm text-muted-foreground">امسح باركود أو اختر صنفًا لبدء الفاتورة.</div>
-              ) : (
-                <div className="divide-y">
-                  {cart.map((item) => {
-                    const source = catalogItems.find((catalogItem) => catalogItem.id === item.id);
-                    return (
-                      <div key={item.id} className="space-y-3 p-3">
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="font-semibold">{item.name}</p>
-                            <p className="text-xs text-muted-foreground">كود {item.code} · باركود {item.barcode}</p>
+              <div className="rounded-lg border">
+                {cart.length === 0 ? (
+                  <div className="p-4 sm:p-8 text-center text-xs sm:text-sm text-muted-foreground">أضف صنفًا لبدء الطلب.</div>
+                ) : (
+                  <div className="max-h-[35vh] sm:max-h-[42vh] divide-y overflow-y-auto">
+                    {cart.map((item) => (
+                      <div key={item.id} className="space-y-2 p-2 sm:p-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="font-semibold text-sm truncate">{item.name}</p>
+                            <p className="text-xs text-muted-foreground hidden sm:block">{formatCurrency(item.unitPrice)} · خصم {formatCurrency(item.itemDiscount)}</p>
                           </div>
-                          <Button variant="ghost" size="icon" onClick={() => updateQuantity(item.id, 0)} aria-label="حذف الصنف">
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 sm:h-8 sm:w-8" onClick={() => updateQuantity(item.id, 0)} aria-label="حذف"><Trash2 className="h-3 w-3 sm:h-4 sm:w-4 text-destructive" /></Button>
                         </div>
-
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="grid gap-1">
-                            <Label>الوحدة</Label>
-                            <Select value={item.unit} onChange={(event) => updateLine(item.id, { unit: event.target.value })}>
-                              {(source?.units ?? [{ name: item.unit, factor: 1 }]).map((unit) => (
-                                <option key={unit.name}>{unit.name}</option>
-                              ))}
-                            </Select>
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-1">
+                            <Button variant="outline" size="icon" className="h-7 w-7 sm:h-8 sm:w-8" onClick={() => updateQuantity(item.id, item.quantity - 1)} aria-label="إنقاص"><Minus className="h-3 w-3 sm:h-4 sm:w-4" /></Button>
+                            <Input className="w-12 sm:w-16 text-center font-bold text-sm py-1" type="number" min="1" value={item.quantity} onChange={(event) => updateQuantity(item.id, Number(event.target.value))} />
+                            <Button variant="outline" size="icon" className="h-7 w-7 sm:h-8 sm:w-8" onClick={() => updateQuantity(item.id, item.quantity + 1)} aria-label="زيادة"><Plus className="h-3 w-3 sm:h-4 sm:w-4" /></Button>
                           </div>
-                          <div className="grid gap-1">
-                            <Label>السعر</Label>
-                            <Input
-                              type="number"
-                              value={item.unitPrice}
-                              disabled={!canEditPrice}
-                              min="0"
-                              onChange={(event) => updateLine(item.id, { unitPrice: Number(event.target.value) })}
-                            />
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-[1fr_120px] gap-3">
-                          <div className="flex items-center gap-2">
-                            <Button variant="outline" size="icon" onClick={() => updateQuantity(item.id, item.quantity - 1)} aria-label="إنقاص">
-                              <Minus className="h-4 w-4" />
-                            </Button>
-                            <Input
-                              className="w-20 text-center font-bold"
-                              type="number"
-                              min="1"
-                              value={item.quantity}
-                              onChange={(event) => updateQuantity(item.id, Number(event.target.value))}
-                            />
-                            <Button variant="outline" size="icon" onClick={() => updateQuantity(item.id, item.quantity + 1)} aria-label="زيادة">
-                              <Plus className="h-4 w-4" />
-                            </Button>
-                          </div>
-                          <div className="grid gap-1">
-                            <Label>خصم الصنف</Label>
-                            <Input
-                              type="number"
-                              min="0"
-                              value={item.itemDiscount}
-                              onChange={(event) => updateLine(item.id, { itemDiscount: Number(event.target.value) })}
-                            />
-                          </div>
-                        </div>
-                        <div className="flex justify-between rounded-lg bg-slate-50 px-3 py-2 font-bold">
-                          <span>صافي السطر</span>
-                          <span>{formatCurrency(Math.max((item.unitPrice - item.itemDiscount) * item.quantity, 0))}</span>
+                          <span className="font-black text-sm sm:text-base text-primary">{formatCurrency(Math.max((item.unitPrice - item.itemDiscount) * item.quantity, 0))}</span>
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+                    ))}
+                  </div>
+                )}
+              </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="grid gap-2">
-                <Label>خصم الفاتورة</Label>
-                <Input type="number" value={invoiceDiscount} onChange={(event) => setInvoiceDiscount(Number(event.target.value))} min="0" />
-              </div>
-              <div className="grid gap-2">
-                <Label>الضريبة</Label>
-                <Select value={String(taxRate)} onChange={(event) => setTaxRate(Number(event.target.value))}>
-                  {taxRates.map((rate) => (
-                    <option key={rate.value} value={rate.value}>
-                      {rate.label}
-                    </option>
-                  ))}
-                </Select>
-              </div>
-              <div className="grid gap-2">
-                <Label>خدمة</Label>
-                <Input type="number" value={serviceFee} onChange={(event) => setServiceFee(Number(event.target.value))} min="0" />
-              </div>
-              <div className="grid gap-2">
-                <Label>رسوم توصيل</Label>
-                <Input type="number" value={deliveryFee} onChange={(event) => setDeliveryFee(Number(event.target.value))} min="0" />
-              </div>
-            </div>
+              <TotalsBox subtotal={subtotal} itemDiscountTotal={itemDiscountTotal} invoiceDiscount={invoiceDiscount} serviceFee={serviceFee} deliveryFee={deliveryFee} taxTotal={taxTotal} total={total} />
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="grid gap-2">
-                <Label>طريقة الدفع</Label>
-                <Select value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)}>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  className="col-span-2 h-12 text-base"
+                  type="button"
+                  onClick={() => {
+                    setPaidAmount(Math.round(total));
+                    setActiveModal("payment");
+                  }}
+                  disabled={cart.length === 0}
+                >
+                  <Banknote className="h-4 w-4" />
+                  الدفع
+                </Button>
+                <Button type="button" variant="outline" onClick={suspendInvoice} disabled={cart.length === 0}><PauseCircle className="h-4 w-4" />تعليق</Button>
+                <Button type="button" variant="outline" onClick={() => setActiveModal("cancel")} disabled={cart.length === 0}><XCircle className="h-4 w-4" />إلغاء</Button>
+                <Button type="button" variant="outline" onClick={() => setActiveModal("inventory")}><Boxes className="h-4 w-4" />المخزون</Button>
+                <Button type="button" variant="outline" onClick={() => setActiveModal("details")}><ReceiptText className="h-4 w-4" />تفاصيل</Button>
+              </div>
+            </CardContent>
+          </Card>
+        </aside>
+      </div>
+
+      <Modal open={activeModal === "held"} title="الطلبات المعلقة" description="استرجع طلبًا بسرعة." onClose={() => setActiveModal(null)}>
+        <HeldInvoices invoices={heldInvoices} onRestore={(invoice) => { restoreInvoice(invoice); setActiveModal(null); }} />
+      </Modal>
+
+      <Modal open={activeModal === "customer"} title="اختيار العميل" description="اختياري، اتركه عميل نقدي عند البيع السريع." onClose={() => setActiveModal(null)}>
+        <div className="space-y-4">
+          <div className="relative"><Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-primary" /><Input className="ps-9" placeholder="بحث بالاسم أو رقم الهاتف" /></div>
+          {[["أحمد محمد", "059xxxxxxx"], ["شركة النور", "056xxxxxxx"], ["عميل نقدي", ""]].map(([name, phone]) => (
+            <div key={name} className="flex items-center justify-between rounded-lg border p-3">
+              <div><p className="font-semibold">{name}</p><p className="text-sm text-muted-foreground">{phone || "بدون رقم"}</p></div>
+              <Button type="button" size="sm" onClick={() => { setCustomerName(name); setCustomerPhone(phone); setActiveModal(null); }}>اختيار</Button>
+            </div>
+          ))}
+          <div className="grid gap-3 rounded-lg border bg-slate-50 p-3 sm:grid-cols-2">
+            <div className="grid gap-2"><Label>اسم عميل جديد</Label><Input value={customerName} onChange={(event) => setCustomerName(event.target.value)} /></div>
+            <div className="grid gap-2"><Label>رقم الهاتف</Label><Input value={customerPhone} onChange={(event) => setCustomerPhone(event.target.value)} /></div>
+            <div className="grid gap-2 sm:col-span-2">
+              <Label>الرقم الضريبي</Label>
+              <Input value={customerTaxNumber} onChange={(event) => setCustomerTaxNumber(event.target.value)} placeholder="اختياري للفواتير الضريبية" />
+            </div>
+            <Button className="sm:col-span-2" type="button" onClick={() => setActiveModal(null)}>حفظ</Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={activeModal === "discount"} title="تطبيق خصم" onClose={() => setActiveModal(null)}>
+        <div className="space-y-4">
+          <div className="grid gap-2"><Label>خصم الفاتورة</Label><Input type="number" min="0" value={invoiceDiscount} onChange={(event) => setInvoiceDiscount(Number(event.target.value))} /></div>
+          <div className="grid gap-2"><Label>خصم سريع للصنف المحدد</Label><Input type="number" min="0" placeholder="اختياري" disabled /></div>
+          <div className="grid gap-2"><Label>سبب الخصم</Label><Textarea placeholder="اختياري" /></div>
+          <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setActiveModal(null)}>إلغاء</Button><Button type="button" onClick={() => setActiveModal(null)}>تطبيق</Button></div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={activeModal === "payment"}
+        title="الدفع ومراجعة الفاتورة"
+        description="راجع بيانات الفاتورة وشكل الطباعة قبل الإغلاق."
+        onClose={() => setActiveModal(null)}
+        className="sm:max-w-6xl"
+      >
+        <div className="grid max-h-[78vh] gap-4 overflow-y-auto lg:grid-cols-[minmax(0,1fr)_420px]">
+          <div className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">بيانات الدفع والعميل</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                   {paymentOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
+                    <Button key={option.value} type="button" variant={paymentMethod === option.value ? "default" : "outline"} onClick={() => setPaymentMethod(option.value)}>
                       {option.label}
-                    </option>
+                    </Button>
                   ))}
-                </Select>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="grid gap-2">
+                    <Label>اسم العميل</Label>
+                    <Input value={customerName} onChange={(event) => setCustomerName(event.target.value)} />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>رقم الهاتف</Label>
+                    <Input value={customerPhone} onChange={(event) => setCustomerPhone(event.target.value)} placeholder="اختياري" />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>الرقم الضريبي</Label>
+                    <Input value={customerTaxNumber} onChange={(event) => setCustomerTaxNumber(event.target.value)} placeholder="اختياري" />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>نوع المستند</Label>
+                    <Select value={documentType} onChange={(event) => setDocumentType(event.target.value)}>
+                      {documentTypes.map((type) => (
+                        <option key={type}>{type}</option>
+                      ))}
+                    </Select>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>الضريبة</Label>
+                    <Select value={String(taxRate)} onChange={(event) => setTaxRate(Number(event.target.value))}>
+                      {taxRates.map((rate) => (
+                        <option key={rate.value} value={rate.value}>{rate.label}</option>
+                      ))}
+                    </Select>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>المبلغ المدفوع</Label>
+                    <Input type="number" min="0" value={paidAmount} onChange={(event) => setPaidAmount(Number(event.target.value))} />
+                  </div>
+                </div>
+
+                <div className="grid gap-3 rounded-lg border bg-slate-50 p-3 sm:grid-cols-3">
+                  <div>
+                    <p className="text-xs text-muted-foreground">الإجمالي</p>
+                    <p className="text-lg font-black">{formatCurrency(total)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">المدفوع</p>
+                    <p className="text-lg font-black text-primary">{formatCurrency(paidAmount)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">المتبقي</p>
+                    <p className="text-lg font-black">{formatCurrency(remainingAmount)}</p>
+                  </div>
+                </div>
+
+                <label className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-blue-100 bg-blue-50 p-3 text-sm font-semibold">
+                  <span className="flex items-center gap-2">
+                    <QrCode className="h-4 w-4 text-primary" />
+                    تفعيل الفاتورة الرقمية وإظهار QR على الفاتورة
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={digitalReceipt}
+                    onChange={(event) => {
+                      const enabled = event.target.checked;
+                      setDigitalReceipt(enabled);
+                      updateInvoiceTemplateOptions({ ...invoiceTemplateOptions, qrMode: enabled ? "invoice" : "none" });
+                    }}
+                    className="h-5 w-5 accent-blue-700"
+                  />
+                </label>
+
+                {digitalReceipt ? (
+                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3 text-sm">
+                    <span className="min-w-0 truncate" dir="ltr">{receiptUrl}</span>
+                    <Button asChild size="sm" variant="outline">
+                      <a href={receiptUrl} target="_blank" rel="noreferrer">فتح الفاتورة الرقمية</a>
+                    </Button>
+                  </div>
+                ) : null}
+              </CardContent>
+            </Card>
+
+            <InvoiceTemplateCustomizer options={invoiceTemplateOptions} onChange={updateInvoiceTemplateOptions} />
+          </div>
+
+          <aside className="space-y-3">
+            <div className="rounded-lg border bg-slate-50 p-3">
+              <div className="mb-3 flex items-center justify-between">
+                <div>
+                  <p className="font-bold">معاينة الطباعة</p>
+                  <p className="text-xs text-muted-foreground">هذا هو الشكل الذي سيخرج للطابعة.</p>
+                </div>
+                <Badge tone="default">{invoiceTemplateOptions.paperWidth}mm</Badge>
               </div>
-              <div className="grid gap-2">
-                <Label>الحالة</Label>
-                <Select defaultValue="مدفوعة">
-                  <option>مدفوعة</option>
-                  <option>غير مدفوعة</option>
-                  <option>جزئية</option>
-                </Select>
+              <div className="max-h-[58vh] overflow-auto rounded-lg bg-white p-3">
+                <InvoiceTemplateRenderer data={printableInvoice} options={invoiceTemplateOptions} />
               </div>
             </div>
-
-            <Textarea value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="ملاحظات" />
-
-            <TotalsBox
-              subtotal={subtotal}
-              itemDiscountTotal={itemDiscountTotal}
-              invoiceDiscount={invoiceDiscount}
-              serviceFee={serviceFee}
-              deliveryFee={deliveryFee}
-              taxTotal={taxTotal}
-              total={total}
-            />
-
-            <SalesInventoryImpactPanel
-              impact={inventoryImpact}
-              salesLedger={salesLedger}
-              onIssue={issueAndDeductInventory}
-              canIssue={cart.length > 0}
-            />
-
-            <DigitalReceiptPanel
-              receiptUrl={receiptUrl}
-              customerName={customerName}
-              organizationName={organization.name}
-              total={total}
-              enabled={digitalReceipt}
-              onToggle={setDigitalReceipt}
-            />
-
-            <InvoiceTemplateCustomizer options={invoiceTemplateOptions} onChange={setInvoiceTemplateOptions} />
-
-            <SplitBillPanel
-              cart={cart}
-              splitMode={splitMode}
-              splitPeople={splitPeople}
-              splitAssignments={splitAssignments}
-              splitBills={splitBills}
-              onModeChange={setSplitMode}
-              onPeopleChange={setSplitPeople}
-              onAssignItem={(itemId, personNumber) =>
-                setSplitAssignments((current) => ({
-                  ...current,
-                  [itemId]: personNumber,
-                }))
-              }
-              onPrint={printSplitBill}
-            />
-
             <div className="grid grid-cols-2 gap-2">
-              <Button className="col-span-2" onClick={printInvoice} disabled={cart.length === 0}>
+              <Button type="button" variant="outline" onClick={() => setActiveModal(null)}>رجوع</Button>
+              <Button
+                type="button"
+                onClick={() => {
+                  printInvoice();
+                  setActiveModal(null);
+                }}
+              >
                 <Printer className="h-4 w-4" />
-                طباعة فاتورة
-              </Button>
-              <Button className="col-span-2" type="button" variant="secondary" onClick={issueAndDeductInventory} disabled={cart.length === 0}>
-                <Boxes className="h-4 w-4" />
-                إصدار وخصم المخزون
-              </Button>
-              <Button type="button" variant="outline" onClick={suspendInvoice} disabled={cart.length === 0}>
-                <PauseCircle className="h-4 w-4" />
-                تعليق
-              </Button>
-              <Button type="button" variant="outline" onClick={makeReturn}>
-                <RotateCcw className="h-4 w-4" />
-                مرتجع
-              </Button>
-              <Button type="button" variant="outline" onClick={cancelInvoice}>
-                <XCircle className="h-4 w-4" />
-                إلغاء
-              </Button>
-              <Button type="button" variant="outline" onClick={closeShift}>
-                <BadgePercent className="h-4 w-4" />
-                إغلاق وردية
+                تأكيد وطباعة
               </Button>
             </div>
-          </CardContent>
-        </Card>
+          </aside>
+        </div>
+      </Modal>
 
-        <HeldInvoices invoices={heldInvoices} onRestore={restoreInvoice} />
-        <ShiftSummary shift={shift} />
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">معاينة القالب المختار</CardTitle>
-          </CardHeader>
-          <CardContent className="overflow-x-auto bg-slate-100 p-4">
-            <InvoiceTemplateRenderer data={printableInvoice} options={invoiceTemplateOptions} />
-          </CardContent>
-        </Card>
-      </aside>
+      <Modal open={activeModal === "notes"} title="ملاحظات الطلب" onClose={() => setActiveModal(null)}>
+        <div className="space-y-4">
+          <div className="grid gap-2"><Label>ملاحظة للمطبخ</Label><Textarea placeholder="مثال: بدون صوص" /></div>
+          <div className="grid gap-2"><Label>ملاحظة تظهر في الفاتورة</Label><Textarea value={notes} onChange={(event) => setNotes(event.target.value)} /></div>
+          <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setActiveModal(null)}>إلغاء</Button><Button type="button" onClick={() => setActiveModal(null)}>حفظ</Button></div>
+        </div>
+      </Modal>
 
-      <div className="hidden print:block">
+      <Modal open={activeModal === "inventory"} title="أثر المخزون" onClose={() => setActiveModal(null)} className="sm:max-w-3xl">
+        <SalesInventoryImpactPanel impact={inventoryImpact} salesLedger={salesLedger} onIssue={issueAndDeductInventory} canIssue={cart.length > 0} />
+      </Modal>
+
+      <Modal open={activeModal === "details"} title="تفاصيل إضافية" onClose={() => setActiveModal(null)} className="sm:max-w-4xl">
+        <div className="grid gap-4 lg:grid-cols-2">
+          <DigitalReceiptPanel receiptUrl={receiptUrl} customerName={customerName} organizationName={organization.name} total={total} enabled={digitalReceipt} onToggle={setDigitalReceipt} />
+          <InvoiceTemplateCustomizer options={invoiceTemplateOptions} onChange={updateInvoiceTemplateOptions} />
+          <div className="lg:col-span-2"><SplitBillPanel cart={cart} splitMode={splitMode} splitPeople={splitPeople} splitAssignments={splitAssignments} splitBills={splitBills} onModeChange={setSplitMode} onPeopleChange={setSplitPeople} onAssignItem={(itemId, personNumber) => setSplitAssignments((current) => ({ ...current, [itemId]: personNumber }))} onPrint={printSplitBill} /></div>
+        </div>
+      </Modal>
+
+      <Modal open={activeModal === "cancel"} title="تأكيد إلغاء الطلب" description="هذا الإجراء يمسح السلة الحالية." onClose={() => setActiveModal(null)}>
+        <div className="space-y-4"><div className="rounded-lg border bg-red-50 p-4 text-sm leading-6 text-red-700">هل تريد إلغاء الطلب الحالي؟</div><div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setActiveModal(null)}>رجوع</Button><Button type="button" variant="destructive" onClick={() => { cancelInvoice(); setActiveModal(null); }}>إلغاء الطلب</Button></div></div>
+      </Modal>
+
+      <Modal open={activeModal === "item" && Boolean(selectedItem)} title="تفاصيل الصنف" onClose={() => setActiveModal(null)}>
+        {selectedItem ? (
+          <div className="space-y-4">
+            <div className="flex gap-4 rounded-lg border bg-slate-50 p-4"><div className="grid h-20 w-20 place-items-center rounded-lg bg-white text-3xl">🍽</div><div><h3 className="text-lg font-bold">{selectedItem.name}</h3><p className="mt-1 text-sm text-muted-foreground">المتاح {formatNumber(selectedItem.stockQuantity)} · {selectedItem.categoryName}</p><p className="mt-2 text-2xl font-black text-primary">{formatCurrency(selectedItem.retailPrice)}</p></div></div>
+            <div><p className="mb-2 text-sm font-bold">الإضافات</p><div className="flex flex-wrap gap-2">{["جبنة", "صوص", "حجم كبير", "بدون بصل"].map((addon) => (<Button key={addon} type="button" variant="outline" size="sm">{addon}</Button>))}</div></div>
+            <Textarea placeholder="ملاحظة للصنف فقط" />
+            <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setActiveModal(null)}>إلغاء</Button><Button type="button" onClick={() => { addCatalogItem(selectedItem); setActiveModal(null); }}>إضافة للسلة</Button></div>
+          </div>
+        ) : null}
+      </Modal>
+
+      <div className="invoice-print-root hidden print:block">
         <InvoiceTemplateRenderer data={printableInvoice} options={invoiceTemplateOptions} />
       </div>
     </div>
   );
 }
-
 function InvoiceTemplateCustomizer({
   options,
   onChange,
@@ -1311,42 +1389,6 @@ function HeldInvoices({ invoices, onRestore }: { invoices: HeldInvoice[]; onRest
             </div>
           ))
         )}
-      </CardContent>
-    </Card>
-  );
-}
-
-function ShiftSummary({ shift }: { shift: SalesShift }) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">ملخص الوردية</CardTitle>
-      </CardHeader>
-      <CardContent className="grid grid-cols-2 gap-3 text-sm">
-        <div className="rounded-lg bg-slate-50 p-3">
-          <p className="text-muted-foreground">الكاشير</p>
-          <p className="font-bold">{shift.cashierName}</p>
-        </div>
-        <div className="rounded-lg bg-slate-50 p-3">
-          <p className="text-muted-foreground">رصيد افتتاحي</p>
-          <p className="font-bold">{formatCurrency(shift.openingCash)}</p>
-        </div>
-        <div className="rounded-lg bg-slate-50 p-3">
-          <p className="text-muted-foreground">مبيعات نقدية</p>
-          <p className="font-bold">{formatCurrency(shift.cashSales)}</p>
-        </div>
-        <div className="rounded-lg bg-slate-50 p-3">
-          <p className="text-muted-foreground">مبيعات بطاقة</p>
-          <p className="font-bold">{formatCurrency(shift.cardSales)}</p>
-        </div>
-        <div className="rounded-lg bg-slate-50 p-3">
-          <p className="text-muted-foreground">مصروفات</p>
-          <p className="font-bold">{formatCurrency(shift.expenses)}</p>
-        </div>
-        <div className="rounded-lg bg-slate-50 p-3">
-          <p className="text-muted-foreground">فرق الصندوق</p>
-          <p className="font-bold">{formatCurrency(shift.difference)}</p>
-        </div>
       </CardContent>
     </Card>
   );

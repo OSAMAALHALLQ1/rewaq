@@ -1,0 +1,410 @@
+/**
+ * Mobile-First Responsive Design System
+ * Comprehensive styling for mobile-optimized UI
+ */
+
+/* ============================================================================
+   TOUCH-FRIENDLY TARGETS & SPACING
+   ========================================================================= */
+
+/* Ensure all interactive elements have minimum 44x44px touch target on mobile */
+@media (max-width: 768px) {
+  button,
+  a[role="button"],
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"],
+  input[type="checkbox"],
+  input[type="radio"],
+  select,
+  textarea {
+    min-height: 2.75rem; /* 44px */
+    min-width: 2.75rem; /* 44px */
+  }
+
+  /* Add padding to small buttons for better tap targets */
+  button:not(.icon-only),
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"] {
+    padding: 0.625rem 1rem;
+  }
+
+  /* Input fields should be at least 44px tall */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="tel"],
+  input[type="search"],
+  select,
+  textarea {
+    min-height: 2.75rem; /* 44px */
+    font-size: 16px; /* Prevents zoom on iOS */
+    padding: 0.5rem 1rem;
+  }
+}
+
+/* ============================================================================
+   TEXT SIZING & READABILITY
+   ========================================================================= */
+
+@media (max-width: 640px) {
+  /* Ensure base font size for mobile readability */
+  body {
+    font-size: 16px;
+  }
+
+  /* Larger headings on mobile */
+  h1 {
+    font-size: 1.5rem;
+  }
+
+  h2 {
+    font-size: 1.25rem;
+  }
+
+  h3 {
+    font-size: 1.125rem;
+  }
+
+  /* Better line-height on mobile for readability */
+  p,
+  li,
+  label,
+  span {
+    line-height: 1.6;
+  }
+
+  /* Improve link accessibility on mobile */
+  a {
+    padding: 0.25rem 0;
+  }
+}
+
+/* ============================================================================
+   NAVIGATION & LAYOUT
+   ========================================================================= */
+
+/* Prevent horizontal scrolling on mobile */
+@media (max-width: 768px) {
+  html,
+  body {
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
+
+  /* Add safe area support for devices with notches */
+  body {
+    padding-left: max(0px, env(safe-area-inset-left));
+    padding-right: max(0px, env(safe-area-inset-right));
+    padding-bottom: max(0px, env(safe-area-inset-bottom));
+  }
+
+  /* Mobile header safe area */
+  header {
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+
+  /* Main content padding for safe area */
+  main {
+    padding-left: max(0.75rem, env(safe-area-inset-left));
+    padding-right: max(0.75rem, env(safe-area-inset-right));
+    padding-bottom: max(6rem, env(safe-area-inset-bottom));
+  }
+}
+
+/* ============================================================================
+   FORM IMPROVEMENTS
+   ========================================================================= */
+
+@media (max-width: 768px) {
+  /* Prevent form elements from being shrunk by viewport */
+  input,
+  select,
+  textarea {
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  /* Better focus states on mobile */
+  input:focus,
+  select:focus,
+  textarea:focus,
+  button:focus,
+  a:focus {
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+  }
+
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible,
+  button:focus-visible,
+  a:focus-visible {
+    outline: 2px solid var(--ring);
+  }
+
+  /* Remove default browser select styling on mobile */
+  select {
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2024%2024%22%20fill=%22none%22%20stroke=%22currentColor%22%20stroke-width=%222%22%3E%3Cpath%20d=%22m19%209-7%207-7-7%22/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.5rem center;
+    background-size: 1.5rem;
+    padding-right: 2.5rem;
+  }
+
+  /* Focus ring for checkboxes and radios */
+  input[type="checkbox"]:focus-visible,
+  input[type="radio"]:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}
+
+/* ============================================================================
+   MODALS & DIALOGS
+   ========================================================================= */
+
+@media (max-width: 768px) {
+  /* Prevent scrolling on body when modal is open */
+  body.modal-open {
+    overflow: hidden;
+  }
+
+  /* Modal backdrop should cover viewport */
+  [role="dialog"] {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+  }
+
+  /* Bottom sheet style for modals on mobile */
+  [role="dialog"]:not(.dialog-centered) {
+    align-items: flex-end;
+    border-radius: 1rem 1rem 0 0;
+    max-height: 90vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* ============================================================================
+   TABLES & DATA DISPLAY
+   ========================================================================= */
+
+/* Hide traditional tables on mobile, show card-based view */
+@media (max-width: 768px) {
+  /* Default table should be hidden on mobile */
+  table:not(.mobile-table) {
+    display: none;
+  }
+
+  /* Allow horizontal scrolling for tables that must be shown */
+  table.scrollable {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  table.scrollable tbody {
+    display: block;
+  }
+
+  table.scrollable tr {
+    display: block;
+    margin-bottom: 1rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--border);
+  }
+
+  table.scrollable td {
+    display: block;
+    text-align: right;
+    padding-bottom: 0.5rem;
+  }
+
+  table.scrollable td:before {
+    content: attr(data-label);
+    float: left;
+    font-weight: bold;
+  }
+}
+
+/* ============================================================================
+   IMAGE & MEDIA
+   ========================================================================= */
+
+@media (max-width: 768px) {
+  /* Responsive images */
+  img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  /* Video responsiveness */
+  video,
+  iframe {
+    max-width: 100%;
+    height: auto;
+  }
+
+  /* Prevent image stretch on mobile */
+  picture {
+    display: block;
+  }
+}
+
+/* ============================================================================
+   SCROLLING & PERFORMANCE
+   ========================================================================= */
+
+@media (max-width: 768px) {
+  /* Enable momentum scrolling on iOS */
+  .scrollable,
+  main,
+  [role="region"] {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Smooth scroll behavior */
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* GPU acceleration for smooth animations */
+  .animated,
+  [role="dialog"],
+  .mobile-nav {
+    will-change: transform;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    perspective: 1000px;
+  }
+}
+
+/* ============================================================================
+   ORIENTATION-SPECIFIC STYLES
+   ========================================================================= */
+
+/* Landscape orientation on mobile */
+@media (max-width: 768px) and (orientation: landscape) {
+  /* Reduce vertical padding in landscape */
+  main {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+
+  /* Reduce header height in landscape */
+  header {
+    min-height: 3rem;
+  }
+
+  /* Adjust bottom nav in landscape */
+  nav.mobile-nav {
+    height: auto;
+  }
+}
+
+/* ============================================================================
+   PRINT STYLES
+   ========================================================================= */
+
+@media print {
+  /* Hide navigation on print */
+  nav,
+  header,
+  footer,
+  .no-print,
+  [role="navigation"] {
+    display: none;
+  }
+
+  /* Full width on print */
+  main {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Better print contrast */
+  body {
+    background: white;
+    color: black;
+  }
+}
+
+/* ============================================================================
+   UTILITY CLASSES
+   ========================================================================= */
+
+/* Show/hide for specific screen sizes */
+.hidden-mobile {
+  @media (max-width: 640px) {
+    display: none;
+  }
+}
+
+.hidden-tablet {
+  @media (min-width: 641px) and (max-width: 1023px) {
+    display: none;
+  }
+}
+
+.hidden-desktop {
+  @media (min-width: 1024px) {
+    display: none;
+  }
+}
+
+.show-mobile {
+  @media (min-width: 641px) {
+    display: none;
+  }
+}
+
+.show-tablet {
+  @media (max-width: 640px) or (min-width: 1024px) {
+    display: none;
+  }
+}
+
+.show-desktop {
+  @media (max-width: 1023px) {
+    display: none;
+  }
+}
+
+/* Touch-friendly spacing */
+.touch-p {
+  @media (max-width: 768px) {
+    padding: 1rem;
+  }
+}
+
+.touch-m {
+  @media (max-width: 768px) {
+    margin: 1rem;
+  }
+}
+
+/* Safe area utilities */
+.safe-area-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.safe-area-left {
+  padding-left: env(safe-area-inset-left);
+}
+
+.safe-area-right {
+  padding-right: env(safe-area-inset-right);
+}

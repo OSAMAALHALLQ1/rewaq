@@ -1,5 +1,21 @@
-import { PageShell } from "@/components/layout/page-shell";
+import { ResponsivePageShell } from "@/components/layout/responsive-page-shell";
+import { getCurrentSession } from "@/lib/auth/session";
+import { getNotifications, getOrganizationContext } from "@/server/queries/app";
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  return <PageShell>{children}</PageShell>;
+export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const [session, context, notifications] = await Promise.all([
+    getCurrentSession(),
+    getOrganizationContext(),
+    getNotifications(),
+  ]);
+
+  return (
+    <ResponsivePageShell
+      session={session}
+      branches={context.branches}
+      notifications={notifications}
+    >
+      {children}
+    </ResponsivePageShell>
+  );
 }

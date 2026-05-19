@@ -41,17 +41,17 @@ export default async function InventoryPage() {
         }
       />
 
-      <div className="grid gap-4 xl:grid-cols-[1fr_360px]">
-        <Card>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-[1fr_360px]">
+        <Card className="md:col-span-2 xl:col-span-1">
           <CardHeader>
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <CardTitle>مواد المخزون</CardTitle>
               <div className="flex flex-wrap gap-2">
-                <div className="relative min-w-64">
+                <div className="relative min-w-0 flex-1 sm:min-w-64">
                   <Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input className="ps-9" placeholder="بحث..." />
                 </div>
-                <Select className="w-40" defaultValue="all">
+                <Select className="w-32 sm:w-40" defaultValue="all">
                   <option value="all">كل الفئات</option>
                   {categories.map((category) => (
                     <option key={category.id} value={category.id}>
@@ -59,7 +59,7 @@ export default async function InventoryPage() {
                     </option>
                   ))}
                 </Select>
-                <Select className="w-48" defaultValue="all">
+                <Select className="w-32 sm:w-48" defaultValue="all">
                   <option value="all">كل الفروع</option>
                   {branches.map((branch) => (
                     <option key={branch.id} value={branch.id}>
@@ -73,15 +73,15 @@ export default async function InventoryPage() {
               </div>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>المادة</TableHead>
-                  <TableHead>الفئة</TableHead>
-                  <TableHead>المورد</TableHead>
+                  <TableHead className="min-w-[120px]">المادة</TableHead>
+                  <TableHead className="hidden md:table-cell">الفئة</TableHead>
+                  <TableHead className="hidden lg:table-cell">المورد</TableHead>
                   <TableHead>الكمية</TableHead>
-                  <TableHead>آخر سعر</TableHead>
+                  <TableHead className="hidden sm:table-cell">السعر</TableHead>
                   <TableHead>الحالة</TableHead>
                 </TableRow>
               </TableHeader>
@@ -98,17 +98,17 @@ export default async function InventoryPage() {
                         <Link href={`/dashboard/inventory/${item.id}`} className="font-semibold text-primary">
                           {item.name}
                         </Link>
-                        <p className="mt-1 text-xs text-muted-foreground">{item.sku ?? "بدون SKU"}</p>
+                        <p className="mt-1 text-xs text-muted-foreground md:hidden">{item.sku ?? ""}</p>
                       </TableCell>
-                      <TableCell>{item.categoryName}</TableCell>
-                      <TableCell>{item.primarySupplierName ?? "غير محدد"}</TableCell>
+                      <TableCell className="hidden md:table-cell">{item.categoryName}</TableCell>
+                      <TableCell className="hidden lg:table-cell">{item.primarySupplierName ?? "-"}</TableCell>
                       <TableCell>
                         <div className="font-medium">
                           {formatNumber(totalQuantity)} {item.usageUnit}
                         </div>
-                        <p className="text-xs text-muted-foreground">حد أدنى {item.minimumQuantity}</p>
+                        <p className="text-xs text-muted-foreground">حد: {item.minimumQuantity}</p>
                       </TableCell>
-                      <TableCell>{formatCurrency(item.lastPurchasePrice)}</TableCell>
+                      <TableCell className="hidden sm:table-cell">{formatCurrency(item.lastPurchasePrice)}</TableCell>
                       <TableCell>
                         {lowStock ? <Badge tone="warning">منخفض</Badge> : <StatusBadge status={item.isActive ? "active" : "inactive"} />}
                       </TableCell>
@@ -144,7 +144,7 @@ export default async function InventoryPage() {
                   ))}
                 </Select>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="grid gap-2">
                   <Label htmlFor="purchaseUnit">وحدة الشراء</Label>
                   <Input id="purchaseUnit" name="purchaseUnit" placeholder="كرتونة" required />
@@ -154,7 +154,7 @@ export default async function InventoryPage() {
                   <Input id="usageUnit" name="usageUnit" placeholder="كغم" required />
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="grid gap-2">
                   <Label htmlFor="lastPurchasePrice">آخر سعر</Label>
                   <Input id="lastPurchasePrice" name="lastPurchasePrice" type="number" step="0.01" required />

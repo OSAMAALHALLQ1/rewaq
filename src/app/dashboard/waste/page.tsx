@@ -1,7 +1,7 @@
-import { PackageMinus, Plus } from "lucide-react";
+import { PackageMinus } from "lucide-react";
+import { ActionForm } from "@/components/action-form";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,6 +9,7 @@ import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { formatCurrency } from "@/lib/utils";
+import { saveWasteLogAction } from "@/server/actions/mutations";
 import { getOperationsData } from "@/server/queries/app";
 
 export default async function WastePage() {
@@ -62,43 +63,41 @@ export default async function WastePage() {
               تسجيل هدر
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent>
+            <ActionForm action={saveWasteLogAction} submitLabel="حفظ الهدر" className="space-y-4">
             <div className="grid gap-2">
-              <Label>الفرع</Label>
-              <Select>
+              <Label htmlFor="branchId">الفرع</Label>
+              <Select id="branchId" name="branchId" required>
                 {branches.map((branch) => (
-                  <option key={branch.id}>{branch.name}</option>
+                  <option key={branch.id} value={branch.id}>{branch.name}</option>
                 ))}
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label>المادة</Label>
-              <Select>
+              <Label htmlFor="itemId">المادة</Label>
+              <Select id="itemId" name="itemId" required>
                 {items.map((item) => (
-                  <option key={item.id}>{item.name}</option>
+                  <option key={item.id} value={item.id}>{item.name}</option>
                 ))}
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label>الكمية</Label>
-              <Input type="number" min="0" step="0.01" />
+              <Label htmlFor="quantity">الكمية</Label>
+              <Input id="quantity" name="quantity" type="number" min="0" step="0.01" required />
             </div>
             <div className="grid gap-2">
-              <Label>السبب</Label>
-              <Select>
+              <Label htmlFor="reason">السبب</Label>
+              <Select id="reason" name="reason" required>
                 {["تلف", "انتهاء صلاحية", "خطأ تحضير", "كسر/انسكاب", "إرجاع", "سبب آخر"].map((reason) => (
-                  <option key={reason}>{reason}</option>
+                  <option key={reason} value={reason}>{reason}</option>
                 ))}
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label>ملاحظات</Label>
-              <Textarea />
+              <Label htmlFor="notes">ملاحظات</Label>
+              <Textarea id="notes" name="notes" />
             </div>
-            <Button className="w-full">
-              <Plus className="h-4 w-4" />
-              حفظ الهدر
-            </Button>
+            </ActionForm>
           </CardContent>
         </Card>
       </div>

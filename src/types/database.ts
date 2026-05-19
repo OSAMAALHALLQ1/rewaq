@@ -2,22 +2,2294 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 
 export type Database = {
   public: {
-    Tables: Record<
-      string,
-      {
-        Row: Record<string, unknown>;
-        Insert: Record<string, unknown>;
-        Update: Record<string, unknown>;
-        Relationships: [];
-      }
-    >;
-    Views: Record<string, never>;
-    Functions: {
-      find_catalog_item_by_barcode: {
-        Args: {
-          p_organization_id: string;
-          p_barcode: string;
+    Tables: {
+      organizations: {
+        Row: {
+          id: string;
+          name: string;
+          slug: string;
+          plan: string;
+          status: string;
+          created_at: string;
+          updated_at: string;
+          created_by: string | null;
         };
+        Insert: {
+          id?: string;
+          name: string;
+          slug: string;
+          plan?: string;
+          status?: string;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          slug?: string;
+          plan?: string;
+          status?: string;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Relationships: [];
+      };
+      profiles: {
+        Row: {
+          id: string;
+          full_name: string | null;
+          avatar_url: string | null;
+          locale: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          full_name?: string | null;
+          avatar_url?: string | null;
+          locale?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          full_name?: string | null;
+          avatar_url?: string | null;
+          locale?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      branches: {
+        Row: {
+          id: string;
+          organization_id: string;
+          name: string;
+          city: string | null;
+          address: string | null;
+          manager_name: string | null;
+          status: Database["public"]["Enums"]["record_status"];
+          created_at: string;
+          updated_at: string;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          name: string;
+          city?: string | null;
+          address?: string | null;
+          manager_name?: string | null;
+          status?: Database["public"]["Enums"]["record_status"];
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          name?: string;
+          city?: string | null;
+          address?: string | null;
+          manager_name?: string | null;
+          status?: Database["public"]["Enums"]["record_status"];
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Relationships: [];
+      };
+      organization_memberships: {
+        Row: {
+          id: string;
+          organization_id: string;
+          user_id: string;
+          role: Database["public"]["Enums"]["app_role"];
+          branch_id: string | null;
+          created_at: string;
+          updated_at: string;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          user_id: string;
+          role?: Database["public"]["Enums"]["app_role"];
+          branch_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          user_id?: string;
+          role?: Database["public"]["Enums"]["app_role"];
+          branch_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Relationships: [];
+      };
+      plans: {
+        Row: {
+          id: string;
+          code: string;
+          name: string;
+          monthly_price: number;
+          features: Json;
+          status: Database["public"]["Enums"]["record_status"];
+          created_at: string;
+          updated_at: string;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          code: string;
+          name: string;
+          monthly_price?: number;
+          features?: Json;
+          status?: Database["public"]["Enums"]["record_status"];
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          code?: string;
+          name?: string;
+          monthly_price?: number;
+          features?: Json;
+          status?: Database["public"]["Enums"]["record_status"];
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Relationships: [];
+      };
+      subscriptions: {
+        Row: {
+          id: string;
+          organization_id: string;
+          plan_id: string | null;
+          status: string;
+          current_period_start: string | null;
+          current_period_end: string | null;
+          created_at: string;
+          updated_at: string;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          plan_id?: string | null;
+          status?: string;
+          current_period_start?: string | null;
+          current_period_end?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          plan_id?: string | null;
+          status?: string;
+          current_period_start?: string | null;
+          current_period_end?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Relationships: [];
+      };
+      units: {
+        Row: {
+          id: string;
+          organization_id: string | null;
+          name: string;
+          symbol: string;
+          kind: string;
+          created_at: string;
+          updated_at: string;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          organization_id?: string | null;
+          name: string;
+          symbol: string;
+          kind?: string;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string | null;
+          name?: string;
+          symbol?: string;
+          kind?: string;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Relationships: [];
+      };
+      unit_conversions: {
+        Row: {
+          id: string;
+          organization_id: string;
+          from_unit_id: string;
+          to_unit_id: string;
+          factor: number;
+          item_id: string | null;
+          created_at: string;
+          updated_at: string;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          from_unit_id: string;
+          to_unit_id: string;
+          factor: number;
+          item_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          from_unit_id?: string;
+          to_unit_id?: string;
+          factor?: number;
+          item_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Relationships: [];
+      };
+      inventory_categories: {
+        Row: {
+          id: string;
+          organization_id: string;
+          name: string;
+          created_at: string;
+          updated_at: string;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          name: string;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          name?: string;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Relationships: [];
+      };
+      suppliers: {
+        Row: {
+          id: string;
+          organization_id: string;
+          name: string;
+          phone: string | null;
+          email: string | null;
+          address: string | null;
+          notes: string | null;
+          status: Database["public"]["Enums"]["record_status"];
+          created_at: string;
+          updated_at: string;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          name: string;
+          phone?: string | null;
+          email?: string | null;
+          address?: string | null;
+          notes?: string | null;
+          status?: Database["public"]["Enums"]["record_status"];
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          name?: string;
+          phone?: string | null;
+          email?: string | null;
+          address?: string | null;
+          notes?: string | null;
+          status?: Database["public"]["Enums"]["record_status"];
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Relationships: [];
+      };
+      inventory_items: {
+        Row: {
+          id: string;
+          organization_id: string;
+          category_id: string | null;
+          primary_supplier_id: string | null;
+          name: string;
+          purchase_unit_id: string | null;
+          usage_unit_id: string | null;
+          last_purchase_price: number;
+          average_cost: number;
+          minimum_quantity: number;
+          sku: string | null;
+          notes: string | null;
+          status: Database["public"]["Enums"]["record_status"];
+          created_at: string;
+          updated_at: string;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          category_id?: string | null;
+          primary_supplier_id?: string | null;
+          name: string;
+          purchase_unit_id?: string | null;
+          usage_unit_id?: string | null;
+          last_purchase_price?: number;
+          average_cost?: number;
+          minimum_quantity?: number;
+          sku?: string | null;
+          notes?: string | null;
+          status?: Database["public"]["Enums"]["record_status"];
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          category_id?: string | null;
+          primary_supplier_id?: string | null;
+          name?: string;
+          purchase_unit_id?: string | null;
+          usage_unit_id?: string | null;
+          last_purchase_price?: number;
+          average_cost?: number;
+          minimum_quantity?: number;
+          sku?: string | null;
+          notes?: string | null;
+          status?: Database["public"]["Enums"]["record_status"];
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Relationships: [];
+      };
+      branch_stock: {
+        Row: {
+          id: string;
+          organization_id: string;
+          branch_id: string;
+          item_id: string;
+          quantity: number;
+          reserved_quantity: number;
+          created_at: string;
+          updated_at: string;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          branch_id: string;
+          item_id: string;
+          quantity?: number;
+          reserved_quantity?: number;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          branch_id?: string;
+          item_id?: string;
+          quantity?: number;
+          reserved_quantity?: number;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Relationships: [];
+      };
+      stock_movements: {
+        Row: {
+          id: string;
+          organization_id: string;
+          branch_id: string;
+          item_id: string;
+          movement_type: Database["public"]["Enums"]["stock_movement_type"];
+          quantity: number;
+          unit_cost: number;
+          total_cost: number | null;
+          source_doc_type: string | null;
+          source_doc_id: string | null;
+          idempotency_key: string | null;
+          notes: string | null;
+          created_at: string;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          branch_id: string;
+          item_id: string;
+          movement_type: Database["public"]["Enums"]["stock_movement_type"];
+          quantity: number;
+          unit_cost?: number;
+          total_cost?: never;
+          source_doc_type?: string | null;
+          source_doc_id?: string | null;
+          idempotency_key?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          branch_id?: string;
+          item_id?: string;
+          movement_type?: Database["public"]["Enums"]["stock_movement_type"];
+          quantity?: number;
+          unit_cost?: number;
+          total_cost?: never;
+          source_doc_type?: string | null;
+          source_doc_id?: string | null;
+          idempotency_key?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+        };
+        Relationships: [];
+      };
+      stock_counts: {
+        Row: {
+          id: string;
+          organization_id: string;
+          branch_id: string;
+          status: string;
+          counted_at: string | null;
+          approved_at: string | null;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          branch_id: string;
+          status?: string;
+          counted_at?: string | null;
+          approved_at?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          branch_id?: string;
+          status?: string;
+          counted_at?: string | null;
+          approved_at?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Relationships: [];
+      };
+      stock_count_items: {
+        Row: {
+          id: string;
+          organization_id: string;
+          stock_count_id: string;
+          item_id: string;
+          system_quantity: number;
+          counted_quantity: number;
+          variance_quantity: number | null;
+          created_at: string;
+          updated_at: string;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          stock_count_id: string;
+          item_id: string;
+          system_quantity?: number;
+          counted_quantity?: number;
+          variance_quantity?: never;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          stock_count_id?: string;
+          item_id?: string;
+          system_quantity?: number;
+          counted_quantity?: number;
+          variance_quantity?: never;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Relationships: [];
+      };
+      waste_logs: {
+        Row: {
+          id: string;
+          organization_id: string;
+          branch_id: string;
+          item_id: string;
+          quantity: number;
+          reason: string;
+          cost: number;
+          logged_at: string;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          branch_id: string;
+          item_id: string;
+          quantity: number;
+          reason: string;
+          cost?: number;
+          logged_at?: string;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          branch_id?: string;
+          item_id?: string;
+          quantity?: number;
+          reason?: string;
+          cost?: number;
+          logged_at?: string;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Relationships: [];
+      };
+      transfers: {
+        Row: {
+          id: string;
+          organization_id: string;
+          from_branch_id: string;
+          to_branch_id: string;
+          status: Database["public"]["Enums"]["transfer_status"];
+          sent_at: string | null;
+          received_at: string | null;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          from_branch_id: string;
+          to_branch_id: string;
+          status?: Database["public"]["Enums"]["transfer_status"];
+          sent_at?: string | null;
+          received_at?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          from_branch_id?: string;
+          to_branch_id?: string;
+          status?: Database["public"]["Enums"]["transfer_status"];
+          sent_at?: string | null;
+          received_at?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Relationships: [];
+      };
+      transfer_items: {
+        Row: {
+          id: string;
+          organization_id: string;
+          transfer_id: string;
+          item_id: string;
+          quantity: number;
+          unit_cost: number;
+          created_at: string;
+          updated_at: string;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          transfer_id: string;
+          item_id: string;
+          quantity: number;
+          unit_cost?: number;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          transfer_id?: string;
+          item_id?: string;
+          quantity?: number;
+          unit_cost?: number;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Relationships: [];
+      };
+      purchase_orders: {
+        Row: {
+          id: string;
+          organization_id: string;
+          supplier_id: string;
+          branch_id: string;
+          status: Database["public"]["Enums"]["purchase_order_status"];
+          order_date: string;
+          expected_date: string | null;
+          total: number;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          supplier_id: string;
+          branch_id: string;
+          status?: Database["public"]["Enums"]["purchase_order_status"];
+          order_date?: string;
+          expected_date?: string | null;
+          total?: number;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          supplier_id?: string;
+          branch_id?: string;
+          status?: Database["public"]["Enums"]["purchase_order_status"];
+          order_date?: string;
+          expected_date?: string | null;
+          total?: number;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Relationships: [];
+      };
+      purchase_order_items: {
+        Row: {
+          id: string;
+          organization_id: string;
+          purchase_order_id: string;
+          item_id: string;
+          quantity: number;
+          expected_unit_price: number;
+          received_quantity: number;
+          created_at: string;
+          updated_at: string;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          purchase_order_id: string;
+          item_id: string;
+          quantity: number;
+          expected_unit_price?: number;
+          received_quantity?: number;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          purchase_order_id?: string;
+          item_id?: string;
+          quantity?: number;
+          expected_unit_price?: number;
+          received_quantity?: number;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Relationships: [];
+      };
+      invoices: {
+        Row: {
+          id: string;
+          organization_id: string;
+          supplier_id: string;
+          branch_id: string;
+          purchase_order_id: string | null;
+          invoice_number: string | null;
+          status: Database["public"]["Enums"]["invoice_status"];
+          total: number;
+          issued_at: string;
+          file_path: string | null;
+          created_at: string;
+          updated_at: string;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          supplier_id: string;
+          branch_id: string;
+          purchase_order_id?: string | null;
+          invoice_number?: string | null;
+          status?: Database["public"]["Enums"]["invoice_status"];
+          total?: number;
+          issued_at?: string;
+          file_path?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          supplier_id?: string;
+          branch_id?: string;
+          purchase_order_id?: string | null;
+          invoice_number?: string | null;
+          status?: Database["public"]["Enums"]["invoice_status"];
+          total?: number;
+          issued_at?: string;
+          file_path?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Relationships: [];
+      };
+      invoice_items: {
+        Row: {
+          id: string;
+          organization_id: string;
+          invoice_id: string;
+          item_id: string;
+          quantity: number;
+          unit_price: number;
+          total: number | null;
+          created_at: string;
+          updated_at: string;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          invoice_id: string;
+          item_id: string;
+          quantity: number;
+          unit_price: number;
+          total?: never;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          invoice_id?: string;
+          item_id?: string;
+          quantity?: number;
+          unit_price?: number;
+          total?: never;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Relationships: [];
+      };
+      customer_invoices: {
+        Row: {
+          id: string;
+          organization_id: string;
+          branch_id: string;
+          invoice_number: string;
+          customer_name: string;
+          customer_phone: string | null;
+          customer_tax_number: string | null;
+          status: Database["public"]["Enums"]["customer_invoice_status"];
+          payment_method: Database["public"]["Enums"]["payment_method"];
+          issued_at: string;
+          subtotal: number;
+          discount: number;
+          tax_rate: number;
+          tax_total: number;
+          total: number;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+          created_by: string | null;
+          channel: Database["public"]["Enums"]["sales_channel"];
+          service_fee: number;
+          delivery_fee: number;
+          cost_total: number;
+          gross_profit: number;
+          idempotency_key: string | null;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          branch_id: string;
+          invoice_number: string;
+          customer_name: string;
+          customer_phone?: string | null;
+          customer_tax_number?: string | null;
+          status?: Database["public"]["Enums"]["customer_invoice_status"];
+          payment_method?: Database["public"]["Enums"]["payment_method"];
+          issued_at?: string;
+          subtotal?: number;
+          discount?: number;
+          tax_rate?: number;
+          tax_total?: number;
+          total?: number;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+          channel?: Database["public"]["Enums"]["sales_channel"];
+          service_fee?: number;
+          delivery_fee?: number;
+          cost_total?: number;
+          gross_profit?: number;
+          idempotency_key?: string | null;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          branch_id?: string;
+          invoice_number?: string;
+          customer_name?: string;
+          customer_phone?: string | null;
+          customer_tax_number?: string | null;
+          status?: Database["public"]["Enums"]["customer_invoice_status"];
+          payment_method?: Database["public"]["Enums"]["payment_method"];
+          issued_at?: string;
+          subtotal?: number;
+          discount?: number;
+          tax_rate?: number;
+          tax_total?: number;
+          total?: number;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+          channel?: Database["public"]["Enums"]["sales_channel"];
+          service_fee?: number;
+          delivery_fee?: number;
+          cost_total?: number;
+          gross_profit?: number;
+          idempotency_key?: string | null;
+        };
+        Relationships: [];
+      };
+      customer_invoice_items: {
+        Row: {
+          id: string;
+          organization_id: string;
+          customer_invoice_id: string;
+          menu_item_id: string | null;
+          name: string;
+          quantity: number;
+          unit_price: number;
+          total: number | null;
+          created_at: string;
+          updated_at: string;
+          created_by: string | null;
+          catalog_item_id: string | null;
+          barcode: string | null;
+          unit_name: string | null;
+          unit_factor: number;
+          discount: number;
+          tax_rate: number;
+          cost_total: number;
+          gross_profit: number;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          customer_invoice_id: string;
+          menu_item_id?: string | null;
+          name: string;
+          quantity: number;
+          unit_price: number;
+          total?: never;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+          catalog_item_id?: string | null;
+          barcode?: string | null;
+          unit_name?: string | null;
+          unit_factor?: number;
+          discount?: number;
+          tax_rate?: number;
+          cost_total?: number;
+          gross_profit?: number;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          customer_invoice_id?: string;
+          menu_item_id?: string | null;
+          name?: string;
+          quantity?: number;
+          unit_price?: number;
+          total?: never;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+          catalog_item_id?: string | null;
+          barcode?: string | null;
+          unit_name?: string | null;
+          unit_factor?: number;
+          discount?: number;
+          tax_rate?: number;
+          cost_total?: number;
+          gross_profit?: number;
+        };
+        Relationships: [];
+      };
+      supplier_price_history: {
+        Row: {
+          id: string;
+          organization_id: string;
+          supplier_id: string;
+          item_id: string;
+          unit_price: number;
+          previous_unit_price: number | null;
+          price_change_percent: number | null;
+          source_doc_type: string | null;
+          source_doc_id: string | null;
+          recorded_at: string;
+          created_at: string;
+          updated_at: string;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          supplier_id: string;
+          item_id: string;
+          unit_price: number;
+          previous_unit_price?: number | null;
+          price_change_percent?: number | null;
+          source_doc_type?: string | null;
+          source_doc_id?: string | null;
+          recorded_at?: string;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          supplier_id?: string;
+          item_id?: string;
+          unit_price?: number;
+          previous_unit_price?: number | null;
+          price_change_percent?: number | null;
+          source_doc_type?: string | null;
+          source_doc_id?: string | null;
+          recorded_at?: string;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Relationships: [];
+      };
+      recipes: {
+        Row: {
+          id: string;
+          organization_id: string;
+          name: string;
+          category: string | null;
+          servings: number;
+          preparation: string | null;
+          total_cost: number;
+          cost_per_serving: number;
+          status: Database["public"]["Enums"]["record_status"];
+          created_at: string;
+          updated_at: string;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          name: string;
+          category?: string | null;
+          servings?: number;
+          preparation?: string | null;
+          total_cost?: number;
+          cost_per_serving?: number;
+          status?: Database["public"]["Enums"]["record_status"];
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          name?: string;
+          category?: string | null;
+          servings?: number;
+          preparation?: string | null;
+          total_cost?: number;
+          cost_per_serving?: number;
+          status?: Database["public"]["Enums"]["record_status"];
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Relationships: [];
+      };
+      recipe_ingredients: {
+        Row: {
+          id: string;
+          organization_id: string;
+          recipe_id: string;
+          item_id: string;
+          quantity: number;
+          unit_id: string | null;
+          yield_percent: number;
+          unit_cost: number;
+          total_cost: number | null;
+          created_at: string;
+          updated_at: string;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          recipe_id: string;
+          item_id: string;
+          quantity: number;
+          unit_id?: string | null;
+          yield_percent?: number;
+          unit_cost?: number;
+          total_cost?: never;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          recipe_id?: string;
+          item_id?: string;
+          quantity?: number;
+          unit_id?: string | null;
+          yield_percent?: number;
+          unit_cost?: number;
+          total_cost?: never;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Relationships: [];
+      };
+      menu_items: {
+        Row: {
+          id: string;
+          organization_id: string;
+          branch_id: string | null;
+          name: string;
+          selling_price: number;
+          image_path: string | null;
+          status: Database["public"]["Enums"]["record_status"];
+          created_at: string;
+          updated_at: string;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          branch_id?: string | null;
+          name: string;
+          selling_price: number;
+          image_path?: string | null;
+          status?: Database["public"]["Enums"]["record_status"];
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          branch_id?: string | null;
+          name?: string;
+          selling_price?: number;
+          image_path?: string | null;
+          status?: Database["public"]["Enums"]["record_status"];
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Relationships: [];
+      };
+      menu_item_recipe_mapping: {
+        Row: {
+          id: string;
+          organization_id: string;
+          menu_item_id: string;
+          recipe_id: string;
+          portion_multiplier: number;
+          created_at: string;
+          updated_at: string;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          menu_item_id: string;
+          recipe_id: string;
+          portion_multiplier?: number;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          menu_item_id?: string;
+          recipe_id?: string;
+          portion_multiplier?: number;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Relationships: [];
+      };
+      social_accounts: {
+        Row: {
+          id: string;
+          organization_id: string;
+          platform: Database["public"]["Enums"]["social_platform"];
+          account_name: string;
+          external_account_id: string | null;
+          encrypted_access_token: string | null;
+          token_expires_at: string | null;
+          status: string;
+          last_published_at: string | null;
+          created_at: string;
+          updated_at: string;
+          created_by: string | null;
+          provider_user_id: string | null;
+          provider_account_id: string | null;
+          encrypted_refresh_token: string | null;
+          token_type: string | null;
+          granted_scopes: string[];
+          permission_status: string;
+          oauth_connected_at: string | null;
+          oauth_error: string | null;
+          metadata: Json;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          platform: Database["public"]["Enums"]["social_platform"];
+          account_name: string;
+          external_account_id?: string | null;
+          encrypted_access_token?: string | null;
+          token_expires_at?: string | null;
+          status?: string;
+          last_published_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+          provider_user_id?: string | null;
+          provider_account_id?: string | null;
+          encrypted_refresh_token?: string | null;
+          token_type?: string | null;
+          granted_scopes?: string[];
+          permission_status?: string;
+          oauth_connected_at?: string | null;
+          oauth_error?: string | null;
+          metadata?: Json;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          platform?: Database["public"]["Enums"]["social_platform"];
+          account_name?: string;
+          external_account_id?: string | null;
+          encrypted_access_token?: string | null;
+          token_expires_at?: string | null;
+          status?: string;
+          last_published_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+          provider_user_id?: string | null;
+          provider_account_id?: string | null;
+          encrypted_refresh_token?: string | null;
+          token_type?: string | null;
+          granted_scopes?: string[];
+          permission_status?: string;
+          oauth_connected_at?: string | null;
+          oauth_error?: string | null;
+          metadata?: Json;
+        };
+        Relationships: [];
+      };
+      social_posts: {
+        Row: {
+          id: string;
+          organization_id: string;
+          title: string;
+          body: string;
+          status: Database["public"]["Enums"]["social_post_status"];
+          scheduled_at: string | null;
+          published_at: string | null;
+          created_at: string;
+          updated_at: string;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          title: string;
+          body: string;
+          status?: Database["public"]["Enums"]["social_post_status"];
+          scheduled_at?: string | null;
+          published_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          title?: string;
+          body?: string;
+          status?: Database["public"]["Enums"]["social_post_status"];
+          scheduled_at?: string | null;
+          published_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Relationships: [];
+      };
+      social_post_targets: {
+        Row: {
+          id: string;
+          organization_id: string;
+          social_post_id: string;
+          social_account_id: string;
+          platform: Database["public"]["Enums"]["social_platform"];
+          body_override: string | null;
+          status: Database["public"]["Enums"]["social_target_status"];
+          provider_post_id: string | null;
+          provider_url: string | null;
+          error_message: string | null;
+          created_at: string;
+          updated_at: string;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          social_post_id: string;
+          social_account_id: string;
+          platform: Database["public"]["Enums"]["social_platform"];
+          body_override?: string | null;
+          status?: Database["public"]["Enums"]["social_target_status"];
+          provider_post_id?: string | null;
+          provider_url?: string | null;
+          error_message?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          social_post_id?: string;
+          social_account_id?: string;
+          platform?: Database["public"]["Enums"]["social_platform"];
+          body_override?: string | null;
+          status?: Database["public"]["Enums"]["social_target_status"];
+          provider_post_id?: string | null;
+          provider_url?: string | null;
+          error_message?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Relationships: [];
+      };
+      social_media_assets: {
+        Row: {
+          id: string;
+          organization_id: string;
+          social_post_id: string | null;
+          storage_path: string;
+          mime_type: string | null;
+          size_bytes: number | null;
+          created_at: string;
+          updated_at: string;
+          created_by: string | null;
+          url: string | null;
+          provider: string;
+          file_id: string | null;
+          media_kind: string;
+          width: number | null;
+          height: number | null;
+          duration_seconds: number | null;
+          metadata: Json;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          social_post_id?: string | null;
+          storage_path: string;
+          mime_type?: string | null;
+          size_bytes?: number | null;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+          url?: string | null;
+          provider?: string;
+          file_id?: string | null;
+          media_kind?: string;
+          width?: number | null;
+          height?: number | null;
+          duration_seconds?: number | null;
+          metadata?: Json;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          social_post_id?: string | null;
+          storage_path?: string;
+          mime_type?: string | null;
+          size_bytes?: number | null;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+          url?: string | null;
+          provider?: string;
+          file_id?: string | null;
+          media_kind?: string;
+          width?: number | null;
+          height?: number | null;
+          duration_seconds?: number | null;
+          metadata?: Json;
+        };
+        Relationships: [];
+      };
+      social_publish_jobs: {
+        Row: {
+          id: string;
+          organization_id: string;
+          social_post_id: string;
+          run_after: string;
+          status: string;
+          attempts: number;
+          last_error: string | null;
+          created_at: string;
+          updated_at: string;
+          created_by: string | null;
+          target_id: string | null;
+          platform: Database["public"]["Enums"]["social_platform"] | null;
+          trigger_source: string;
+          schedule_kind: string;
+          max_attempts: number;
+          locked_at: string | null;
+          locked_by: string | null;
+          completed_at: string | null;
+          next_retry_at: string | null;
+          external_run_id: string | null;
+          payload: Json;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          social_post_id: string;
+          run_after?: string;
+          status?: string;
+          attempts?: number;
+          last_error?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+          target_id?: string | null;
+          platform?: Database["public"]["Enums"]["social_platform"] | null;
+          trigger_source?: string;
+          schedule_kind?: string;
+          max_attempts?: number;
+          locked_at?: string | null;
+          locked_by?: string | null;
+          completed_at?: string | null;
+          next_retry_at?: string | null;
+          external_run_id?: string | null;
+          payload?: Json;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          social_post_id?: string;
+          run_after?: string;
+          status?: string;
+          attempts?: number;
+          last_error?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+          target_id?: string | null;
+          platform?: Database["public"]["Enums"]["social_platform"] | null;
+          trigger_source?: string;
+          schedule_kind?: string;
+          max_attempts?: number;
+          locked_at?: string | null;
+          locked_by?: string | null;
+          completed_at?: string | null;
+          next_retry_at?: string | null;
+          external_run_id?: string | null;
+          payload?: Json;
+        };
+        Relationships: [];
+      };
+      social_publish_logs: {
+        Row: {
+          id: string;
+          organization_id: string;
+          social_post_id: string;
+          target_id: string | null;
+          platform: Database["public"]["Enums"]["social_platform"];
+          status: Database["public"]["Enums"]["social_target_status"];
+          message: string | null;
+          provider_response: Json | null;
+          created_at: string;
+          updated_at: string;
+          created_by: string | null;
+          job_id: string | null;
+          social_account_id: string | null;
+          attempt: number;
+          provider_post_id: string | null;
+          provider_url: string | null;
+          error_code: string | null;
+          error_message: string | null;
+          retryable: boolean;
+          requested_by: string | null;
+          approved_by: string | null;
+          approved_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          social_post_id: string;
+          target_id?: string | null;
+          platform: Database["public"]["Enums"]["social_platform"];
+          status: Database["public"]["Enums"]["social_target_status"];
+          message?: string | null;
+          provider_response?: Json | null;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+          job_id?: string | null;
+          social_account_id?: string | null;
+          attempt?: number;
+          provider_post_id?: string | null;
+          provider_url?: string | null;
+          error_code?: string | null;
+          error_message?: string | null;
+          retryable?: boolean;
+          requested_by?: string | null;
+          approved_by?: string | null;
+          approved_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          social_post_id?: string;
+          target_id?: string | null;
+          platform?: Database["public"]["Enums"]["social_platform"];
+          status?: Database["public"]["Enums"]["social_target_status"];
+          message?: string | null;
+          provider_response?: Json | null;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+          job_id?: string | null;
+          social_account_id?: string | null;
+          attempt?: number;
+          provider_post_id?: string | null;
+          provider_url?: string | null;
+          error_code?: string | null;
+          error_message?: string | null;
+          retryable?: boolean;
+          requested_by?: string | null;
+          approved_by?: string | null;
+          approved_at?: string | null;
+        };
+        Relationships: [];
+      };
+      social_templates: {
+        Row: {
+          id: string;
+          organization_id: string;
+          name: string;
+          category: string | null;
+          body: string;
+          created_at: string;
+          updated_at: string;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          name: string;
+          category?: string | null;
+          body: string;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          name?: string;
+          category?: string | null;
+          body?: string;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Relationships: [];
+      };
+      automation_rules: {
+        Row: {
+          id: string;
+          organization_id: string;
+          name: string;
+          trigger_type: string;
+          action_type: string;
+          config: Json;
+          enabled: boolean;
+          created_at: string;
+          updated_at: string;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          name: string;
+          trigger_type: string;
+          action_type: string;
+          config?: Json;
+          enabled?: boolean;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          name?: string;
+          trigger_type?: string;
+          action_type?: string;
+          config?: Json;
+          enabled?: boolean;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Relationships: [];
+      };
+      automation_runs: {
+        Row: {
+          id: string;
+          organization_id: string;
+          automation_rule_id: string | null;
+          status: string;
+          input: Json | null;
+          output: Json | null;
+          error_message: string | null;
+          created_at: string;
+          updated_at: string;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          automation_rule_id?: string | null;
+          status?: string;
+          input?: Json | null;
+          output?: Json | null;
+          error_message?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          automation_rule_id?: string | null;
+          status?: string;
+          input?: Json | null;
+          output?: Json | null;
+          error_message?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Relationships: [];
+      };
+      notifications: {
+        Row: {
+          id: string;
+          organization_id: string;
+          user_id: string | null;
+          type: Database["public"]["Enums"]["notification_type"];
+          title: string;
+          body: string;
+          severity: string;
+          read_at: string | null;
+          created_at: string;
+          updated_at: string;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          user_id?: string | null;
+          type: Database["public"]["Enums"]["notification_type"];
+          title: string;
+          body: string;
+          severity?: string;
+          read_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          user_id?: string | null;
+          type?: Database["public"]["Enums"]["notification_type"];
+          title?: string;
+          body?: string;
+          severity?: string;
+          read_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Relationships: [];
+      };
+      feature_flags: {
+        Row: {
+          id: string;
+          key: string;
+          description: string | null;
+          enabled: boolean;
+          organization_id: string | null;
+          created_at: string;
+          updated_at: string;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          key: string;
+          description?: string | null;
+          enabled?: boolean;
+          organization_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          key?: string;
+          description?: string | null;
+          enabled?: boolean;
+          organization_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Relationships: [];
+      };
+      system_logs: {
+        Row: {
+          id: string;
+          organization_id: string | null;
+          level: string;
+          message: string;
+          metadata: Json;
+          created_at: string;
+          updated_at: string;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          organization_id?: string | null;
+          level: string;
+          message: string;
+          metadata?: Json;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string | null;
+          level?: string;
+          message?: string;
+          metadata?: Json;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Relationships: [];
+      };
+      support_tickets: {
+        Row: {
+          id: string;
+          organization_id: string | null;
+          subject: string;
+          body: string | null;
+          status: string;
+          priority: string;
+          created_at: string;
+          updated_at: string;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          organization_id?: string | null;
+          subject: string;
+          body?: string | null;
+          status?: string;
+          priority?: string;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string | null;
+          subject?: string;
+          body?: string | null;
+          status?: string;
+          priority?: string;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Relationships: [];
+      };
+      catalog_items: {
+        Row: {
+          id: string;
+          organization_id: string;
+          branch_id: string | null;
+          menu_item_id: string | null;
+          inventory_item_id: string | null;
+          code: string;
+          name: string;
+          category_name: string | null;
+          main_unit: string;
+          retail_price: number;
+          wholesale_price: number;
+          branch_price: number | null;
+          customer_price: number | null;
+          tax_rate: number;
+          image_path: string | null;
+          status: Database["public"]["Enums"]["record_status"];
+          created_at: string;
+          updated_at: string;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          branch_id?: string | null;
+          menu_item_id?: string | null;
+          inventory_item_id?: string | null;
+          code: string;
+          name: string;
+          category_name?: string | null;
+          main_unit?: string;
+          retail_price?: number;
+          wholesale_price?: number;
+          branch_price?: number | null;
+          customer_price?: number | null;
+          tax_rate?: number;
+          image_path?: string | null;
+          status?: Database["public"]["Enums"]["record_status"];
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          branch_id?: string | null;
+          menu_item_id?: string | null;
+          inventory_item_id?: string | null;
+          code?: string;
+          name?: string;
+          category_name?: string | null;
+          main_unit?: string;
+          retail_price?: number;
+          wholesale_price?: number;
+          branch_price?: number | null;
+          customer_price?: number | null;
+          tax_rate?: number;
+          image_path?: string | null;
+          status?: Database["public"]["Enums"]["record_status"];
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Relationships: [];
+      };
+      item_barcodes: {
+        Row: {
+          id: string;
+          organization_id: string;
+          catalog_item_id: string;
+          barcode: string;
+          unit_name: string;
+          unit_factor: number;
+          is_primary: boolean;
+          created_at: string;
+          updated_at: string;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          catalog_item_id: string;
+          barcode: string;
+          unit_name?: string;
+          unit_factor?: number;
+          is_primary?: boolean;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          catalog_item_id?: string;
+          barcode?: string;
+          unit_name?: string;
+          unit_factor?: number;
+          is_primary?: boolean;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Relationships: [];
+      };
+      customer_invoice_payments: {
+        Row: {
+          id: string;
+          organization_id: string;
+          customer_invoice_id: string;
+          payment_method: Database["public"]["Enums"]["payment_method"];
+          amount: number;
+          reference: string | null;
+          created_at: string;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          customer_invoice_id: string;
+          payment_method: Database["public"]["Enums"]["payment_method"];
+          amount: number;
+          reference?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          customer_invoice_id?: string;
+          payment_method?: Database["public"]["Enums"]["payment_method"];
+          amount?: number;
+          reference?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+        };
+        Relationships: [];
+      };
+      daily_cost_entries: {
+        Row: {
+          id: string;
+          organization_id: string;
+          branch_id: string;
+          entry_date: string;
+          cost_center: string;
+          name: string;
+          amount: number;
+          quantity: number | null;
+          unit: string | null;
+          source_doc_type: string | null;
+          source_doc_id: string | null;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          branch_id: string;
+          entry_date?: string;
+          cost_center: string;
+          name: string;
+          amount: number;
+          quantity?: number | null;
+          unit?: string | null;
+          source_doc_type?: string | null;
+          source_doc_id?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          branch_id?: string;
+          entry_date?: string;
+          cost_center?: string;
+          name?: string;
+          amount?: number;
+          quantity?: number | null;
+          unit?: string | null;
+          source_doc_type?: string | null;
+          source_doc_id?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Relationships: [];
+      };
+      sales_daily_summaries: {
+        Row: {
+          id: string;
+          organization_id: string;
+          branch_id: string;
+          summary_date: string;
+          channel: Database["public"]["Enums"]["sales_channel"];
+          orders_count: number;
+          sales_total: number;
+          ingredient_cost_total: number;
+          waste_total: number;
+          labor_total: number;
+          operating_total: number;
+          fixed_total: number;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          branch_id: string;
+          summary_date: string;
+          channel?: Database["public"]["Enums"]["sales_channel"];
+          orders_count?: number;
+          sales_total?: number;
+          ingredient_cost_total?: number;
+          waste_total?: number;
+          labor_total?: number;
+          operating_total?: number;
+          fixed_total?: number;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          branch_id?: string;
+          summary_date?: string;
+          channel?: Database["public"]["Enums"]["sales_channel"];
+          orders_count?: number;
+          sales_total?: number;
+          ingredient_cost_total?: number;
+          waste_total?: number;
+          labor_total?: number;
+          operating_total?: number;
+          fixed_total?: number;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      social_oauth_states: {
+        Row: {
+          id: string;
+          organization_id: string;
+          platform: Database["public"]["Enums"]["social_platform"];
+          state: string;
+          code_verifier: string | null;
+          redirect_to: string | null;
+          requested_scopes: string[];
+          expires_at: string;
+          consumed_at: string | null;
+          created_at: string;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          platform: Database["public"]["Enums"]["social_platform"];
+          state: string;
+          code_verifier?: string | null;
+          redirect_to?: string | null;
+          requested_scopes?: string[];
+          expires_at?: string;
+          consumed_at?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          platform?: Database["public"]["Enums"]["social_platform"];
+          state?: string;
+          code_verifier?: string | null;
+          redirect_to?: string | null;
+          requested_scopes?: string[];
+          expires_at?: string;
+          consumed_at?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+        };
+        Relationships: [];
+      };
+      business_profiles: {
+        Row: {
+          id: string;
+          organization_id: string;
+          business_type: string;
+          service_style: string | null;
+          branches_count: number;
+          daily_orders_estimate: number | null;
+          has_kitchen: boolean;
+          has_inventory: boolean;
+          has_delivery: boolean;
+          recommended_dashboard: string;
+          recommended_pos: string | null;
+          recommended_accounting: string | null;
+          created_at: string;
+          updated_at: string;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          business_type?: string;
+          service_style?: string | null;
+          branches_count?: number;
+          daily_orders_estimate?: number | null;
+          has_kitchen?: boolean;
+          has_inventory?: boolean;
+          has_delivery?: boolean;
+          recommended_dashboard?: string;
+          recommended_pos?: string | null;
+          recommended_accounting?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          business_type?: string;
+          service_style?: string | null;
+          branches_count?: number;
+          daily_orders_estimate?: number | null;
+          has_kitchen?: boolean;
+          has_inventory?: boolean;
+          has_delivery?: boolean;
+          recommended_dashboard?: string;
+          recommended_pos?: string | null;
+          recommended_accounting?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          created_by?: string | null;
+        };
+        Relationships: [];
+      };
+      account_approval_requests: {
+        Row: {
+          id: string;
+          email: string;
+          owner_name: string;
+          organization_name: string;
+          business_type: string;
+          phone: string | null;
+          status: string;
+          requested_at: string;
+          approved_at: string | null;
+          approved_by: string | null;
+          rejection_reason: string | null;
+          metadata: Json;
+        };
+        Insert: {
+          id?: string;
+          email: string;
+          owner_name: string;
+          organization_name: string;
+          business_type?: string;
+          phone?: string | null;
+          status?: string;
+          requested_at?: string;
+          approved_at?: string | null;
+          approved_by?: string | null;
+          rejection_reason?: string | null;
+          metadata?: Json;
+        };
+        Update: {
+          id?: string;
+          email?: string;
+          owner_name?: string;
+          organization_name?: string;
+          business_type?: string;
+          phone?: string | null;
+          status?: string;
+          requested_at?: string;
+          approved_at?: string | null;
+          approved_by?: string | null;
+          rejection_reason?: string | null;
+          metadata?: Json;
+        };
+        Relationships: [];
+      };
+      team_invites: {
+        Row: {
+          id: string;
+          organization_id: string;
+          email: string;
+          invite_code: string;
+          role: Database["public"]["Enums"]["app_role"];
+          branch_id: string | null;
+          status: string;
+          expires_at: string;
+          accepted_at: string | null;
+          created_at: string;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          email: string;
+          invite_code?: string;
+          role: Database["public"]["Enums"]["app_role"];
+          branch_id?: string | null;
+          status?: string;
+          expires_at?: string;
+          accepted_at?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          email?: string;
+          invite_code?: string;
+          role?: Database["public"]["Enums"]["app_role"];
+          branch_id?: string | null;
+          status?: string;
+          expires_at?: string;
+          accepted_at?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+        };
+        Relationships: [];
+      };
+    };
+    Views: {
+      amwali_daily_summary: {
+        Row: {
+          organization_id: string | null;
+          branch_id: string | null;
+          summary_date: string | null;
+          sales_total: number | null;
+          raw_materials_total: number | null;
+          labor_total: number | null;
+          operating_total: number | null;
+          fixed_total: number | null;
+          waste_total: number | null;
+          net_profit: number | null;
+        };
+        Relationships: [];
+      };
+    };
+    Functions: {
+      can_access_branch: {
+        Args: { target_org_id: string; target_branch_id: string };
+        Returns: boolean;
+      };
+      find_catalog_item_by_barcode: {
+        Args: { p_organization_id: string; p_barcode: string };
         Returns: Array<{
           catalog_item_id: string;
           menu_item_id: string | null;
@@ -30,14 +2302,26 @@ export type Database = {
           tax_rate: number;
         }>;
       };
+      has_org_role: {
+        Args: { target_org_id: string; allowed_roles: Database["public"]["Enums"]["app_role"][] };
+        Returns: boolean;
+      };
+      is_org_member: {
+        Args: { target_org_id: string };
+        Returns: boolean;
+      };
+      is_super_admin: {
+        Args: Record<string, never>;
+        Returns: boolean;
+      };
       issue_customer_invoice: {
         Args: {
           p_organization_id: string;
           p_branch_id: string;
           p_customer_name: string;
           p_customer_phone: string | null;
-          p_payment_method: "cash" | "card" | "bank_transfer" | "delivery_app";
-          p_channel: "dine_in" | "delivery" | "pickup";
+          p_payment_method: Database["public"]["Enums"]["payment_method"];
+          p_channel: Database["public"]["Enums"]["sales_channel"];
           p_items: Json;
           p_invoice_discount?: number;
           p_service_fee?: number;
@@ -48,30 +2332,33 @@ export type Database = {
         };
         Returns: Json;
       };
+      next_invoice_number: {
+        Args: { p_organization_id: string };
+        Returns: string;
+      };
     };
     Enums: {
-      app_role:
-        | "super_admin"
-        | "organization_owner"
-        | "branch_manager"
-        | "inventory_manager"
-        | "purchasing_manager"
-        | "chef"
-        | "marketing_manager"
-        | "accountant"
-        | "staff";
-      stock_movement_type:
-        | "purchase"
-        | "sale_usage"
-        | "waste"
-        | "transfer_in"
-        | "transfer_out"
-        | "adjustment"
-        | "stock_count"
-        | "return";
-      social_platform: "facebook" | "instagram" | "telegram" | "tiktok" | "x" | "google_business";
+      app_role: "super_admin" | "organization_owner" | "branch_manager" | "cashier" | "inventory_manager" | "purchasing_manager" | "chef" | "marketing_manager" | "accountant" | "staff";
+      record_status: "active" | "inactive" | "archived";
+      purchase_order_status: "draft" | "sent" | "received" | "partially_received" | "cancelled";
+      invoice_status: "draft" | "matched" | "paid" | "flagged";
+      customer_invoice_status: "draft" | "issued" | "paid" | "void";
+      payment_method: "cash" | "card" | "bank_transfer" | "delivery_app";
+      stock_movement_type: "purchase" | "sale_usage" | "waste" | "transfer_in" | "transfer_out" | "adjustment" | "stock_count" | "return";
+      transfer_status: "draft" | "sent" | "received" | "cancelled";
+      social_platform: "facebook" | "instagram" | "telegram" | "tiktok" | "x" | "google_business" | "linkedin" | "youtube_shorts" | "pinterest";
+      social_post_status: "draft" | "scheduled" | "publishing" | "published" | "failed";
+      social_target_status: "pending" | "publishing" | "published" | "failed";
+      notification_type: "low_stock" | "price_increase" | "high_food_cost" | "publish_failed" | "purchase_received" | "waste_logged";
       sales_channel: "dine_in" | "delivery" | "pickup";
     };
     CompositeTypes: Record<string, never>;
   };
 };
+
+type PublicSchema = Database["public"];
+
+export type Tables<T extends keyof PublicSchema["Tables"]> = PublicSchema["Tables"][T]["Row"];
+export type TablesInsert<T extends keyof PublicSchema["Tables"]> = PublicSchema["Tables"][T]["Insert"];
+export type TablesUpdate<T extends keyof PublicSchema["Tables"]> = PublicSchema["Tables"][T]["Update"];
+export type Enums<T extends keyof PublicSchema["Enums"]> = PublicSchema["Enums"][T];

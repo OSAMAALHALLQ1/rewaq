@@ -15,7 +15,7 @@ export function DashboardMockup() {
         <div className="mb-4 flex items-center justify-between">
           <div>
             <p className="text-sm text-muted-foreground">لوحة اليوم</p>
-            <h3 className="text-xl font-bold">مطعم التايلندي</h3>
+            <h3 className="text-xl font-bold">مطعم إيوان</h3>
           </div>
           <Badge tone="warning">3 تنبيهات</Badge>
         </div>

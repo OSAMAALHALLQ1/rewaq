@@ -107,14 +107,35 @@ Main tables:
 
 RLS is enabled across tenant data. Policies use `organization_id`, membership checks, and branch access checks. Branch managers are constrained through `can_access_branch(...)`; owners and cross-functional managers can access organization-level data.
 
-## Social publishing
+## Social publishing engine
 
-Mock adapters are implemented under:
+The platform supports one publishing flow for:
+
+- Facebook
+- Instagram
+- Telegram
+- TikTok
+- X
+- Google Business
+
+Publishing is intentionally split into two layers:
+
+- Trigger.dev: background jobs, queues, schedules, retries, monitoring, long-running publish tasks.
+- ImageKit: public media storage for marketing images and videos.
+- Node-RED: optional external triggers and automation sources such as Google Sheets, Drive, RSS, or custom webhooks.
+- Platform APIs: Meta/TikTok/etc. permissions, OAuth, tokens, app review, and actual publishing.
+
+When `TRIGGER_DEV_SOCIAL_PUBLISH_ENDPOINT` is configured, every selected target is queued as a background publish task. If Trigger.dev is not configured, Rewaq can send to `NODE_RED_SOCIAL_PUBLISH_WEBHOOK_URL`. When neither is configured, the app uses a local demo publisher so the UX remains fully navigable.
+
+Publishing modules live under:
 
 - `src/lib/social/facebook.ts`
 - `src/lib/social/instagram.ts`
 - `src/lib/social/telegram.ts`
+- `src/lib/social/node-red.ts`
+- `src/lib/social/trigger-dev.ts`
 - `src/lib/social/publisher.ts`
+- `src/lib/imagekit.ts`
 
 All providers share:
 
@@ -124,11 +145,49 @@ SocialPublisher.publish(input)
 
 Partial failures are supported: one failed target does not fail the entire post.
 
+Production OAuth, job, scheduler, retry, and audit setup is documented in:
+
+- `docs/social-publishing-runbook.md`
+
+### Facebook Pages API
+
+For direct Facebook Page publishing without Trigger.dev/Node-RED, configure:
+
+```bash
+FACEBOOK_GRAPH_VERSION=v21.0
+FACEBOOK_PAGE_ID=
+FACEBOOK_PAGE_ACCESS_TOKEN=
+```
+
+The Page access token must be generated through Meta OAuth and include the Page permissions needed for publishing, especially `pages_show_list`, `pages_read_engagement`, and `pages_manage_posts`. App ID/App Secret alone are not enough to publish to a Page.
+
+Internal API endpoint for workflow/server calls:
+
+```bash
+POST /api/node-red/social-publish
+Authorization: Bearer $NODE_RED_REWAQ_API_KEY
+```
+
+Example request body:
+
+```json
+{
+  "organizationId": "org_123",
+  "postId": "post_123",
+  "body": "عرض اليوم متاح الآن",
+  "targets": [
+    { "platform": "facebook", "accountId": "page_1", "accountName": "Restaurant Page" },
+    { "platform": "instagram", "accountId": "ig_1", "accountName": "restaurant" }
+  ]
+}
+```
+
 ## Real integration TODO
 
-- Facebook Graph API
-- Instagram Content Publishing API
-- Telegram Bot API
+- Create Trigger.dev task(s) for scheduled publishing, retries, and per-platform failure handling
+- Build OAuth flows for Meta, TikTok, LinkedIn, YouTube, Pinterest, and Google Business
+- Store provider tokens encrypted in Supabase or a managed secrets vault
+- Keep `IMAGEKIT_PRIVATE_KEY` only in server environment variables, never in client code
 - POS imports for theoretical usage
 - OCR invoices
 - Advanced billing and subscription webhooks
@@ -140,7 +199,7 @@ Partial failures are supported: one failed target does not fail the entire post.
 
 Seed data includes:
 
-- Organization: `مطعم التايلندي`
+- Organization: `مطعم إيوان`
 - Branches: `فرع شارع عبد القادر الحسيني`, `فرع الرمال`
 - Suppliers: `مورد الدجاج`, `مورد الخضار`, `مورد التغليف`
 - Inventory: دجاج، أرز، زيت، بطاطا، خبز برجر، صوص حار، جبنة، علب تغليف

@@ -11,8 +11,8 @@ export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 const variants: Record<ButtonVariant, string> = {
-  default: "bg-primary text-primary-foreground shadow-sm hover:bg-teal-800",
-  secondary: "bg-secondary text-secondary-foreground hover:bg-slate-200",
+  default: "bg-primary text-primary-foreground shadow-sm hover:bg-blue-700",
+  secondary: "bg-secondary text-secondary-foreground hover:bg-blue-100",
   outline: "border border-border bg-white text-foreground hover:bg-slate-50",
   ghost: "text-foreground hover:bg-slate-100",
   destructive: "bg-destructive text-destructive-foreground hover:bg-red-700",
@@ -41,7 +41,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     }
 
     return (
-      <button ref={ref} type={type} className={classes} {...props}>
+      <button ref={ref} type={type} suppressHydrationWarning className={classes} {...props}>
         {children}
       </button>
     );

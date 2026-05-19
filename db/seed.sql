@@ -6,7 +6,7 @@ values
 on conflict (code) do nothing;
 
 insert into organizations (id, name, slug, plan, status)
-values ('00000000-0000-4000-8000-000000000001', 'مطعم التايلندي', 'thai-demo', 'growth', 'trial')
+values ('00000000-0000-4000-8000-000000000001', 'مطعم إيوان', 'iwan-demo', 'growth', 'trial')
 on conflict (id) do nothing;
 
 insert into subscriptions (id, organization_id, plan_id, status, current_period_start, current_period_end)
@@ -80,11 +80,20 @@ values
 on conflict (id) do nothing;
 
 insert into recipe_ingredients (organization_id, recipe_id, item_id, quantity, unit_id, unit_cost)
-values
+select v.organization_id::uuid, v.recipe_id::uuid, v.item_id::uuid, v.quantity, v.unit_id::uuid, v.unit_cost
+from (values
   ('00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000601', '00000000-0000-4000-8000-000000000501', 0.22, '00000000-0000-4000-8000-000000000401', 17.2),
   ('00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000601', '00000000-0000-4000-8000-000000000502', 0.18, '00000000-0000-4000-8000-000000000401', 5.7),
   ('00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000602', '00000000-0000-4000-8000-000000000501', 0.16, '00000000-0000-4000-8000-000000000401', 17.2),
-  ('00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000602', '00000000-0000-4000-8000-000000000505', 1, '00000000-0000-4000-8000-000000000404', 0.72);
+  ('00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000602', '00000000-0000-4000-8000-000000000505', 1, '00000000-0000-4000-8000-000000000404', 0.72)
+) as v(organization_id, recipe_id, item_id, quantity, unit_id, unit_cost)
+where not exists (
+  select 1
+  from recipe_ingredients ri
+  where ri.organization_id = v.organization_id::uuid
+    and ri.recipe_id = v.recipe_id::uuid
+    and ri.item_id = v.item_id::uuid
+);
 
 insert into menu_items (id, organization_id, name, selling_price, status)
 values
@@ -130,7 +139,8 @@ set catalog_item_id = excluded.catalog_item_id,
     is_primary = excluded.is_primary;
 
 insert into daily_cost_entries (organization_id, branch_id, entry_date, cost_center, name, amount, quantity, unit, notes)
-values
+select v.organization_id::uuid, v.branch_id::uuid, v.entry_date::date, v.cost_center, v.name, v.amount, v.quantity, v.unit, v.notes
+from (values
   ('00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000101', '2026-05-16', 'رواتب', 'شيف 1', 70, null, null, 'وردية صباحية'),
   ('00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000101', '2026-05-16', 'رواتب', 'شيف 2', 70, null, null, 'وردية صباحية'),
   ('00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000101', '2026-05-16', 'رواتب', 'كاشير', 50, null, null, null),
@@ -148,7 +158,17 @@ values
   ('00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000101', '2026-05-16', 'ثابت', 'اشتراك نظام الكاش', 10, null, null, '300 شهريًا ÷ 30'),
   ('00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000101', '2026-05-16', 'هدر', 'دجاج مرمي', 50, 2.9, 'كغم', 'تلف قبل التحضير'),
   ('00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000101', '2026-05-16', 'هدر', 'بطاطا محروقة', 20, 2.7, 'كغم', null),
-  ('00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000101', '2026-05-16', 'هدر', 'مشروب منسكب', 10, 5, 'عبوات', null);
+  ('00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000101', '2026-05-16', 'هدر', 'مشروب منسكب', 10, 5, 'عبوات', null)
+) as v(organization_id, branch_id, entry_date, cost_center, name, amount, quantity, unit, notes)
+where not exists (
+  select 1
+  from daily_cost_entries dce
+  where dce.organization_id = v.organization_id::uuid
+    and dce.branch_id = v.branch_id::uuid
+    and dce.entry_date = v.entry_date::date
+    and dce.cost_center = v.cost_center
+    and dce.name = v.name
+);
 
 insert into customer_invoices (
   id, organization_id, branch_id, invoice_number, customer_name, customer_phone,
@@ -160,36 +180,70 @@ values
 on conflict (id) do nothing;
 
 insert into customer_invoice_items (organization_id, customer_invoice_id, menu_item_id, name, quantity, unit_price)
-values
+select v.organization_id::uuid, v.customer_invoice_id::uuid, v.menu_item_id::uuid, v.name, v.quantity, v.unit_price
+from (values
   ('00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000901', '00000000-0000-4000-8000-000000000701', 'وجبة دجاج تايلندي', 1, 25),
   ('00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000901', '00000000-0000-4000-8000-000000000702', 'ساندويتش زنجر', 2, 15),
   ('00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000902', '00000000-0000-4000-8000-000000000703', 'أرز بالخضار', 3, 12),
-  ('00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000902', '00000000-0000-4000-8000-000000000701', 'وجبة دجاج تايلندي', 2, 25);
+  ('00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000902', '00000000-0000-4000-8000-000000000701', 'وجبة دجاج تايلندي', 2, 25)
+) as v(organization_id, customer_invoice_id, menu_item_id, name, quantity, unit_price)
+where not exists (
+  select 1
+  from customer_invoice_items cii
+  where cii.organization_id = v.organization_id::uuid
+    and cii.customer_invoice_id = v.customer_invoice_id::uuid
+    and cii.menu_item_id = v.menu_item_id::uuid
+    and cii.name = v.name
+);
 
 insert into social_accounts (id, organization_id, platform, account_name, status)
 values
-  ('00000000-0000-4000-8000-000000000801', '00000000-0000-4000-8000-000000000001', 'facebook', 'صفحة مطعم التايلندي', 'active'),
-  ('00000000-0000-4000-8000-000000000802', '00000000-0000-4000-8000-000000000001', 'instagram', 'حساب مطعم التايلندي', 'inactive'),
-  ('00000000-0000-4000-8000-000000000803', '00000000-0000-4000-8000-000000000001', 'telegram', 'قناة عروض التايلندي', 'active')
+  ('00000000-0000-4000-8000-000000000801', '00000000-0000-4000-8000-000000000001', 'facebook', 'صفحة مطعم إيوان', 'active'),
+  ('00000000-0000-4000-8000-000000000802', '00000000-0000-4000-8000-000000000001', 'instagram', 'حساب مطعم إيوان', 'active'),
+  ('00000000-0000-4000-8000-000000000803', '00000000-0000-4000-8000-000000000001', 'telegram', 'قناة عروض إيوان', 'active'),
+  ('00000000-0000-4000-8000-000000000804', '00000000-0000-4000-8000-000000000001', 'tiktok', 'iwan.kitchen', 'active'),
+  ('00000000-0000-4000-8000-000000000805', '00000000-0000-4000-8000-000000000001', 'x', '@iwan_restaurant', 'active'),
+  ('00000000-0000-4000-8000-000000000806', '00000000-0000-4000-8000-000000000001', 'google_business', 'مطعم إيوان على Google', 'active'),
+  ('00000000-0000-4000-8000-000000000807', '00000000-0000-4000-8000-000000000001', 'linkedin', 'Rewaq Restaurant Group', 'active'),
+  ('00000000-0000-4000-8000-000000000808', '00000000-0000-4000-8000-000000000001', 'youtube_shorts', 'Thai Kitchen Shorts', 'active'),
+  ('00000000-0000-4000-8000-000000000809', '00000000-0000-4000-8000-000000000001', 'pinterest', 'Thai Restaurant Boards', 'active')
 on conflict (id) do nothing;
 
 insert into social_templates (organization_id, name, description, content)
-values
+select v.organization_id::uuid, v.name, v.description, v.content
+from (values
   ('00000000-0000-4000-8000-000000000001', 'عرض اليوم', 'قالب عرض سريع', 'عرض اليوم: {dish} بسعر خاص حتى نهاية الدوام.'),
   ('00000000-0000-4000-8000-000000000001', 'طبق جديد', 'إعلان صنف جديد', 'جديدنا اليوم: {dish}. وصفة طازجة بطعم مختلف.'),
-  ('00000000-0000-4000-8000-000000000001', 'خصم نهاية الأسبوع', 'قالب نهاية الأسبوع', 'نهاية الأسبوع ألذ مع خصم خاص على وجبات مختارة.');
+  ('00000000-0000-4000-8000-000000000001', 'خصم نهاية الأسبوع', 'قالب نهاية الأسبوع', 'نهاية الأسبوع ألذ مع خصم خاص على وجبات مختارة.')
+) as v(organization_id, name, description, content)
+where not exists (
+  select 1
+  from social_templates st
+  where st.organization_id = v.organization_id::uuid
+    and st.name = v.name
+);
 
 insert into notifications (organization_id, type, title, body, data)
-values
+select v.organization_id::uuid, v.type::notification_type, v.title, v.body, v.data::jsonb
+from (values
   ('00000000-0000-4000-8000-000000000001', 'low_stock', 'دجاج وصل للحد الأدنى', 'فرع شارع عبد القادر الحسيني لديه 32 كغم فقط من الدجاج.', '{"severity":"warning"}'),
   ('00000000-0000-4000-8000-000000000001', 'price_increase', 'ارتفاع سعر الدجاج', 'سعر الدجاج ارتفع 18% عن آخر شراء.', '{"severity":"danger"}'),
-  ('00000000-0000-4000-8000-000000000001', 'high_food_cost', 'وصفة تحتاج مراجعة', 'ساندويتش زنجر تجاوز حد تكلفة الطعام بنسبة 35%.', '{"severity":"warning"}');
+  ('00000000-0000-4000-8000-000000000001', 'high_food_cost', 'وصفة تحتاج مراجعة', 'ساندويتش زنجر تجاوز حد تكلفة الطعام بنسبة 35%.', '{"severity":"warning"}')
+) as v(organization_id, type, title, body, data)
+where not exists (
+  select 1
+  from notifications n
+  where n.organization_id = v.organization_id::uuid
+    and n.type = v.type::notification_type
+    and n.title = v.title
+);
 
 insert into feature_flags (key, description, enabled)
 values
   ('facebook_real_api', 'تفعيل واجهة فيسبوك الحقيقية', false),
   ('instagram_real_api', 'تفعيل واجهة إنستغرام الحقيقية', false),
   ('telegram_real_api', 'تفعيل واجهة تيليغرام الحقيقية', false),
+  ('node_red_social_publish', 'إرسال منشورات كل القنوات عبر Node-RED webhook', true),
   ('ocr_invoices', 'قراءة الفواتير آليًا', false),
   ('pos_imports', 'استيراد مبيعات الكاشير', false)
 on conflict (key) do nothing;
