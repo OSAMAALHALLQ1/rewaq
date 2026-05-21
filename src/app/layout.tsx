@@ -29,9 +29,10 @@ export default function RootLayout({
     <html
       lang="ar"
       dir="rtl"
+      suppressHydrationWarning
       className={`${arabicSans.variable} ${geistMono.variable} h-full`}
     >
-      <body className="min-h-full text-foreground antialiased">{children}</body>
+      <body suppressHydrationWarning className="min-h-full text-foreground antialiased">{children}</body>
     </html>
   );
 }

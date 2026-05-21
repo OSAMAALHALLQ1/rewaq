@@ -46,7 +46,7 @@ begin
   end if;
 
   if not exists (select 1 from pg_type where typname = 'social_platform') then
-    create type social_platform as enum ('facebook', 'instagram', 'telegram', 'tiktok', 'x', 'google_business', 'linkedin', 'youtube_shorts', 'pinterest');
+    create type social_platform as enum ('facebook', 'instagram', 'telegram', 'whatsapp', 'tiktok', 'x', 'google_business', 'linkedin', 'youtube_shorts', 'pinterest');
   end if;
 
   if not exists (select 1 from pg_type where typname = 'social_post_status') then
