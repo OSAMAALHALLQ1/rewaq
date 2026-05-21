@@ -2101,6 +2101,14 @@ export const demoSocialAccounts: SocialAccount[] = [
     lastPublishedAt: "2026-05-16T08:20:00Z",
   },
   {
+    id: "soc-wa",
+    organizationId: demoOrganization.id,
+    platform: "whatsapp",
+    accountName: "قناة واتساب إيوان",
+    status: "connected",
+    lastPublishedAt: "2026-05-16T08:25:00Z",
+  },
+  {
     id: "soc-tg",
     organizationId: demoOrganization.id,
     platform: "telegram",

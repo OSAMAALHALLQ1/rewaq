@@ -12,9 +12,9 @@ import {
 } from "@/lib/validation/schemas";
 import { createClient } from "@/lib/supabase/server";
 import { hasSupabaseEnv } from "@/lib/supabase/env";
-import { createAdminClient, hasSupabaseAdminEnv } from "@/lib/supabase/admin";
-import { demoOrganization } from "@/lib/demo-data";
-import type { Json, Tables } from "@/types/database";
+import { createAdminClient, createAdminClientWithContext, hasSupabaseAdminEnv } from "@/lib/supabase/admin";
+import { requireAuth } from "@/lib/auth/require-auth";
+import type { Tables } from "@/types/database";
 import type { ActionState } from "./auth";
 
 function ok(message: string): ActionState {
@@ -56,7 +56,7 @@ const wasteLogSchema = z.object({
   branchId: z.string().uuid("اختر الفرع"),
   itemId: z.string().uuid("اختر المادة"),
   quantity: z.coerce.number().positive("الكمية يجب أن تكون أكبر من صفر"),
-  reason: z.enum(["تلف", "انتهاء صلاحية", "خطأ تحضير", "كسر/انسكاب", "إرجاع", "سبب آخر"]),
+  reason: z.enum(["تلف", "انتهاء صلاحية", "خطأ تحضير", "كسر/انسكاب", "محاريق", "منظفات", "إرجاع", "سبب آخر"]),
   notes: z.string().optional(),
 });
 
@@ -65,106 +65,43 @@ const stockCountSchema = z.object({
   notes: z.string().optional(),
 });
 
-const catalogItemSchema = z.object({
-  code: z.string().min(1, "كود الصنف مطلوب"),
-  name: z.string().min(2, "اسم الصنف مطلوب"),
-  categoryName: z.string().optional(),
-  mainUnit: z.string().min(1, "الوحدة مطلوبة"),
-  retailPrice: z.coerce.number().nonnegative("سعر البيع غير صحيح"),
-  wholesalePrice: z.coerce.number().nonnegative("سعر الجملة غير صحيح").default(0),
-  taxRate: z.coerce.number().nonnegative().default(0),
-  inventoryItemId: z.string().uuid().optional(),
-  barcode: z.string().optional(),
-  branchId: z.string().uuid().optional(),
-});
-
-const barcodeSchema = z.object({
-  catalogItemId: z.string().uuid("اختر الصنف"),
-  barcode: z.string().min(1, "الباركود مطلوب"),
-  unitName: z.string().min(1, "اسم الوحدة مطلوب"),
-  unitFactor: z.coerce.number().positive("معامل الوحدة يجب أن يكون أكبر من صفر").default(1),
-  isPrimary: z.boolean().default(false),
-});
-
-const salesReturnSchema = z.object({
-  invoiceId: z.string().uuid("اختر الفاتورة"),
-  reason: z.string().min(2, "سبب المرتجع مطلوب"),
-  notes: z.string().optional(),
-});
-
-const openShiftSchema = z.object({
-  branchId: z.string().uuid("اختر الفرع"),
-  cashierName: z.string().min(2, "اسم الكاشير مطلوب"),
-  openingCash: z.coerce.number().nonnegative("الرصيد الافتتاحي غير صحيح").default(0),
-});
-
-const closeShiftSchema = z.object({
-  shiftId: z.string().uuid("الوردية غير معروفة"),
-  actualCash: z.coerce.number().nonnegative("قيمة الصندوق غير صحيحة"),
-  notes: z.string().optional(),
-});
-
-const recipeIngredientFormSchema = z.object({
-  recipeId: z.string().uuid("الوصفة غير معروفة"),
-  itemId: z.string().uuid("اختر المكون"),
-  quantityGrams: z.coerce.number().positive("كمية المكون بالغرام مطلوبة"),
-  yieldPercent: z.coerce.number().positive().max(100).default(100),
-});
-
-async function getCurrentUserId() {
-  if (!hasSupabaseEnv()) {
-    return null;
-  }
-
-  try {
-    const supabase = await createClient();
-    const { data } = await supabase.auth.getClaims();
-    return data?.claims?.sub ? String(data.claims.sub) : null;
-  } catch {
-    return null;
-  }
-}
-
 async function resolveMutationScope() {
-  const admin = createAdminClient();
-  const userId = await getCurrentUserId();
+  const auth = await requireAuth();
+  const admin = createAdminClientWithContext("mutations.ts/resolveMutationScope");
 
-  if (userId) {
-    const { data: membership } = await admin
-      .from("organization_memberships")
-      .select("organization_id")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: true })
-      .limit(1)
-      .maybeSingle();
-
-    if (membership?.organization_id) {
-      return { admin, organizationId: membership.organization_id, userId };
-    }
+  // Use the user's org from auth (populated by requireAuth via membership lookup)
+  if (auth.organizationId) {
+    return { admin, organizationId: auth.organizationId, userId: auth.id };
   }
 
-  const { data: demoOrg } = await admin
-    .from("organizations")
-    .select("id")
-    .eq("id", demoOrganization.id)
-    .maybeSingle();
-
-  if (demoOrg?.id) {
-    return { admin, organizationId: demoOrg.id, userId };
-  }
-
-  const { data: firstOrg } = await admin
-    .from("organizations")
-    .select("id")
+  // Fallback: direct membership lookup
+  const { data: membership } = await admin
+    .from("organization_memberships")
+    .select("organization_id")
+    .eq("user_id", auth.id)
     .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle();
 
-  if (!firstOrg?.id) {
-    throw new Error("لا توجد مؤسسة في قاعدة البيانات لحفظ المادة داخلها.");
+  if (membership?.organization_id) {
+    return { admin, organizationId: membership.organization_id, userId: auth.id };
   }
 
-  return { admin, organizationId: firstOrg.id, userId };
+  // Super-admin can access any org
+  if (auth.role === "super_admin") {
+    const { data: firstOrg } = await admin
+      .from("organizations")
+      .select("id")
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (firstOrg?.id) {
+      return { admin, organizationId: firstOrg.id, userId: auth.id };
+    }
+  }
+
+  throw new Error("لم يتم العثور على مؤسسة مرتبطة بحسابك.");
 }
 
 function inferUnitKind(name: string) {
@@ -313,18 +250,6 @@ async function addToBranchStock(
   );
 }
 
-async function getScopedCatalogItem(admin: ReturnType<typeof createAdminClient>, organizationId: string, catalogItemId: string) {
-  const { data, error } = await admin
-    .from("catalog_items")
-    .select("*")
-    .eq("id", catalogItemId)
-    .eq("organization_id", organizationId)
-    .maybeSingle();
-
-  if (error) throw new Error(error.message);
-  return data;
-}
-
 function normalizeUnit(value: string | null | undefined) {
   return value?.trim().toLowerCase() ?? "";
 }
@@ -351,38 +276,6 @@ function convertQuantity(quantity: number, fromUnit: string | null | undefined, 
   }
 
   return quantity;
-}
-
-function unitCostForIngredientUnit(averageCost: number, ingredientUnit: string, usageUnit: string | null | undefined) {
-  const oneIngredientUnitInUsageUnit = convertQuantity(1, ingredientUnit, usageUnit);
-  return averageCost * oneIngredientUnitInUsageUnit;
-}
-
-async function recalculateRecipeCosts(admin: ReturnType<typeof createAdminClient>, organizationId: string, recipeId: string) {
-  const [{ data: recipe, error: recipeError }, { data: ingredients, error: ingredientsError }] = await Promise.all([
-    admin.from("recipes").select("servings").eq("id", recipeId).eq("organization_id", organizationId).maybeSingle(),
-    admin.from("recipe_ingredients").select("quantity,unit_cost,yield_percent").eq("recipe_id", recipeId).eq("organization_id", organizationId),
-  ]);
-
-  if (recipeError) throw new Error(recipeError.message);
-  if (ingredientsError) throw new Error(ingredientsError.message);
-
-  const totalCost = (ingredients ?? []).reduce((sum, ingredient) => {
-    const yieldFactor = Math.max(Number(ingredient.yield_percent ?? 100), 0.0001) / 100;
-    return sum + (Number(ingredient.quantity ?? 0) * Number(ingredient.unit_cost ?? 0)) / yieldFactor;
-  }, 0);
-  const servings = Math.max(Number(recipe?.servings ?? 1), 1);
-
-  const { error } = await admin
-    .from("recipes")
-    .update({
-      total_cost: totalCost,
-      cost_per_serving: totalCost / servings,
-    })
-    .eq("id", recipeId)
-    .eq("organization_id", organizationId);
-
-  if (error) throw new Error(error.message);
 }
 
 async function nextDocumentNumber(

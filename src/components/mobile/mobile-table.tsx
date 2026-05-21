@@ -11,9 +11,9 @@ interface MobileTableProps {
     width?: string;
     align?: "start" | "center" | "end";
   }>;
-  data: Array<Record<string, any>>;
-  renderCell?: (key: string, value: any, row: Record<string, any>) => ReactNode;
-  onRowClick?: (row: Record<string, any>) => void;
+  data: Array<Record<string, ReactNode>>;
+  renderCell?: (key: string, value: ReactNode, row: Record<string, ReactNode>) => ReactNode;
+  onRowClick?: (row: Record<string, ReactNode>) => void;
   emptyState?: ReactNode;
   loading?: boolean;
   className?: string;

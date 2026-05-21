@@ -13,11 +13,14 @@ type FacebookResponse = {
 
 const graphVersion = process.env.FACEBOOK_GRAPH_VERSION ?? "v21.0";
 const pageId = process.env.FACEBOOK_PAGE_ID;
-const pageAccessToken = process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
+const pageAccessToken =
+  process.env.FACEBOOK_PAGE_ACCESS_TOKEN ??
+  process.env.META_PAGE_ACCESS_TOKEN ??
+  process.env.META_ACCESS_TOKEN;
 
 export class FacebookPublisher implements SocialPublisher {
   async publish(input: PublishInput): Promise<PublishResult> {
-    if (pageId && pageAccessToken) {
+    if (pageId || pageAccessToken) {
       return publishToFacebookPage(input);
     }
 
@@ -31,10 +34,18 @@ export class FacebookPublisher implements SocialPublisher {
 }
 
 async function publishToFacebookPage(input: PublishInput): Promise<PublishResult> {
+  if (!pageId || !pageAccessToken) {
+    return {
+      platform: "facebook",
+      status: "failed",
+      error: "Facebook publishing requires FACEBOOK_PAGE_ID and FACEBOOK_PAGE_ACCESS_TOKEN.",
+    };
+  }
+
   const isPhotoPost = Boolean(input.assetUrl && ["single_image", "multi_image", "pin"].includes(input.mediaKind ?? ""));
   const path = isPhotoPost ? `${pageId}/photos` : `${pageId}/feed`;
   const params = new URLSearchParams({
-    access_token: pageAccessToken ?? "",
+    access_token: pageAccessToken,
   });
 
   if (isPhotoPost && input.assetUrl) {

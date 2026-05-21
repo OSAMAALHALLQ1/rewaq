@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Bell, Menu, Search } from "lucide-react";
+import { Menu, Search } from "lucide-react";
 import { useState } from "react";
 import { NotificationBell } from "@/components/layout/notification-bell";
 import type { AppSession } from "@/lib/auth/session";

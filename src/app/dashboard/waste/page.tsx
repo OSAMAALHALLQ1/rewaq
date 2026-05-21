@@ -18,13 +18,13 @@ export default async function WastePage() {
   return (
     <>
       <PageHeader
-        title="الهدر والتلف"
-        description="تسجيل الهدر ينقص المخزون ويضيف حركة مخزون من نوع هدر ويظهر في التقارير."
+        title="التالف والمحاريق والمنظفات"
+        description="تسجيل التالف والمحاريق والمنظفات ينقص المخزون ويظهر في تقارير المخزن."
       />
       <div className="grid gap-4 xl:grid-cols-[1fr_360px]">
         <Card>
           <CardHeader>
-            <CardTitle>سجل الهدر</CardTitle>
+            <CardTitle>سجل التالف والمحاريق والمنظفات</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
@@ -33,7 +33,7 @@ export default async function WastePage() {
                   <TableHead>التاريخ</TableHead>
                   <TableHead>الفرع</TableHead>
                   <TableHead>المادة</TableHead>
-                  <TableHead>السبب</TableHead>
+                <TableHead>النوع</TableHead>
                   <TableHead>الكمية</TableHead>
                   <TableHead>التكلفة</TableHead>
                 </TableRow>
@@ -60,13 +60,13 @@ export default async function WastePage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <PackageMinus className="h-5 w-5 text-primary" />
-              تسجيل هدر
+              تسجيل تالف / محاريق / منظفات
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ActionForm action={saveWasteLogAction} submitLabel="حفظ الهدر" className="space-y-4">
+            <ActionForm action={saveWasteLogAction} submitLabel="حفظ السجل" className="space-y-4">
             <div className="grid gap-2">
-              <Label htmlFor="branchId">الفرع</Label>
+              <Label htmlFor="branchId">القسم</Label>
               <Select id="branchId" name="branchId" required>
                 {branches.map((branch) => (
                   <option key={branch.id} value={branch.id}>{branch.name}</option>
@@ -86,9 +86,9 @@ export default async function WastePage() {
               <Input id="quantity" name="quantity" type="number" min="0" step="0.01" required />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="reason">السبب</Label>
+              <Label htmlFor="reason">النوع</Label>
               <Select id="reason" name="reason" required>
-                {["تلف", "انتهاء صلاحية", "خطأ تحضير", "كسر/انسكاب", "إرجاع", "سبب آخر"].map((reason) => (
+                {["تلف", "محاريق", "منظفات", "انتهاء صلاحية", "خطأ تحضير", "كسر/انسكاب", "إرجاع", "سبب آخر"].map((reason) => (
                   <option key={reason} value={reason}>{reason}</option>
                 ))}
               </Select>

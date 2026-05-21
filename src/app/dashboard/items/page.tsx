@@ -6,19 +6,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { formatCurrency, formatNumber } from "@/lib/utils";
+import { formatNumber } from "@/lib/utils";
 import { getCatalogData } from "@/server/queries/app";
 
 export default async function ItemsPage() {
   const { items, categories, permissions } = await getCatalogData();
   const activeItems = items.filter((item) => item.isActive).length;
-  const lowStockItems = items.filter((item) => item.stockQuantity <= item.minimumQuantity).length;
 
   return (
     <>
       <PageHeader
         title="الأصناف والباركود"
-        description="إدارة كود الصنف، الباركود، الوحدات، تحويل الوحدات، الأسعار، الضريبة، والحد الأدنى."
+        description="إدارة كود الصنف، الباركود، الوحدات، تحويل الوحدات، الفئات، وربط المواد بالمخزن."
         actions={
           <Button>
             <Plus className="h-4 w-4" />
@@ -30,7 +29,7 @@ export default async function ItemsPage() {
       <div className="grid gap-4 md:grid-cols-4">
         <SummaryCard title="إجمالي الأصناف" value={formatNumber(items.length)} />
         <SummaryCard title="أصناف نشطة" value={formatNumber(activeItems)} />
-        <SummaryCard title="تحت الحد الأدنى" value={formatNumber(lowStockItems)} tone="warning" />
+        <SummaryCard title="فئات مسجلة" value={formatNumber(categories.length)} />
         <SummaryCard title="باركودات مسجلة" value={formatNumber(items.reduce((sum, item) => sum + item.barcodes.length, 0))} />
       </div>
 
@@ -71,9 +70,6 @@ export default async function ItemsPage() {
                 <TableHead>باركود</TableHead>
                 <TableHead>الفئة</TableHead>
                 <TableHead>الوحدات</TableHead>
-                <TableHead>سعر الشراء</TableHead>
-                <TableHead>سعر المفرق</TableHead>
-                <TableHead>سعر الجملة</TableHead>
                 <TableHead>ضريبة</TableHead>
                 <TableHead>المخزون</TableHead>
                 <TableHead>الحالة</TableHead>
@@ -90,9 +86,7 @@ export default async function ItemsPage() {
                   <TableCell className="font-bold">{item.code}</TableCell>
                   <TableCell>
                     <div className="font-semibold">{item.name}</div>
-                    <p className="text-xs text-muted-foreground">
-                      حد أدنى {formatNumber(item.minimumQuantity)} {item.mainUnit}
-                    </p>
+                    <p className="text-xs text-muted-foreground">{item.mainUnit}</p>
                   </TableCell>
                   <TableCell>
                     <div className="space-y-1">
@@ -113,14 +107,9 @@ export default async function ItemsPage() {
                       ))}
                     </div>
                   </TableCell>
-                  <TableCell>{formatCurrency(item.purchasePrice)}</TableCell>
-                  <TableCell>{formatCurrency(item.retailPrice)}</TableCell>
-                  <TableCell>{formatCurrency(item.wholesalePrice)}</TableCell>
                   <TableCell>{item.taxRate ? `${formatNumber(item.taxRate)}٪` : "بدون"}</TableCell>
                   <TableCell>
-                    <Badge tone={item.stockQuantity <= item.minimumQuantity ? "warning" : "success"}>
-                      {formatNumber(item.stockQuantity)}
-                    </Badge>
+                    <Badge tone="success">{formatNumber(item.stockQuantity)}</Badge>
                   </TableCell>
                   <TableCell>
                     <Badge tone={item.isActive ? "success" : "muted"}>{item.isActive ? "نشط" : "غير نشط"}</Badge>
@@ -135,18 +124,18 @@ export default async function ItemsPage() {
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>الأسعار الخاصة</CardTitle>
+          <CardTitle>تصنيف المواد</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
             {items.slice(0, 3).map((item) => (
               <div key={item.id} className="flex items-center justify-between rounded-lg border p-3">
                 <div>
                   <p className="font-bold">{item.name}</p>
-                  <p className="text-muted-foreground">عميل خاص وفرع خاص</p>
+                  <p className="text-muted-foreground">{item.categoryName}</p>
                 </div>
                 <div className="text-end">
-                  <p>{formatCurrency(item.customerPrice ?? item.retailPrice)}</p>
-                  <p className="text-muted-foreground">{formatCurrency(item.branchPrice ?? item.retailPrice)}</p>
+                  <p>{item.mainUnit}</p>
+                  <p className="text-muted-foreground">{item.isActive ? "نشط" : "غير نشط"}</p>
                 </div>
               </div>
             ))}
@@ -155,7 +144,7 @@ export default async function ItemsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>صلاحيات الأصناف والبيع</CardTitle>
+            <CardTitle>صلاحيات الأصناف والمخزن</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
             {permissions.map((permission) => (

@@ -3,7 +3,6 @@ import { ClipboardCheck, Download, Plus, Search, Trash2 } from "lucide-react";
 import { ActionForm } from "@/components/action-form";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { formatCurrency, formatNumber } from "@/lib/utils";
+import { formatNumber } from "@/lib/utils";
 import { saveInventoryItemAction } from "@/server/actions/mutations";
 import { getInventoryData } from "@/server/queries/app";
 
@@ -21,8 +20,8 @@ export default async function InventoryPage() {
   return (
     <>
       <PageHeader
-        title="المخزون"
-        description="إدارة مواد المخزون عبر الفروع. لا يتم تعديل الكمية مباشرة؛ كل تغيير يجب أن يولد حركة مخزون."
+        title="مخطط المخزن"
+        description="متابعة المواد والكميات وحركات المخزن عبر الأقسام. كل تغيير يجب أن يولد حركة مخزون واضحة."
         actions={
           <>
             <Button variant="outline" asChild>
@@ -34,7 +33,7 @@ export default async function InventoryPage() {
             <Button variant="outline" asChild>
               <Link href="/dashboard/waste">
                 <Trash2 className="h-4 w-4" />
-                تسجيل هدر
+                تسجيل تالف
               </Link>
             </Button>
           </>
@@ -81,7 +80,6 @@ export default async function InventoryPage() {
                   <TableHead className="hidden md:table-cell">الفئة</TableHead>
                   <TableHead className="hidden lg:table-cell">المورد</TableHead>
                   <TableHead>الكمية</TableHead>
-                  <TableHead className="hidden sm:table-cell">السعر</TableHead>
                   <TableHead>الحالة</TableHead>
                 </TableRow>
               </TableHeader>
@@ -90,8 +88,6 @@ export default async function InventoryPage() {
                   const totalQuantity = branchStock
                     .filter((stock) => stock.itemId === item.id)
                     .reduce((sum, stock) => sum + stock.quantity, 0);
-                  const lowStock = totalQuantity <= item.minimumQuantity;
-
                   return (
                     <TableRow key={item.id}>
                       <TableCell>
@@ -106,11 +102,10 @@ export default async function InventoryPage() {
                         <div className="font-medium">
                           {formatNumber(totalQuantity)} {item.usageUnit}
                         </div>
-                        <p className="text-xs text-muted-foreground">حد: {item.minimumQuantity}</p>
+                        <p className="text-xs text-muted-foreground">كمية حالية</p>
                       </TableCell>
-                      <TableCell className="hidden sm:table-cell">{formatCurrency(item.lastPurchasePrice)}</TableCell>
                       <TableCell>
-                        {lowStock ? <Badge tone="warning">منخفض</Badge> : <StatusBadge status={item.isActive ? "active" : "inactive"} />}
+                        <StatusBadge status={item.isActive ? "active" : "inactive"} />
                       </TableCell>
                     </TableRow>
                   );
@@ -154,7 +149,7 @@ export default async function InventoryPage() {
                   <Input id="usageUnit" name="usageUnit" placeholder="كغم" required />
                 </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="grid gap-2">
                   <Label htmlFor="lastPurchasePrice">آخر سعر</Label>
                   <Input id="lastPurchasePrice" name="lastPurchasePrice" type="number" step="0.01" required />
@@ -163,11 +158,8 @@ export default async function InventoryPage() {
                   <Label htmlFor="averageCost">المتوسط</Label>
                   <Input id="averageCost" name="averageCost" type="number" step="0.01" required />
                 </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="minimumQuantity">حد أدنى</Label>
-                  <Input id="minimumQuantity" name="minimumQuantity" type="number" required />
-                </div>
               </div>
+              <input type="hidden" name="minimumQuantity" value="0" />
               <div className="grid gap-2">
                 <Label htmlFor="primarySupplierId">المورد الأساسي</Label>
                 <Select id="primarySupplierId" name="primarySupplierId">

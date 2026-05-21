@@ -15,13 +15,13 @@ export default async function TransfersPage() {
   return (
     <>
       <PageHeader
-        title="التحويلات بين الفروع"
-        description="عند الإرسال تنقص الكمية من الفرع المرسل، وعند الاستلام تزيد في الفرع المستقبل مع حركات منفصلة."
+        title="التحويلات الداخلية"
+        description="تحويل المواد بين الأقسام الداخلية مع حركة صادر من القسم المرسل ووارد للقسم المستقبل."
       />
       <div className="grid gap-4 xl:grid-cols-[1fr_360px]">
         <Card>
           <CardHeader>
-            <CardTitle>سجل التحويلات</CardTitle>
+            <CardTitle>سجل التحويلات الداخلية</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
@@ -61,7 +61,7 @@ export default async function TransfersPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-2">
-              <Label>من فرع</Label>
+              <Label>من قسم</Label>
               <Select>
                 {branches.map((branch) => (
                   <option key={branch.id}>{branch.name}</option>
@@ -69,7 +69,7 @@ export default async function TransfersPage() {
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label>إلى فرع</Label>
+              <Label>إلى قسم</Label>
               <Select>
                 {branches.map((branch) => (
                   <option key={branch.id}>{branch.name}</option>

@@ -19,13 +19,13 @@ export default async function PurchaseOrdersPage() {
   return (
     <>
       <PageHeader
-        title="طلبات الشراء"
-        description="تدفق الشراء الأساسي: مسودة، إرسال، استلام جزئي أو كامل. الاستلام يحدث المخزون وسجل الأسعار."
+        title="طلبيات الأقسام"
+        description="تدفق طلبيات الأقسام: مسودة، إرسال، تجهيز، واستلام. الاعتماد يحدث المخزون وسجل الصادر والوارد."
       />
       <div className="grid gap-4 xl:grid-cols-[1fr_360px]">
         <Card>
           <CardHeader>
-            <CardTitle>طلبات الشراء المفتوحة والسابقة</CardTitle>
+            <CardTitle>طلبيات الأقسام المفتوحة والسابقة</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
@@ -33,7 +33,7 @@ export default async function PurchaseOrdersPage() {
                 <TableRow>
                   <TableHead>الرقم</TableHead>
                   <TableHead>المورد</TableHead>
-                  <TableHead>الفرع</TableHead>
+                  <TableHead>القسم</TableHead>
                   <TableHead>الحالة</TableHead>
                   <TableHead>المجموع</TableHead>
                   <TableHead>إجراء</TableHead>
@@ -73,7 +73,7 @@ export default async function PurchaseOrdersPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Plus className="h-5 w-5 text-primary" />
-              طلب شراء جديد
+              طلب قسم جديد
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -90,7 +90,7 @@ export default async function PurchaseOrdersPage() {
                 </Select>
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="branchId">الفرع</Label>
+                <Label htmlFor="branchId">القسم الطالب</Label>
                 <Select id="branchId" name="branchId" required>
                   <option value="">اختر</option>
                   {branches.map((branch) => (
@@ -112,7 +112,7 @@ export default async function PurchaseOrdersPage() {
                 <Input id="orderDate" name="orderDate" type="date" defaultValue="2026-05-16" required />
               </div>
               <div className="rounded-lg border bg-slate-50 p-3 text-sm leading-6 text-muted-foreground">
-                في MVP يتم حفظ رأس الطلب. جدول purchase_order_items موجود في migration لإضافة المواد والكميات.
+                في هذه المرحلة يتم حفظ رأس الطلب. يمكن إضافة المواد والكميات على الطلب من شاشة التفاصيل لاحقًا.
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="notes">ملاحظات</Label>

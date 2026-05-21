@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Layers, Megaphone, ReceiptText, Shield, ShoppingCart } from "lucide-react";
+import { ClipboardCheck, Layers, PackageMinus, ReceiptText, Shield } from "lucide-react";
 import { appNav, adminNav } from "@/components/layout/nav-config";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -18,9 +18,9 @@ export function AppSidebar({ activePath = "", mode = "app", onNavigate }: AppSid
   const currentPath = activePath || pathname;
   const sections = mode === "app" ? appNav : [{ title: "Platform", items: adminNav }];
   const quickLinks = [
-    { title: "بيع", href: "/dashboard/customer-invoices/new", icon: ReceiptText },
-    { title: "شراء", href: "/dashboard/purchase-orders", icon: ShoppingCart },
-    { title: "نشر", href: "/dashboard/marketing/create", icon: Megaphone },
+    { title: "توريد", href: "/dashboard/invoices", icon: ReceiptText },
+    { title: "طلب قسم", href: "/dashboard/purchase-orders", icon: ClipboardCheck },
+    { title: "تالف", href: "/dashboard/waste", icon: PackageMinus },
   ];
 
   const handleLinkClick = () => {
@@ -36,7 +36,7 @@ export function AppSidebar({ activePath = "", mode = "app", onNavigate }: AppSid
           </span>
           <span>
             <span className="block text-xl font-bold text-primary">رواق</span>
-            <span className="text-xs text-muted-foreground">نظام أعمال متكامل</span>
+            <span className="text-xs text-muted-foreground">نظام إدارة مخزن</span>
           </span>
         </Link>
 
@@ -101,10 +101,10 @@ export function AppSidebar({ activePath = "", mode = "app", onNavigate }: AppSid
               عزل البيانات جاهز
             </div>
             <p className="mt-1 text-xs leading-5 text-muted-foreground">
-              بيانات كل مطعم منفصلة، والصلاحيات تظهر لكل مستخدم ما يخصه فقط.
+              بيانات كل قسم منفصلة، والصلاحيات تظهر لكل مستخدم ما يخصه فقط.
             </p>
             <Badge className="mt-3" tone="success">
-              متعدد العملاء
+              مخزني فقط
             </Badge>
           </div>
         </div>

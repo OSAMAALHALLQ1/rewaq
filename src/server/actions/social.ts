@@ -1,74 +1,62 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { demoOrganization, demoSocialAccounts } from "@/lib/demo-data";
+import { demoSocialAccounts } from "@/lib/demo-data";
 import { uploadMarketingAssetToImageKit } from "@/lib/imagekit";
-import { hasSupabaseEnv } from "@/lib/supabase/env";
-import { createAdminClient, hasSupabaseAdminEnv } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClientWithContext, hasSupabaseAdminEnv } from "@/lib/supabase/admin";
 import { getMarketingPublishPreferences, saveMarketingPublishPreferences } from "@/lib/social/preferences";
 import { publishSocialPost } from "@/lib/social/publisher";
 import { socialPostSchema } from "@/lib/validation/schemas";
+import { can } from "@/lib/permissions/roles";
+import { requireAuth } from "@/lib/auth/require-auth";
 import type { SocialPlatform } from "@/types/domain";
 import type { ActionState } from "./auth";
 
 const isSocialPlatform = (value: string): value is SocialPlatform =>
   demoSocialAccounts.some((account) => account.platform === value);
 
-async function getCurrentUserId() {
-  if (!hasSupabaseEnv()) {
-    return null;
-  }
-
-  try {
-    const supabase = await createClient();
-    const { data } = await supabase.auth.getClaims();
-    return data?.claims?.sub ? String(data.claims.sub) : null;
-  } catch {
-    return null;
-  }
-}
-
 async function resolveSocialScope() {
-  const admin = createAdminClient();
-  const userId = await getCurrentUserId();
+  const auth = await requireAuth();
+  const admin = createAdminClientWithContext("social.ts/resolveSocialScope");
 
-  if (userId) {
-    const { data: membership } = await admin
-      .from("organization_memberships")
-      .select("organization_id")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: true })
-      .limit(1)
-      .maybeSingle();
-
-    if (membership?.organization_id) {
-      return { admin, organizationId: membership.organization_id, userId };
-    }
+  // Verify user has marketing permission
+  if (!can(auth.role, "marketing:manage")) {
+    throw new Error("ليس لديك صلاحية لإدارة التسويق والنشر.");
   }
 
-  const { data: demoOrg } = await admin
-    .from("organizations")
-    .select("id")
-    .eq("id", demoOrganization.id)
-    .maybeSingle();
-
-  if (demoOrg?.id) {
-    return { admin, organizationId: demoOrg.id, userId };
+  // Get organization ID from authenticated user
+  if (auth.organizationId) {
+    return { admin, organizationId: auth.organizationId, userId: auth.id };
   }
 
-  const { data: firstOrg } = await admin
-    .from("organizations")
-    .select("id")
+  // Fallback: look up org from membership
+  const { data: membership } = await admin
+    .from("organization_memberships")
+    .select("organization_id")
+    .eq("user_id", auth.id)
     .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle();
 
-  if (!firstOrg?.id) {
-    throw new Error("لا توجد مؤسسة في قاعدة البيانات لحفظ المنشور داخلها.");
+  if (membership?.organization_id) {
+    return { admin, organizationId: membership.organization_id, userId: auth.id };
   }
 
-  return { admin, organizationId: firstOrg.id, userId };
+  // Last resort: pick the first org (for super_admin roles)
+  if (auth.role === "super_admin" || auth.role === "organization_owner") {
+    const { data: firstOrg } = await admin
+      .from("organizations")
+      .select("id")
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (firstOrg?.id) {
+      return { admin, organizationId: firstOrg.id, userId: auth.id };
+    }
+  }
+
+  throw new Error("لم يتم العثور على مؤسسة مرتبطة بحسابك.");
 }
 
 function postStatusForMode(mode: "now" | "schedule" | "draft") {

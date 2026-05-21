@@ -6,10 +6,12 @@ import { isNodeRedSocialPublishingConfigured, NodeRedSocialPublisher } from "./n
 import { TelegramPublisher } from "./telegram";
 import { isTriggerDevSocialPublishingConfigured, TriggerDevSocialPublisher } from "./trigger-dev";
 import type { PublishInput, PublishResult, SocialPublisher } from "./types";
+import { WhatsappPublisher } from "./whatsapp";
 
 const publishers: Partial<Record<SocialPlatform, SocialPublisher>> = {
   facebook: new FacebookPublisher(),
   instagram: new InstagramPublisher(),
+  whatsapp: new WhatsappPublisher(),
   telegram: new TelegramPublisher(),
 };
 

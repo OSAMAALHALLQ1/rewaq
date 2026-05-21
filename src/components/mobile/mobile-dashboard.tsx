@@ -1,29 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import {
-  BarChart3,
-  Boxes,
-  ChefHat,
-  Clock3,
-  ClipboardCheck,
-  FileText,
-  Megaphone,
-  Receipt,
-  ShoppingCart,
-  Truck,
-  Utensils,
-  TrendingUp,
-  AlertTriangle,
-  Sparkles,
-} from "lucide-react";
-import { MobileCard } from "@/components/mobile/mobile-cards";
-import { MobileQuickAction } from "@/components/mobile/mobile-cards";
-import { MobileListItem } from "@/components/mobile/mobile-cards";
-import { MobileButton, MobileButtonGroup } from "@/components/mobile/mobile-buttons";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { formatCurrency, formatPercent } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import type { ReactNode } from "react";
 
 interface MobileDashboardLayoutProps {
@@ -81,14 +59,14 @@ export function MobileDashboardSection({
           </div>
 
           {action && (
-            <MobileButton
+            <Button
               asChild
               variant="outline"
               size="sm"
               className="flex-shrink-0"
             >
               <Link href={action.href}>{action.label}</Link>
-            </MobileButton>
+            </Button>
           )}
         </div>
       )}
@@ -133,31 +111,3 @@ export function MobileDashboardGrid({
   );
 }
 
-// Mobile Button component wrapper for UI library Button
-import { ButtonHTMLAttributes, ReactNode as ReactNodeType } from "react";
-
-interface MobileUIButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  asChild?: boolean;
-  variant?: "default" | "primary" | "outline" | "ghost" | "danger";
-  size?: "sm" | "md" | "lg" | "full";
-  children: ReactNodeType;
-}
-
-export function MobileButton({ 
-  asChild, 
-  variant, 
-  size, 
-  children, 
-  ...props 
-}: MobileUIButtonProps & { asChild?: boolean }) {
-  if (asChild) {
-    return children;
-  }
-
-  // Fallback to standard Button for desktop
-  return (
-    <button className="px-3 py-2 rounded-lg text-sm font-semibold" {...props}>
-      {children}
-    </button>
-  );
-}

@@ -269,9 +269,9 @@ interface MobilePopoverProps {
 export function MobilePopover({
   isOpen,
   onClose,
-  trigger,
+  trigger: _trigger,
   children,
-  align = "center",
+  align: _align = "center",
 }: MobilePopoverProps) {
   if (!isOpen) return null;
 

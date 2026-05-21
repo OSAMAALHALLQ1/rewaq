@@ -1,7 +1,6 @@
 import Link from "next/link";
-import { Boxes, FileText, Megaphone, Menu, ReceiptText, Search, ShoppingCart } from "lucide-react";
+import { Boxes, FileText, Megaphone, ReceiptText, Search, ShoppingCart } from "lucide-react";
 import { NotificationBell } from "@/components/layout/notification-bell";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -37,7 +36,6 @@ export function AppHeader({ session, branches, notifications }: AppHeaderProps) 
         </div>
 
         <div className="me-auto flex items-center gap-2">
-          {session.isDemo ? <Badge tone="warning">وضع التجربة</Badge> : null}
           <div className="hidden items-center gap-2 xl:flex">
             <Button asChild variant="outline">
               <Link href="/dashboard/inventory">

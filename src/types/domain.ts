@@ -383,6 +383,8 @@ export type WasteLog = {
     | "انتهاء صلاحية"
     | "خطأ تحضير"
     | "كسر/انسكاب"
+    | "محاريق"
+    | "منظفات"
     | "إرجاع"
     | "سبب آخر";
   cost: number;
@@ -403,6 +405,7 @@ export type Transfer = {
 export type SocialPlatform =
   | "facebook"
   | "instagram"
+  | "whatsapp"
   | "telegram"
   | "tiktok"
   | "x"

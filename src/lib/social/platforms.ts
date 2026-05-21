@@ -3,6 +3,7 @@ import type { SocialPlatform } from "@/types/domain";
 export const SOCIAL_PLATFORM_IDS = [
   "facebook",
   "instagram",
+  "whatsapp",
   "telegram",
   "tiktok",
   "x",
@@ -31,6 +32,11 @@ export const socialPlatformMeta: Record<
     label: "إنستغرام",
     shortLabel: "IG",
     description: "صور الأطباق والقصص والحملات",
+  },
+  whatsapp: {
+    label: "واتساب",
+    shortLabel: "WA",
+    description: "رسائل واتساب بزنس أو قناة واتساب عبر موصل خارجي",
   },
   telegram: {
     label: "تلغرام",

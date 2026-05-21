@@ -1,4 +1,4 @@
-import { Bell, Bot, Shield, Store } from "lucide-react";
+import { Bell, Building2, Shield, Store } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,21 +7,31 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { getOrganizationContext } from "@/server/queries/app";
 
+const departments = [
+  "قسم المحاسبة",
+  "قسم الضيافة",
+  "قسم الخدمات",
+  "المطبخ الغربي",
+  "المطبخ الشرقي",
+  "الشاورمة والمشاوي",
+  "قسم التسويق",
+];
+
 export default async function SettingsPage() {
   const { organization } = await getOrganizationContext();
 
   return (
     <>
       <PageHeader
-        title="الإعدادات"
-        description="إعدادات المؤسسة، الأتمتة البسيطة، التنبيهات، وتهيئة التكاملات القادمة."
+        title="الإعدادات / الأقسام"
+        description="إعدادات المخزن والأقسام الداخلية التي تصرف وتستلم المواد."
       />
       <div className="grid gap-4 xl:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Store className="h-5 w-5 text-primary" />
-              بيانات المؤسسة
+              بيانات المخزن
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -37,42 +47,38 @@ export default async function SettingsPage() {
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label>نسبة تكلفة الطعام المستهدفة</Label>
-              <Input type="number" defaultValue="35" />
+              <Label>طريقة ترقيم فواتير التوريد</Label>
+              <Input defaultValue="SUP-{YYYY}-{0000}" />
             </div>
           </CardContent>
         </Card>
+
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Bot className="h-5 w-5 text-primary" />
-              الأتمتة البسيطة
+              <Building2 className="h-5 w-5 text-primary" />
+              الأقسام المطلوبة
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
-            {[
-              "عند انخفاض مخزون مادة: أرسل تنبيه",
-              "عند إضافة عرض: اقترح منشور",
-              "عند ارتفاع سعر مورد: أرسل تنبيه",
-              "عند جدولة منشور: أضفه للـ publish queue",
-              "عند فشل نشر: سجل الخطأ وأظهره",
-            ].map((rule, index) => (
-              <div key={rule} className="flex items-center justify-between rounded-lg border p-3">
-                <span className="text-sm">{rule}</span>
-                <Badge tone={index < 3 ? "success" : "warning"}>{index < 3 ? "جاهز" : "قريبًا"}</Badge>
+          <CardContent className="grid gap-2 sm:grid-cols-2">
+            {departments.map((department) => (
+              <div key={department} className="flex items-center justify-between rounded-lg border p-3">
+                <span className="text-sm font-semibold">{department}</span>
+                <Badge tone="success">مفعل</Badge>
               </div>
             ))}
           </CardContent>
         </Card>
+
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Bell className="h-5 w-5 text-primary" />
-              التنبيهات
+              تنبيهات المخزن
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {["low_stock", "price_increase", "high_food_cost", "publish_failed", "purchase_received", "waste_logged"].map((type) => (
+            {["price_increase", "purchase_received", "waste_logged", "expiry_near", "department_order_ready"].map((type) => (
               <label key={type} className="flex items-center gap-3 rounded-lg border p-3 text-sm">
                 <input type="checkbox" defaultChecked />
                 {type}
@@ -80,6 +86,7 @@ export default async function SettingsPage() {
             ))}
           </CardContent>
         </Card>
+
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -89,7 +96,7 @@ export default async function SettingsPage() {
           </CardHeader>
           <CardContent className="space-y-3 text-sm leading-7 text-muted-foreground">
             <p>عزل الصفوف مفعل على جداول كل مؤسسة في ملف قاعدة البيانات.</p>
-            <p>لاحقًا: تشفير مفاتيح حسابات التواصل قبل الإنتاج.</p>
+            <p>صلاحيات المخزن تفصل بين اعتماد التوريد، التحويل الداخلي، وتسجيل التالف.</p>
             <p>مفتاح الخدمة يستخدم فقط في مهام موثوقة ولا يرسل للمتصفح.</p>
           </CardContent>
         </Card>

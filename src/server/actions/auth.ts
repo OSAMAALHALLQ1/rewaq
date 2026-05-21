@@ -23,30 +23,28 @@ export async function loginAction(_prevState: ActionState, formData: FormData): 
     return { ok: false, message: parsed.error.issues[0]?.message ?? "تحقق من البيانات" };
   }
 
-  const isLocalDemoLogin =
-    parsed.data.email.toLowerCase() === "owner@rewaq.app" &&
-    parsed.data.password === "password123" &&
-    process.env.NODE_ENV !== "production";
+  if (!hasSupabaseEnv()) {
+    return { ok: false, message: "Supabase غير مهيأ. لا يمكن تسجيل الدخول." };
+  }
 
-  if (hasSupabaseEnv() && !isLocalDemoLogin) {
-    const supabase = await createClient();
-    const { error } = await supabase.auth.signInWithPassword(parsed.data);
-    if (error) {
-      return { ok: false, message: error.message };
-    }
+  const supabase = await createClient();
+  const { error } = await supabase.auth.signInWithPassword(parsed.data);
+  if (error) {
+    return { ok: false, message: error.message };
+  }
 
-    if (hasSupabaseAdminEnv()) {
-      const admin = createAdminClient();
-      const { data: approvalRequest } = await admin
-        .from("account_approval_requests")
-        .select("status")
-        .eq("email", parsed.data.email.toLowerCase())
-        .maybeSingle();
+  // Check approval status for pending accounts
+  if (hasSupabaseAdminEnv()) {
+    const admin = createAdminClient();
+    const { data: approvalRequest } = await admin
+      .from("account_approval_requests")
+      .select("status")
+      .eq("email", parsed.data.email.toLowerCase())
+      .maybeSingle();
 
-      if (approvalRequest && String(approvalRequest.status) !== "approved") {
-        await supabase.auth.signOut();
-        return { ok: false, message: "حسابك لم تتم الموافقة عليه بعد. فعّل بريدك وانتظر موافقة الإدارة." };
-      }
+    if (approvalRequest && String(approvalRequest.status) !== "approved") {
+      await supabase.auth.signOut();
+      return { ok: false, message: "حسابك لم تتم الموافقة عليه بعد. فعّل بريدك وانتظر موافقة الإدارة." };
     }
   }
 

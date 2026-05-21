@@ -12,8 +12,8 @@ export default async function StockMovementsPage() {
   return (
     <>
       <PageHeader
-        title="حركات المخزون"
-        description="دفتر حركات غير قابل للتجاوز يشرح كل زيادة أو نقصان في المخزون."
+        title="مخطط المخزن"
+        description="دفتر الصادر والوارد غير قابل للتجاوز ويشرح كل زيادة أو نقصان في المخزون."
       />
       <Card>
         <CardHeader>

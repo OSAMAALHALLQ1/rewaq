@@ -2346,7 +2346,7 @@ export type Database = {
       payment_method: "cash" | "card" | "bank_transfer" | "delivery_app";
       stock_movement_type: "purchase" | "sale_usage" | "waste" | "transfer_in" | "transfer_out" | "adjustment" | "stock_count" | "return";
       transfer_status: "draft" | "sent" | "received" | "cancelled";
-      social_platform: "facebook" | "instagram" | "telegram" | "tiktok" | "x" | "google_business" | "linkedin" | "youtube_shorts" | "pinterest";
+      social_platform: "facebook" | "instagram" | "whatsapp" | "telegram" | "tiktok" | "x" | "google_business" | "linkedin" | "youtube_shorts" | "pinterest";
       social_post_status: "draft" | "scheduled" | "publishing" | "published" | "failed";
       social_target_status: "pending" | "publishing" | "published" | "failed";
       notification_type: "low_stock" | "price_increase" | "high_food_cost" | "publish_failed" | "purchase_received" | "waste_logged";

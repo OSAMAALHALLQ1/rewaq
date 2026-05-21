@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { CalendarDays, CircleDollarSign, Download, FileBarChart } from "lucide-react";
-import { FoodCostLineChart, PurchaseAreaChart, WasteBarChart } from "@/components/dashboard/charts";
+import { AlertTriangle, ClipboardCheck, Download, FileBarChart, Flame, PackageMinus, SprayCan, Truck } from "lucide-react";
+import { PurchaseAreaChart, WasteBarChart } from "@/components/dashboard/charts";
 import { MetricCard } from "@/components/metric-card";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -9,74 +9,78 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { formatCurrency, formatPercent } from "@/lib/utils";
+import { formatNumber } from "@/lib/utils";
 import { getReportsData } from "@/server/queries/app";
 
+const reportOptions = [
+  ["daily_movements", "تقرير الصادر والوارد اليومي"],
+  ["damaged", "تقرير التالف"],
+  ["burns", "تقرير المحاريق"],
+  ["cleaning", "تقرير المنظفات"],
+  ["department_supply", "تقرير التوريد للأقسام"],
+  ["price_changes", "تقرير تذبذب الأسعار"],
+  ["expiry", "تقرير المواد القريبة من انتهاء الصلاحية"],
+];
+
+const expiryRows = [
+  ["لبنة", "قسم الضيافة", "2026-05-24", "قريب"],
+  ["دجاج مبرد", "الشاورمة والمشاوي", "2026-05-25", "قريب"],
+  ["منظف أسطح", "قسم الخدمات", "2026-06-02", "متابعة"],
+];
+
 export default async function ReportsPage() {
-  const { dashboard, menuItems, suppliers, branches } = await getReportsData();
+  const { dashboard, movements, purchaseOrders, wasteLogs, suppliers, branches } = await getReportsData();
+  const incoming = movements.filter((movement) => movement.quantity > 0).length;
+  const outgoing = movements.filter((movement) => movement.quantity < 0).length;
 
   return (
     <>
       <PageHeader
-        title="التقارير"
-        description="تقارير قيمة المخزون، انخفاض المواد، المشتريات، تغير الأسعار، الهدر، ربحية الوصفات، ومقارنة الفروع."
+        title="تقارير المخزن"
+        description="تقارير المخزن المطلوبة: التالف، المحاريق، المنظفات، الصادر والوارد، طلبيات الأقسام، انتهاء الصلاحية، وتذبذب الأسعار."
         actions={
-          <div className="flex flex-wrap gap-2">
-            <Button asChild>
-              <Link href="/dashboard/amwali">
-                <CircleDollarSign className="h-4 w-4" />
-                أموالي
-              </Link>
-            </Button>
-            <Button variant="outline" asChild>
-              <Link href="/dashboard/financial-calendar">
-                <CalendarDays className="h-4 w-4" />
-                التقويم المالي
-              </Link>
-            </Button>
-            <Button variant="outline">
-              <Download className="h-4 w-4" />
-              تصدير ملف
-            </Button>
-          </div>
+          <Button variant="outline">
+            <Download className="h-4 w-4" />
+            تصدير ملف
+          </Button>
         }
       />
+
       <Card className="mb-4">
         <CardContent className="flex flex-wrap gap-3 p-4">
           <Input className="max-w-44" type="date" defaultValue="2026-05-01" />
-          <Input className="max-w-44" type="date" defaultValue="2026-05-16" />
+          <Input className="max-w-44" type="date" defaultValue="2026-05-20" />
           <Select className="max-w-64" defaultValue="all">
-            <option value="all">كل الفروع</option>
+            <option value="all">كل الأقسام</option>
             {branches.map((branch) => (
               <option key={branch.id} value={branch.id}>
                 {branch.name}
               </option>
             ))}
           </Select>
-          <Select className="max-w-64" defaultValue="inventory_value">
-            <option value="inventory_value">تقرير قيمة المخزون</option>
-            <option value="low_stock">تقرير المواد المنخفضة</option>
-            <option value="purchases">تقرير المشتريات</option>
-            <option value="supplier_price_changes">تقرير تغير أسعار الموردين</option>
-            <option value="waste">تقرير الهدر</option>
-            <option value="recipe_profitability">تقرير ربحية الوصفات</option>
-            <option value="food_cost">تقرير تكلفة الطعام</option>
-            <option value="branch_comparison">مقارنة الفروع</option>
+          <Select className="max-w-80" defaultValue="daily_movements">
+            {reportOptions.map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
           </Select>
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="قيمة المخزون" value={formatCurrency(dashboard.inventoryValue)} description="تقرير قيمة المخزون" icon={FileBarChart} />
-        <MetricCard label="تكلفة الطعام" value={formatPercent(dashboard.foodCostPercent)} description="آخر 30 يوم" icon={FileBarChart} tone="warning" />
-        <MetricCard label="الهدر" value={formatCurrency(670)} description="تقرير الهدر" icon={FileBarChart} tone="danger" />
-        <MetricCard label="موردون ارتفع سعرهم" value="2" description="تغير أسعار الموردين" icon={FileBarChart} tone="warning" />
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+        <MetricCard label="التالف" value={formatNumber(wasteLogs.filter((log) => log.reason.includes("تلف")).length)} description="سجلات تلف" icon={PackageMinus} tone="danger" />
+        <MetricCard label="المحاريق" value="2" description="سجلات محاريق" icon={Flame} tone="warning" />
+        <MetricCard label="المنظفات" value="5" description="مواد خدمات ونظافة" icon={SprayCan} />
+        <MetricCard label="الصادر والوارد" value={`${formatNumber(incoming)} / ${formatNumber(outgoing)}`} description="وارد / صادر" icon={Truck} tone="success" />
+        <MetricCard label="طلبيات الأقسام" value={formatNumber(purchaseOrders.length)} description="طلبات مفتوحة وسابقة" icon={ClipboardCheck} />
+        <MetricCard label="انتهاء الصلاحية" value={formatNumber(expiryRows.length)} description="مواد قريبة" icon={AlertTriangle} tone="warning" />
       </div>
 
-      <div className="mt-4 grid gap-4 xl:grid-cols-3">
+      <div className="mt-4 grid gap-4 xl:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>تقرير المشتريات</CardTitle>
+            <CardTitle>تقرير الصادر والوارد اليومي</CardTitle>
           </CardHeader>
           <CardContent>
             <PurchaseAreaChart data={dashboard.purchaseCost30Days} />
@@ -84,15 +88,7 @@ export default async function ReportsPage() {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>تقرير تكلفة الطعام</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <FoodCostLineChart data={dashboard.foodCostTrend} />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>تقرير الهدر</CardTitle>
+            <CardTitle>تقرير التالف والمحاريق والمنظفات</CardTitle>
           </CardHeader>
           <CardContent>
             <WasteBarChart data={dashboard.wasteByBranch} />
@@ -103,28 +99,28 @@ export default async function ReportsPage() {
       <div className="mt-4 grid gap-4 xl:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>ربحية الوصفات</CardTitle>
+            <CardTitle>آخر حركات الصادر والوارد</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>الطبق</TableHead>
-                  <TableHead>تكلفة الطعام</TableHead>
-                  <TableHead>الهامش</TableHead>
-                  <TableHead>الحالة</TableHead>
+                  <TableHead>التاريخ</TableHead>
+                  <TableHead>المادة</TableHead>
+                  <TableHead>القسم</TableHead>
+                  <TableHead>النوع</TableHead>
+                  <TableHead>الكمية</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {menuItems.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell className="font-medium">{item.name}</TableCell>
-                    <TableCell>{formatPercent(item.foodCostPercent)}</TableCell>
-                    <TableCell>{formatPercent(item.profitMarginPercent)}</TableCell>
+                {movements.slice(0, 8).map((movement) => (
+                  <TableRow key={movement.id}>
+                    <TableCell>{new Date(movement.createdAt).toLocaleDateString("ar-PS")}</TableCell>
+                    <TableCell className="font-medium">{movement.itemName}</TableCell>
+                    <TableCell>{movement.branchName}</TableCell>
+                    <TableCell>{movement.movementType}</TableCell>
                     <TableCell>
-                      <Badge tone={item.foodCostPercent > 35 ? "danger" : "success"}>
-                        {item.foodCostPercent > 35 ? "راجع السعر" : "مربح"}
-                      </Badge>
+                      <Badge tone={movement.quantity > 0 ? "success" : "warning"}>{formatNumber(movement.quantity)}</Badge>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -135,15 +131,15 @@ export default async function ReportsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>تغير أسعار الموردين</CardTitle>
+            <CardTitle>تقرير تذبذب الأسعار</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>المورد</TableHead>
-                  <TableHead>المخاطر</TableHead>
-                  <TableHead>التوصية</TableHead>
+                  <TableHead>نسبة التذبذب</TableHead>
+                  <TableHead>الإجراء</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -155,7 +151,7 @@ export default async function ReportsPage() {
                         {supplier.priceRisk}%
                       </Badge>
                     </TableCell>
-                    <TableCell>{supplier.priceRisk > 15 ? "راجع البدائل" : "راقب الفاتورة القادمة"}</TableCell>
+                    <TableCell>{supplier.priceRisk > 15 ? "مراجعة المورد" : "مراقبة الفاتورة القادمة"}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -163,6 +159,44 @@ export default async function ReportsPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Card className="mt-4">
+        <CardHeader>
+          <div className="flex items-center justify-between gap-3">
+            <CardTitle className="flex items-center gap-2">
+              <FileBarChart className="h-5 w-5 text-primary" />
+              تقرير المواد القريبة من انتهاء الصلاحية
+            </CardTitle>
+            <Button variant="outline" asChild>
+              <Link href="/dashboard/inventory">فتح المواد</Link>
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>المادة</TableHead>
+                <TableHead>القسم</TableHead>
+                <TableHead>تاريخ الانتهاء</TableHead>
+                <TableHead>الحالة</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {expiryRows.map(([item, department, date, status]) => (
+                <TableRow key={`${item}-${date}`}>
+                  <TableCell className="font-medium">{item}</TableCell>
+                  <TableCell>{department}</TableCell>
+                  <TableCell>{date}</TableCell>
+                  <TableCell>
+                    <Badge tone={status === "قريب" ? "danger" : "warning"}>{status}</Badge>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
     </>
   );
 }
