@@ -84,6 +84,10 @@ import type {
 export type AccountApprovalRequest = {
   id: string;
   email: string;
+  authUserId: string | null;
+  authEmailConfirmed: boolean;
+  authLastSignInAt: string | null;
+  organizationId: string | null;
   ownerName: string;
   organizationName: string;
   businessType: string;
@@ -1820,6 +1824,10 @@ export async function getAccountApprovalRequests(): Promise<AccountApprovalReque
       {
         id: "demo-request-1",
         email: "owner@iwan.example",
+        authUserId: null,
+        authEmailConfirmed: false,
+        authLastSignInAt: null,
+        organizationId: null,
         ownerName: "مالك مطعم إيوان",
         organizationName: "مطعم إيوان",
         businessType: "restaurant",
@@ -1838,8 +1846,33 @@ export async function getAccountApprovalRequests(): Promise<AccountApprovalReque
           .order("requested_at", { ascending: false }),
         "account_approval_requests",
       );
+      const authUsers = await admin.auth.admin.listUsers().catch(() => null);
+      const authUserByEmail = new Map(
+        (authUsers?.data.users ?? []).map((user) => [(user.email ?? "").toLowerCase(), user]),
+      );
+      const userIds = (authUsers?.data.users ?? []).map((user) => user.id);
+      const membershipRows = userIds.length
+        ? await query(
+            admin
+              .from("organization_memberships")
+              .select("organization_id,user_id,role")
+              .in("user_id", userIds),
+            "organization_memberships",
+          )
+        : [];
+      const ownerOrgByUserId = new Map(
+        membershipRows
+          .filter((membership) => membership.role === "organization_owner" || membership.role === "super_admin")
+          .map((membership) => [membership.user_id, membership.organization_id]),
+      );
 
       return requests.map((request) => ({
+        authUserId: authUserByEmail.get(request.email.toLowerCase())?.id ?? null,
+        authEmailConfirmed: Boolean(authUserByEmail.get(request.email.toLowerCase())?.email_confirmed_at),
+        authLastSignInAt: authUserByEmail.get(request.email.toLowerCase())?.last_sign_in_at ?? null,
+        organizationId: authUserByEmail.get(request.email.toLowerCase())?.id
+          ? ownerOrgByUserId.get(authUserByEmail.get(request.email.toLowerCase())!.id) ?? null
+          : null,
         id: request.id,
         email: request.email,
         ownerName: request.owner_name,

@@ -1,4 +1,4 @@
-import { CheckCircle2, Mail, XCircle } from "lucide-react";
+import { Clock3, Mail, ShieldCheck } from "lucide-react";
 import { ActionForm } from "@/components/action-form";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -76,6 +76,7 @@ export default async function AccountRequestsPage() {
                 <TableHead>المؤسسة</TableHead>
                 <TableHead>المالك</TableHead>
                 <TableHead>البريد</TableHead>
+                <TableHead>Auth</TableHead>
                 <TableHead>النشاط</TableHead>
                 <TableHead>الحالة</TableHead>
                 <TableHead>الإجراء</TableHead>
@@ -91,7 +92,26 @@ export default async function AccountRequestsPage() {
                       <p className="text-xs text-muted-foreground">{request.phone || "بدون رقم"}</p>
                     </div>
                   </TableCell>
-                  <TableCell>{request.email}</TableCell>
+                  <TableCell>
+                    <div>
+                      <p>{request.email}</p>
+                      {request.organizationId ? (
+                        <p className="text-xs text-muted-foreground">مربوط بمؤسسة</p>
+                      ) : null}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="grid gap-1">
+                      <Badge tone={request.authUserId ? "success" : "warning"}>
+                        {request.authUserId ? "موجود" : "غير مسجل"}
+                      </Badge>
+                      {request.authUserId ? (
+                        <p className="text-xs text-muted-foreground">
+                          {request.authEmailConfirmed ? "البريد مفعل" : "لم يفعل البريد"}
+                        </p>
+                      ) : null}
+                    </div>
+                  </TableCell>
                   <TableCell>{request.businessType}</TableCell>
                   <TableCell>
                     <Badge tone={statusTone(request.status)}>{statusLabels[request.status] ?? request.status}</Badge>
@@ -102,7 +122,7 @@ export default async function AccountRequestsPage() {
                       <ActionForm action={approveAccountRequestAction} submitLabel="موافقة" className="space-y-2">
                         <Input type="hidden" name="requestId" value={request.id} readOnly />
                         <div className="rounded-lg bg-green-50 p-2 text-xs leading-5 text-green-700">
-                          يغير الحالة إلى مقبول.
+                          ينشئ مؤسسة وعضوية مالك ويربطها بحساب Auth.
                         </div>
                       </ActionForm>
 
@@ -127,22 +147,22 @@ export default async function AccountRequestsPage() {
       <div className="mt-4 grid gap-4 md:grid-cols-2">
         <Card>
           <CardContent className="flex gap-3 p-5">
-            <CheckCircle2 className="mt-1 h-5 w-5 text-success" />
+            <ShieldCheck className="mt-1 h-5 w-5 text-success" />
             <div>
               <h2 className="font-semibold">عند الموافقة</h2>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                يصبح الطلب معتمدًا. الخطوة التالية هي أن يسجل صاحب الحساب الدخول بعد تفعيل بريده ثم يضيف فريقه من صفحة الصلاحيات.
+                يتم ربط حساب Supabase Auth بالبريد، إنشاء المؤسسة والفرع الرئيسي، ثم إضافة صاحب الطلب كمالك مؤسسة.
               </p>
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="flex gap-3 p-5">
-            <XCircle className="mt-1 h-5 w-5 text-destructive" />
+            <Clock3 className="mt-1 h-5 w-5 text-warning" />
             <div>
-              <h2 className="font-semibold">عند الرفض</h2>
+              <h2 className="font-semibold">قبل الموافقة</h2>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                يتم حفظ السبب داخل الطلب حتى تعرف لاحقًا لماذا لم يتم فتح الحساب.
+                يجب أن يكون البريد موجودًا في Auth، لذلك يرسل صاحب الحساب نموذج التسجيل أولًا ثم يظهر هنا للمراجعة.
               </p>
             </div>
           </CardContent>

@@ -7,11 +7,34 @@ import { authSchema, registerSchema, teamInviteSchema } from "@/lib/validation/s
 import { createAdminClient, hasSupabaseAdminEnv } from "@/lib/supabase/admin";
 import { hasSupabaseEnv } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
+import { requireAuth } from "@/lib/auth/require-auth";
+import type { Json } from "@/types/database";
 
 export type ActionState = {
   ok: boolean;
   message: string;
 };
+
+function makeSlug(value: string) {
+  const slug = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48);
+
+  return slug || "organization";
+}
+
+async function requireSuperAdminAction() {
+  const user = await requireAuth();
+
+  if (user.role !== "super_admin") {
+    throw new Error("هذه العملية مخصصة للأدمن الرئيسي فقط.");
+  }
+
+  return user;
+}
 
 export async function loginAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
   const parsed = authSchema.safeParse({
@@ -175,13 +198,120 @@ export async function approveAccountRequestAction(_prevState: ActionState, formD
   }
 
   if (hasSupabaseAdminEnv()) {
+    const currentAdmin = await requireSuperAdminAction();
     const admin = createAdminClient();
+    const { data: request, error: requestError } = await admin
+      .from("account_approval_requests")
+      .select("id,email,owner_name,organization_name,business_type,phone,status,metadata")
+      .eq("id", requestId)
+      .single();
+
+    if (requestError || !request) {
+      return { ok: false, message: requestError?.message ?? "لم يتم العثور على الطلب" };
+    }
+
+    const normalizedEmail = request.email.toLowerCase();
+    const authUsers = await admin.auth.admin.listUsers();
+    const authUser = authUsers.data.users.find((user) => user.email?.toLowerCase() === normalizedEmail);
+
+    if (!authUser) {
+      return {
+        ok: false,
+        message: "هذا البريد غير موجود في Supabase Auth. اطلب من صاحب الحساب التسجيل أولًا من صفحة التسجيل.",
+      };
+    }
+
+    await admin.from("profiles").upsert(
+      {
+        id: authUser.id,
+        full_name: request.owner_name,
+      },
+      { onConflict: "id" },
+    );
+
+    const { data: existingMembership, error: membershipLookupError } = await admin
+      .from("organization_memberships")
+      .select("organization_id")
+      .eq("user_id", authUser.id)
+      .limit(1)
+      .maybeSingle();
+
+    if (membershipLookupError) {
+      return { ok: false, message: membershipLookupError.message };
+    }
+
+    let organizationId = existingMembership?.organization_id ?? null;
+
+    if (!organizationId) {
+      const baseSlug = makeSlug(request.organization_name);
+      const { data: organization, error: organizationError } = await admin
+        .from("organizations")
+        .insert({
+          name: request.organization_name,
+          slug: `${baseSlug}-${authUser.id.slice(0, 8)}`,
+          plan: "starter",
+          status: "active",
+          created_by: authUser.id,
+        })
+        .select("id")
+        .single();
+
+      if (organizationError || !organization) {
+        return { ok: false, message: organizationError?.message ?? "تعذر إنشاء المؤسسة" };
+      }
+
+      organizationId = organization.id;
+
+      await admin.from("branches").insert({
+        organization_id: organizationId,
+        name: "الفرع الرئيسي",
+        manager_name: request.owner_name,
+        status: "active",
+        created_by: authUser.id,
+      });
+    }
+
+    const { error: membershipError } = await admin.from("organization_memberships").upsert(
+      {
+        organization_id: organizationId,
+        user_id: authUser.id,
+        role: "organization_owner",
+        branch_id: null,
+        created_by: currentAdmin.id,
+      },
+      { onConflict: "organization_id,user_id" },
+    );
+
+    if (membershipError) {
+      return { ok: false, message: membershipError.message };
+    }
+
+    await admin.auth.admin.updateUserById(authUser.id, {
+      app_metadata: {
+        ...authUser.app_metadata,
+        approval_status: "approved",
+        organization_id: organizationId,
+        role: "organization_owner",
+      },
+    });
+
+    const metadata = typeof request.metadata === "object" && request.metadata !== null && !Array.isArray(request.metadata)
+      ? request.metadata
+      : {};
     const { error } = await admin
       .from("account_approval_requests")
       .update({
         status: "approved",
         approved_at: new Date().toISOString(),
+        approved_by: currentAdmin.id,
         rejection_reason: null,
+        metadata: {
+          ...metadata,
+          authUserId: authUser.id,
+          organizationId,
+          approvedBy: currentAdmin.id,
+          approvedAt: new Date().toISOString(),
+        } satisfies Json,
       })
       .eq("id", requestId);
 
@@ -203,12 +333,34 @@ export async function rejectAccountRequestAction(_prevState: ActionState, formDa
   }
 
   if (hasSupabaseAdminEnv()) {
+    const currentAdmin = await requireSuperAdminAction();
     const admin = createAdminClient();
+    const { data: request } = await admin
+      .from("account_approval_requests")
+      .select("email")
+      .eq("id", requestId)
+      .maybeSingle();
+
+    if (request?.email) {
+      const authUsers = await admin.auth.admin.listUsers();
+      const authUser = authUsers.data.users.find((user) => user.email?.toLowerCase() === request.email.toLowerCase());
+
+      if (authUser) {
+        await admin.auth.admin.updateUserById(authUser.id, {
+          app_metadata: {
+            ...authUser.app_metadata,
+            approval_status: "rejected",
+          },
+        });
+      }
+    }
+
     const { error } = await admin
       .from("account_approval_requests")
       .update({
         status: "rejected",
         rejection_reason: reason,
+        approved_by: currentAdmin.id,
       })
       .eq("id", requestId);
 
