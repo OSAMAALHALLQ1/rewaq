@@ -18,13 +18,13 @@ export default async function WastePage() {
   return (
     <>
       <PageHeader
-        title="التالف والمحاريق والمنظفات"
-        description="تسجيل التالف والمحاريق والمنظفات ينقص المخزون ويظهر في تقارير المخزن."
+        title="التالف والمحاريق"
+        description="تسجيل التالف والمحاريق ينقص المخزون ويظهر في تقارير المخزن."
       />
       <div className="grid gap-4 xl:grid-cols-[1fr_360px]">
         <Card>
           <CardHeader>
-            <CardTitle>سجل التالف والمحاريق والمنظفات</CardTitle>
+            <CardTitle>سجل التالف والمحاريق</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
@@ -60,7 +60,7 @@ export default async function WastePage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <PackageMinus className="h-5 w-5 text-primary" />
-              تسجيل تالف / محاريق / منظفات
+              تسجيل تالف / محاريق
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -88,7 +88,7 @@ export default async function WastePage() {
             <div className="grid gap-2">
               <Label htmlFor="reason">النوع</Label>
               <Select id="reason" name="reason" required>
-                {["تلف", "محاريق", "منظفات", "انتهاء صلاحية", "خطأ تحضير", "كسر/انسكاب", "إرجاع", "سبب آخر"].map((reason) => (
+                {["تلف", "محاريق"].map((reason) => (
                   <option key={reason} value={reason}>{reason}</option>
                 ))}
               </Select>

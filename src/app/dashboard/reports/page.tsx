@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AlertTriangle, ClipboardCheck, Download, FileBarChart, Flame, PackageMinus, SprayCan, Truck } from "lucide-react";
+import { ReportSelector } from "@/components/dashboard/report-selector";
 import { PurchaseAreaChart, WasteBarChart } from "@/components/dashboard/charts";
 import { MetricCard } from "@/components/metric-card";
 import { PageHeader } from "@/components/page-header";
@@ -7,19 +8,17 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatNumber } from "@/lib/utils";
 import { getReportsData } from "@/server/queries/app";
 
 const reportOptions = [
-  ["daily_movements", "تقرير الصادر والوارد اليومي"],
-  ["damaged", "تقرير التالف"],
-  ["burns", "تقرير المحاريق"],
-  ["cleaning", "تقرير المنظفات"],
-  ["department_supply", "تقرير التوريد للأقسام"],
-  ["price_changes", "تقرير تذبذب الأسعار"],
-  ["expiry", "تقرير المواد القريبة من انتهاء الصلاحية"],
+  { value: "daily_movements", label: "تقرير الصادر والوارد اليومي" },
+  { value: "damaged", label: "تقرير التالف" },
+  { value: "burns", label: "تقرير المحاريق" },
+  { value: "department_supply", label: "تقرير التوريد للأقسام" },
+  { value: "price_changes", label: "تقرير تذبذب الأسعار" },
+  { value: "expiry", label: "تقرير المواد القريبة من انتهاء الصلاحية" },
 ];
 
 const expiryRows = [
@@ -37,7 +36,7 @@ export default async function ReportsPage() {
     <>
       <PageHeader
         title="تقارير المخزن"
-        description="تقارير المخزن المطلوبة: التالف، المحاريق، المنظفات، الصادر والوارد، طلبيات الأقسام، انتهاء الصلاحية، وتذبذب الأسعار."
+        description="تقارير المخزن المطلوبة: التالف، المحاريق، الصادر والوارد، طلبيات الأقسام، انتهاء الصلاحية، وتذبذب الأسعار."
         actions={
           <Button variant="outline">
             <Download className="h-4 w-4" />
@@ -50,28 +49,13 @@ export default async function ReportsPage() {
         <CardContent className="flex flex-wrap gap-3 p-4">
           <Input className="max-w-44" type="date" defaultValue="2026-05-01" />
           <Input className="max-w-44" type="date" defaultValue="2026-05-20" />
-          <Select className="max-w-64" defaultValue="all">
-            <option value="all">كل الأقسام</option>
-            {branches.map((branch) => (
-              <option key={branch.id} value={branch.id}>
-                {branch.name}
-              </option>
-            ))}
-          </Select>
-          <Select className="max-w-80" defaultValue="daily_movements">
-            {reportOptions.map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </Select>
+          <ReportSelector options={reportOptions} />
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <MetricCard label="التالف" value={formatNumber(wasteLogs.filter((log) => log.reason.includes("تلف")).length)} description="سجلات تلف" icon={PackageMinus} tone="danger" />
-        <MetricCard label="المحاريق" value="2" description="سجلات محاريق" icon={Flame} tone="warning" />
-        <MetricCard label="المنظفات" value="5" description="مواد خدمات ونظافة" icon={SprayCan} />
+        <MetricCard label="المحاريق" value={formatNumber(wasteLogs.filter((log) => log.reason.includes("محاريق")).length)} description="سجلات محاريق" icon={Flame} tone="warning" />
         <MetricCard label="الصادر والوارد" value={`${formatNumber(incoming)} / ${formatNumber(outgoing)}`} description="وارد / صادر" icon={Truck} tone="success" />
         <MetricCard label="طلبيات الأقسام" value={formatNumber(purchaseOrders.length)} description="طلبات مفتوحة وسابقة" icon={ClipboardCheck} />
         <MetricCard label="انتهاء الصلاحية" value={formatNumber(expiryRows.length)} description="مواد قريبة" icon={AlertTriangle} tone="warning" />
@@ -88,7 +72,7 @@ export default async function ReportsPage() {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>تقرير التالف والمحاريق والمنظفات</CardTitle>
+            <CardTitle>تقرير التالف والمحاريق</CardTitle>
           </CardHeader>
           <CardContent>
             <WasteBarChart data={dashboard.wasteByBranch} />
@@ -129,7 +113,7 @@ export default async function ReportsPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card id="price_changes">
           <CardHeader>
             <CardTitle>تقرير تذبذب الأسعار</CardTitle>
           </CardHeader>
@@ -160,7 +144,7 @@ export default async function ReportsPage() {
         </Card>
       </div>
 
-      <Card className="mt-4">
+      <Card className="mt-4" id="expiry">
         <CardHeader>
           <div className="flex items-center justify-between gap-3">
             <CardTitle className="flex items-center gap-2">

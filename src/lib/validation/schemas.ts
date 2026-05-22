@@ -50,6 +50,34 @@ export const purchaseOrderSchema = z.object({
   notes: z.string().optional(),
 });
 
+export const transferSchema = z.object({
+  fromBranchId: z.string().min(1, "اختر القسم المرسل"),
+  toBranchId: z.string().min(1, "اختر القسم المستقبل"),
+  itemId: z.string().min(1, "اختر المادة"),
+  quantity: z.coerce.number().positive("الكمية يجب أن تكون أكبر من صفر"),
+  notes: z.string().optional(),
+});
+
+export const supplyInvoiceSchema = z.object({
+  supplierId: z.string().min(1, "اختر المورد"),
+  branchId: z.string().min(1, "اختر الفرع"),
+  invoiceNumber: z.string().min(1, "رقم الفاتورة مطلوب"),
+  issuedAt: z.string().min(1, "تاريخ الفاتورة مطلوب"),
+  itemId: z.string().min(1, "اختر الصنف"),
+  quantity: z.coerce.number().positive("الكمية يجب أن تكون أكبر من صفر"),
+  unitPrice: z.coerce.number().nonnegative("السعر يجب أن يكون صفر أو أكثر"),
+  expirationDate: z.string().optional(),
+  notes: z.string().optional(),
+});
+
+export const salesReturnSchema = z.object({
+  branchId: z.string().min(1, "اختر القسم"),
+  itemId: z.string().min(1, "اختر المادة"),
+  quantity: z.coerce.number().positive("الكمية يجب أن تكون أكبر من صفر"),
+  reason: z.string().min(2, "سبب المرتجع مطلوب"),
+  notes: z.string().optional(),
+});
+
 export const recipeSchema = z.object({
   name: z.string().min(2, "اسم الوصفة مطلوب"),
   category: z.string().min(1, "تصنيف الوصفة مطلوب"),
