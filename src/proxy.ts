@@ -3,11 +3,36 @@ import { updateSession } from "@/lib/supabase/proxy";
 import { createServerClient } from "@supabase/ssr";
 import type { Database } from "@/types/database";
 import { getSupabaseEnv, hasSupabaseEnv } from "@/lib/supabase/env";
+import { jwtVerify } from "jose";
 
-const PROTECTED_PATHS = ["/dashboard", "/admin"];
+const PROTECTED_PATHS = ["/dashboard"];
 const AUTH_PATHS = ["/login", "/register", "/forgot-password"];
 
 export async function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // Custom Admin Route Protection
+  if (pathname.startsWith("/admin") && !pathname.startsWith("/admin-login")) {
+    const sessionCookie = request.cookies.get("admin_session")?.value;
+    
+    if (!sessionCookie) {
+      return NextResponse.redirect(new URL("/admin-login", request.url));
+    }
+
+    try {
+      const secretKey = process.env.INTERNAL_ADMIN_SECRET;
+      if (!secretKey) {
+        throw new Error("No secret key configured");
+      }
+      
+      const key = new TextEncoder().encode(secretKey);
+      await jwtVerify(sessionCookie, key, { algorithms: ["HS256"] });
+      // Valid admin token
+    } catch (error) {
+      return NextResponse.redirect(new URL("/admin-login", request.url));
+    }
+  }
+
   let response = await updateSession(request);
 
   if (!hasSupabaseEnv()) {
@@ -33,8 +58,6 @@ export async function proxy(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-
-  const { pathname } = request.nextUrl;
 
   if (user && AUTH_PATHS.some((path) => pathname.startsWith(path))) {
     const url = request.nextUrl.clone();
