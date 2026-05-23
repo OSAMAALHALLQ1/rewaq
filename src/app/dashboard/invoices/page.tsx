@@ -9,15 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Textarea } from "@/components/ui/textarea";
 import { formatNumber } from "@/lib/utils";
 import { getPurchasingData } from "@/server/queries/app";
-<<<<<<< HEAD
-import { ActionForm } from "@/components/action-form";
 import { saveInvoiceAction } from "@/server/actions/mutations";
-=======
-import { saveSupplyInvoiceAction } from "@/server/actions/mutations";
->>>>>>> 1e006f5ad7af41e7d414774f408bb5e7d5cdf4db
 
 const expiryByItem: Record<string, string> = {
   دجاج: "2026-05-25",
@@ -108,38 +102,21 @@ export default async function InvoicesPage() {
           <CardHeader>
             <CardTitle>إدخال فاتورة توريد</CardTitle>
           </CardHeader>
-<<<<<<< HEAD
           <CardContent>
             <ActionForm action={saveInvoiceAction} submitLabel="حفظ الفاتورة" className="space-y-4">
-=======
-          <CardContent className="space-y-4">
-            <ActionForm action={saveSupplyInvoiceAction} submitLabel="حفظ الفاتورة" className="space-y-4">
->>>>>>> 1e006f5ad7af41e7d414774f408bb5e7d5cdf4db
               <div className="grid gap-2">
                 <Label htmlFor="supplierId">اسم المورد</Label>
                 <Select id="supplierId" name="supplierId" required>
                   <option value="">اختر المورد</option>
                   {suppliers.map((supplier) => (
-<<<<<<< HEAD
                     <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
-=======
-                    <option key={supplier.id} value={supplier.id}>
-                      {supplier.name}
-                    </option>
->>>>>>> 1e006f5ad7af41e7d414774f408bb5e7d5cdf4db
                   ))}
                 </Select>
               </div>
               <div className="grid gap-2">
-<<<<<<< HEAD
                 <Label htmlFor="branchId">القسم / الفرع المستلم</Label>
                 <Select id="branchId" name="branchId" required>
                   <option value="">اختر القسم / الفرع</option>
-=======
-                <Label htmlFor="branchId">القسم</Label>
-                <Select id="branchId" name="branchId" required>
-                  <option value="">اختر القسم</option>
->>>>>>> 1e006f5ad7af41e7d414774f408bb5e7d5cdf4db
                   {branches.map((branch) => (
                     <option key={branch.id} value={branch.id}>{branch.name}</option>
                   ))}
@@ -157,15 +134,8 @@ export default async function InvoicesPage() {
                 <Label htmlFor="itemId">الصنف</Label>
                 <Select id="itemId" name="itemId" required>
                   <option value="">اختر الصنف</option>
-<<<<<<< HEAD
                   {items.map((item) => (
                     <option key={item.id} value={item.id}>{item.name}</option>
-=======
-                  {items.slice(0, 8).map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.name}
-                    </option>
->>>>>>> 1e006f5ad7af41e7d414774f408bb5e7d5cdf4db
                   ))}
                 </Select>
               </div>
@@ -180,20 +150,10 @@ export default async function InvoicesPage() {
                 </div>
               </div>
               <div className="grid gap-2">
-<<<<<<< HEAD
                 <Label htmlFor="expiryDate">تاريخ انتهاء الصلاحية (اختياري)</Label>
                 <Input id="expiryDate" name="expiryDate" type="date" />
               </div>
               <Badge tone="muted">سيتم إضافة الصنف وتحديث المخزون ومتوسط التكلفة مباشرة فور الحفظ.</Badge>
-=======
-                <Label htmlFor="expirationDate">تاريخ انتهاء الصلاحية</Label>
-                <Input id="expirationDate" name="expirationDate" type="date" />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="notes">ملاحظات</Label>
-                <Textarea id="notes" name="notes" />
-              </div>
->>>>>>> 1e006f5ad7af41e7d414774f408bb5e7d5cdf4db
             </ActionForm>
           </CardContent>
         </Card>

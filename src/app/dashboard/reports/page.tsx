@@ -1,38 +1,25 @@
 import Link from "next/link";
-<<<<<<< HEAD
 import { AlertTriangle, ClipboardCheck, Download, FileBarChart, Flame, PackageMinus, Truck } from "lucide-react";
-=======
-import { AlertTriangle, ClipboardCheck, Download, FileBarChart, Flame, PackageMinus, SprayCan, Truck } from "lucide-react";
-import { ReportSelector } from "@/components/dashboard/report-selector";
->>>>>>> 1e006f5ad7af41e7d414774f408bb5e7d5cdf4db
-import { PurchaseAreaChart, WasteBarChart } from "@/components/dashboard/charts";
+import { PurchaseAreaChart } from "@/components/dashboard/charts";
 import { MetricCard } from "@/components/metric-card";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatNumber, formatCurrency } from "@/lib/utils";
 import { getReportsData } from "@/server/queries/app";
 import { ReportsFilter } from "@/components/reports-filter";
 
 const reportOptions = [
-<<<<<<< HEAD
   ["daily_movements", "تقرير الصادر والوارد اليومي"],
   ["damaged", "تقرير التالف"],
   ["burns", "تقرير المحاريق"],
   ["department_supply", "تقرير طلبيات الأقسام"],
   ["price_changes", "تقرير تذبذب الأسعار"],
   ["expiry", "تقرير المواد القريبة من انتهاء الصلاحية"],
-=======
-  { value: "daily_movements", label: "تقرير الصادر والوارد اليومي" },
-  { value: "damaged", label: "تقرير التالف" },
-  { value: "burns", label: "تقرير المحاريق" },
-  { value: "department_supply", label: "تقرير التوريد للأقسام" },
-  { value: "price_changes", label: "تقرير تذبذب الأسعار" },
-  { value: "expiry", label: "تقرير المواد القريبة من انتهاء الصلاحية" },
->>>>>>> 1e006f5ad7af41e7d414774f408bb5e7d5cdf4db
 ];
 
 const expiryRows = [
@@ -70,7 +57,6 @@ export default async function ReportsPage({ searchParams }: { searchParams: Sear
         <CardContent className="flex flex-wrap gap-3 p-4">
           <Input className="max-w-44" type="date" defaultValue="2026-05-01" />
           <Input className="max-w-44" type="date" defaultValue="2026-05-20" />
-<<<<<<< HEAD
           <Select className="max-w-64" defaultValue="all">
             <option value="all">كل الأقسام</option>
             {branches.map((branch) => (
@@ -80,26 +66,17 @@ export default async function ReportsPage({ searchParams }: { searchParams: Sear
             ))}
           </Select>
           <ReportsFilter activeReport={activeReport} reportOptions={reportOptions} />
-=======
-          <ReportSelector options={reportOptions} />
->>>>>>> 1e006f5ad7af41e7d414774f408bb5e7d5cdf4db
         </CardContent>
       </Card>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-<<<<<<< HEAD
         <MetricCard label="التالف" value={formatNumber(damagedLogs.length)} description="سجلات تلف" icon={PackageMinus} tone="danger" />
         <MetricCard label="المحاريق" value={formatNumber(burnsLogs.length)} description="سجلات محاريق" icon={Flame} tone="warning" />
-=======
-        <MetricCard label="التالف" value={formatNumber(wasteLogs.filter((log) => log.reason.includes("تلف")).length)} description="سجلات تلف" icon={PackageMinus} tone="danger" />
-        <MetricCard label="المحاريق" value={formatNumber(wasteLogs.filter((log) => log.reason.includes("محاريق")).length)} description="سجلات محاريق" icon={Flame} tone="warning" />
->>>>>>> 1e006f5ad7af41e7d414774f408bb5e7d5cdf4db
         <MetricCard label="الصادر والوارد" value={`${formatNumber(incoming)} / ${formatNumber(outgoing)}`} description="وارد / صادر" icon={Truck} tone="success" />
         <MetricCard label="طلبيات الأقسام" value={formatNumber(purchaseOrders.length)} description="طلبات مفتوحة وسابقة" icon={ClipboardCheck} />
         <MetricCard label="انتهاء الصلاحية" value={formatNumber(expiryRows.length)} description="مواد قريبة" icon={AlertTriangle} tone="warning" />
       </div>
 
-<<<<<<< HEAD
       <div className="mt-4">
         {activeReport === "daily_movements" && (
           <div className="grid gap-4 xl:grid-cols-2">
@@ -142,101 +119,6 @@ export default async function ReportsPage({ searchParams }: { searchParams: Sear
                 </Table>
               </CardContent>
             </Card>
-=======
-      <div className="mt-4 grid gap-4 xl:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>تقرير الصادر والوارد اليومي</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <PurchaseAreaChart data={dashboard.purchaseCost30Days} />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>تقرير التالف والمحاريق</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <WasteBarChart data={dashboard.wasteByBranch} />
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="mt-4 grid gap-4 xl:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>آخر حركات الصادر والوارد</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>التاريخ</TableHead>
-                  <TableHead>المادة</TableHead>
-                  <TableHead>القسم</TableHead>
-                  <TableHead>النوع</TableHead>
-                  <TableHead>الكمية</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {movements.slice(0, 8).map((movement) => (
-                  <TableRow key={movement.id}>
-                    <TableCell>{new Date(movement.createdAt).toLocaleDateString("ar-PS")}</TableCell>
-                    <TableCell className="font-medium">{movement.itemName}</TableCell>
-                    <TableCell>{movement.branchName}</TableCell>
-                    <TableCell>{movement.movementType}</TableCell>
-                    <TableCell>
-                      <Badge tone={movement.quantity > 0 ? "success" : "warning"}>{formatNumber(movement.quantity)}</Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-
-        <Card id="price_changes">
-          <CardHeader>
-            <CardTitle>تقرير تذبذب الأسعار</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>المورد</TableHead>
-                  <TableHead>نسبة التذبذب</TableHead>
-                  <TableHead>الإجراء</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {suppliers.map((supplier) => (
-                  <TableRow key={supplier.id}>
-                    <TableCell className="font-medium">{supplier.name}</TableCell>
-                    <TableCell>
-                      <Badge tone={supplier.priceRisk > 15 ? "danger" : supplier.priceRisk > 8 ? "warning" : "success"}>
-                        {supplier.priceRisk}%
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{supplier.priceRisk > 15 ? "مراجعة المورد" : "مراقبة الفاتورة القادمة"}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card className="mt-4" id="expiry">
-        <CardHeader>
-          <div className="flex items-center justify-between gap-3">
-            <CardTitle className="flex items-center gap-2">
-              <FileBarChart className="h-5 w-5 text-primary" />
-              تقرير المواد القريبة من انتهاء الصلاحية
-            </CardTitle>
-            <Button variant="outline" asChild>
-              <Link href="/dashboard/inventory">فتح المواد</Link>
-            </Button>
->>>>>>> 1e006f5ad7af41e7d414774f408bb5e7d5cdf4db
           </div>
         )}
 

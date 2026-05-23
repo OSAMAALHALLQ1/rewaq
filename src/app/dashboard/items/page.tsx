@@ -1,4 +1,5 @@
 import { Barcode, ImageIcon, Plus, Search, SlidersHorizontal } from "lucide-react";
+import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,17 +22,14 @@ export default async function ItemsPage() {
       <PageHeader
         title="الأصناف والباركود"
         description="إدارة كود الصنف، الباركود، الوحدات، تحويل الوحدات، الفئات، وربط المواد بالمخزن."
-<<<<<<< HEAD
-=======
         actions={
           <Button asChild>
             <Link href="/dashboard/inventory">
               <Plus className="h-4 w-4" />
-              صنف جديد
+              المخزن
             </Link>
           </Button>
         }
->>>>>>> 1e006f5ad7af41e7d414774f408bb5e7d5cdf4db
       />
 
       <div className="grid gap-4 md:grid-cols-4">
@@ -171,7 +169,7 @@ export default async function ItemsPage() {
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-          <CardTitle>تصنيف المواد</CardTitle>
+            <CardTitle>تصنيف المواد</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
             {items.slice(0, 3).map((item) => (

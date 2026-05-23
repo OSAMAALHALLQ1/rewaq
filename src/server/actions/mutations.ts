@@ -748,69 +748,6 @@ export async function saveSupplierAction(_prevState: ActionState, formData: Form
   return ok("تم حفظ المورد في Supabase.");
 }
 
-export async function saveTransferAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
-  const parsed = transferSchema.safeParse({
-    fromBranchId: formData.get("fromBranchId"),
-    toBranchId: formData.get("toBranchId"),
-    itemId: formData.get("itemId"),
-    quantity: formData.get("quantity"),
-    notes: formData.get("notes") || "",
-  });
-
-  if (!parsed.success) return invalid(parsed.error.issues[0]?.message ?? "بيانات التحويل غير صحيحة");
-  if (parsed.data.fromBranchId === parsed.data.toBranchId) return invalid("القسم المرسل والمستلم يجب أن يكونا مختلفين.");
-
-  if (!hasSupabaseAdminEnv()) {
-    return invalid("مفتاح Supabase الإداري غير موجود. لا يمكن حفظ التحويل الداخلي في قاعدة البيانات.");
-  }
-
-  try {
-    const { admin, organizationId, userId } = await resolveMutationScope();
-    const [fromBranch, toBranch, item] = await Promise.all([
-      getScopedBranch(admin, organizationId, parsed.data.fromBranchId),
-      getScopedBranch(admin, organizationId, parsed.data.toBranchId),
-      getScopedInventoryItem(admin, organizationId, parsed.data.itemId),
-    ]);
-
-    if (!fromBranch?.id) return invalid("القسم المرسل غير موجود في المؤسسة الحالية.");
-    if (!toBranch?.id) return invalid("القسم المستقبل غير موجود في المؤسسة الحالية.");
-    if (!item?.id) return invalid("المادة المختارة غير موجودة في المؤسسة الحالية.");
-
-    const { data: transfer, error: transferError } = await admin
-      .from("transfers")
-      .insert({
-        organization_id: organizationId,
-        from_branch_id: parsed.data.fromBranchId,
-        to_branch_id: parsed.data.toBranchId,
-        status: "sent",
-        notes: parsed.data.notes || null,
-        created_by: userId,
-      })
-      .select("id")
-      .single();
-
-    if (transferError) return invalid(transferError.message);
-    if (!transfer?.id) return invalid("تعذر إنشاء التحويل الداخلي.");
-
-    const { error: itemError } = await admin.from("transfer_items").insert({
-      organization_id: organizationId,
-      transfer_id: transfer.id,
-      item_id: parsed.data.itemId,
-      quantity: parsed.data.quantity,
-      unit_cost: 0,
-      created_by: userId,
-    });
-
-    if (itemError) return invalid(itemError.message);
-  } catch (error) {
-    return invalid(error instanceof Error ? error.message : "تعذر حفظ التحويل الداخلي في Supabase.");
-  }
-
-  revalidatePath("/dashboard/transfers");
-  revalidatePath("/dashboard/purchase-orders");
-  return ok("تم حفظ التحويل الداخلي.");
-}
-
 export async function saveSupplyInvoiceAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
   const parsed = supplyInvoiceSchema.safeParse({
     supplierId: formData.get("supplierId"),
