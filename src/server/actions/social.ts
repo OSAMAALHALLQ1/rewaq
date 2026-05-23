@@ -19,8 +19,9 @@ async function resolveSocialScope() {
   const auth = await requireAuth();
   const admin = createAdminClientWithContext("social.ts/resolveSocialScope");
 
-  // Verify user has marketing permission
-  if (!can(auth.role, "marketing:manage")) {
+  // Verify user has marketing permission (allow super_admin, organization_owner, marketing_manager, branch_manager, and inventory_manager)
+  const allowedRoles = ["super_admin", "organization_owner", "marketing_manager", "branch_manager", "inventory_manager"];
+  if (!allowedRoles.includes(auth.role) && !can(auth.role, "marketing:manage")) {
     throw new Error("ليس لديك صلاحية لإدارة التسويق والنشر.");
   }
 

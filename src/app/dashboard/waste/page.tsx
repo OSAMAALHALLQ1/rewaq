@@ -14,17 +14,18 @@ import { getOperationsData } from "@/server/queries/app";
 
 export default async function WastePage() {
   const { wasteLogs, branches, items } = await getOperationsData();
+  const filteredLogs = wasteLogs.filter((log) => log.reason === "تلف" || log.reason === "محاريق" || log.reason === "سبب آخر");
 
   return (
     <>
       <PageHeader
-        title="التالف والمحاريق والمنظفات"
-        description="تسجيل التالف والمحاريق والمنظفات ينقص المخزون ويظهر في تقارير المخزن."
+        title="التالف والمحاريق"
+        description="تسجيل التالف والمحاريق ينقص المخزون ويظهر في تقارير المخزن."
       />
       <div className="grid gap-4 xl:grid-cols-[1fr_360px]">
         <Card>
           <CardHeader>
-            <CardTitle>سجل التالف والمحاريق والمنظفات</CardTitle>
+            <CardTitle>سجل التالف والمحاريق</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
@@ -33,15 +34,15 @@ export default async function WastePage() {
                   <TableHead>التاريخ</TableHead>
                   <TableHead>الفرع</TableHead>
                   <TableHead>المادة</TableHead>
-                <TableHead>النوع</TableHead>
+                  <TableHead>النوع</TableHead>
                   <TableHead>الكمية</TableHead>
                   <TableHead>التكلفة</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {wasteLogs.map((log) => (
+                {filteredLogs.map((log) => (
                   <TableRow key={log.id}>
-                    <TableCell>{log.loggedAt}</TableCell>
+                    <TableCell>{new Date(log.loggedAt).toLocaleDateString("ar-PS")}</TableCell>
                     <TableCell>{log.branchName}</TableCell>
                     <TableCell className="font-medium">{log.itemName}</TableCell>
                     <TableCell>
@@ -60,43 +61,43 @@ export default async function WastePage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <PackageMinus className="h-5 w-5 text-primary" />
-              تسجيل تالف / محاريق / منظفات
+              تسجيل تالف / محاريق
             </CardTitle>
           </CardHeader>
           <CardContent>
             <ActionForm action={saveWasteLogAction} submitLabel="حفظ السجل" className="space-y-4">
-            <div className="grid gap-2">
-              <Label htmlFor="branchId">القسم</Label>
-              <Select id="branchId" name="branchId" required>
-                {branches.map((branch) => (
-                  <option key={branch.id} value={branch.id}>{branch.name}</option>
-                ))}
-              </Select>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="itemId">المادة</Label>
-              <Select id="itemId" name="itemId" required>
-                {items.map((item) => (
-                  <option key={item.id} value={item.id}>{item.name}</option>
-                ))}
-              </Select>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="quantity">الكمية</Label>
-              <Input id="quantity" name="quantity" type="number" min="0" step="0.01" required />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="reason">النوع</Label>
-              <Select id="reason" name="reason" required>
-                {["تلف", "محاريق", "منظفات", "انتهاء صلاحية", "خطأ تحضير", "كسر/انسكاب", "إرجاع", "سبب آخر"].map((reason) => (
-                  <option key={reason} value={reason}>{reason}</option>
-                ))}
-              </Select>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="notes">ملاحظات</Label>
-              <Textarea id="notes" name="notes" />
-            </div>
+              <div className="grid gap-2">
+                <Label htmlFor="branchId">القسم</Label>
+                <Select id="branchId" name="branchId" required>
+                  {branches.map((branch) => (
+                    <option key={branch.id} value={branch.id}>{branch.name}</option>
+                  ))}
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="itemId">المادة</Label>
+                <Select id="itemId" name="itemId" required>
+                  {items.map((item) => (
+                    <option key={item.id} value={item.id}>{item.name}</option>
+                  ))}
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="quantity">الكمية</Label>
+                <Input id="quantity" name="quantity" type="number" min="0" step="0.01" required />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="reason">النوع</Label>
+                <Select id="reason" name="reason" required>
+                  {["تلف", "محاريق"].map((reason) => (
+                    <option key={reason} value={reason}>{reason}</option>
+                  ))}
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="notes">ملاحظات</Label>
+                <Textarea id="notes" name="notes" placeholder="ملاحظات اختيارية..." />
+              </div>
             </ActionForm>
           </CardContent>
         </Card>

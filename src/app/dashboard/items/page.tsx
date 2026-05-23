@@ -4,10 +4,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatNumber } from "@/lib/utils";
 import { getCatalogData } from "@/server/queries/app";
+import { ActionForm } from "@/components/action-form";
+import { saveCatalogItemAction } from "@/server/actions/mutations";
 
 export default async function ItemsPage() {
   const { items, categories, permissions } = await getCatalogData();
@@ -18,12 +21,6 @@ export default async function ItemsPage() {
       <PageHeader
         title="الأصناف والباركود"
         description="إدارة كود الصنف، الباركود، الوحدات، تحويل الوحدات، الفئات، وربط المواد بالمخزن."
-        actions={
-          <Button>
-            <Plus className="h-4 w-4" />
-            صنف جديد
-          </Button>
-        }
       />
 
       <div className="grid gap-4 md:grid-cols-4">
@@ -33,93 +30,132 @@ export default async function ItemsPage() {
         <SummaryCard title="باركودات مسجلة" value={formatNumber(items.reduce((sum, item) => sum + item.barcodes.length, 0))} />
       </div>
 
-      <Card className="mt-4">
-        <CardHeader>
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Barcode className="h-5 w-5 text-primary" />
-              دفتر الأصناف
-            </CardTitle>
-            <div className="flex flex-wrap gap-2">
-              <div className="relative w-full max-w-72">
-                <Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input className="ps-9" placeholder="بحث بالصنف أو الباركود" />
+      <div className="grid gap-4 xl:grid-cols-[1fr_360px] mt-4">
+        <Card>
+          <CardHeader>
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Barcode className="h-5 w-5 text-primary" />
+                دفتر الأصناف
+              </CardTitle>
+              <div className="flex flex-wrap gap-2">
+                <div className="relative w-full max-w-72">
+                  <Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input className="ps-9" placeholder="بحث بالصنف أو الباركود" />
+                </div>
+                <Select className="max-w-60" defaultValue="all">
+                  <option value="all">كل الفئات</option>
+                  {categories.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
+                </Select>
               </div>
-              <Select className="max-w-60" defaultValue="all">
-                <option value="all">كل الفئات</option>
-                {categories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </Select>
-              <Button variant="outline">
-                <SlidersHorizontal className="h-4 w-4" />
-                فلاتر
-              </Button>
             </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>الصورة</TableHead>
-                <TableHead>كود الصنف</TableHead>
-                <TableHead>اسم الصنف</TableHead>
-                <TableHead>باركود</TableHead>
-                <TableHead>الفئة</TableHead>
-                <TableHead>الوحدات</TableHead>
-                <TableHead>ضريبة</TableHead>
-                <TableHead>المخزون</TableHead>
-                <TableHead>الحالة</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {items.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell>
-                    <div className="grid h-11 w-11 place-items-center rounded-lg border bg-slate-50 text-muted-foreground">
-                      <ImageIcon className="h-4 w-4" />
-                    </div>
-                  </TableCell>
-                  <TableCell className="font-bold">{item.code}</TableCell>
-                  <TableCell>
-                    <div className="font-semibold">{item.name}</div>
-                    <p className="text-xs text-muted-foreground">{item.mainUnit}</p>
-                  </TableCell>
-                  <TableCell>
-                    <div className="space-y-1">
-                      {item.barcodes.map((barcode) => (
-                        <Badge key={barcode} tone="muted">
-                          {barcode}
-                        </Badge>
-                      ))}
-                    </div>
-                  </TableCell>
-                  <TableCell>{item.categoryName}</TableCell>
-                  <TableCell>
-                    <div className="space-y-1">
-                      {item.units.map((unit) => (
-                        <p key={unit.name} className="text-xs">
-                          {unit.name} = {formatNumber(unit.factor)} {item.mainUnit}
-                        </p>
-                      ))}
-                    </div>
-                  </TableCell>
-                  <TableCell>{item.taxRate ? `${formatNumber(item.taxRate)}٪` : "بدون"}</TableCell>
-                  <TableCell>
-                    <Badge tone="success">{formatNumber(item.stockQuantity)}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge tone={item.isActive ? "success" : "muted"}>{item.isActive ? "نشط" : "غير نشط"}</Badge>
-                  </TableCell>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>الصورة</TableHead>
+                  <TableHead>كود الصنف</TableHead>
+                  <TableHead>اسم الصنف</TableHead>
+                  <TableHead>باركود</TableHead>
+                  <TableHead>الفئة</TableHead>
+                  <TableHead>الوحدات</TableHead>
+                  <TableHead>ضريبة</TableHead>
+                  <TableHead>المخزون</TableHead>
+                  <TableHead>الحالة</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+              </TableHeader>
+              <TableBody>
+                {items.map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell>
+                      <div className="grid h-11 w-11 place-items-center rounded-lg border bg-slate-50 text-muted-foreground">
+                        <ImageIcon className="h-4 w-4" />
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-bold">{item.code}</TableCell>
+                    <TableCell>
+                      <div className="font-semibold">{item.name}</div>
+                      <p className="text-xs text-muted-foreground">{item.mainUnit}</p>
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        {item.barcodes.map((barcode) => (
+                          <Badge key={barcode} tone="muted">
+                            {barcode}
+                          </Badge>
+                        ))}
+                      </div>
+                    </TableCell>
+                    <TableCell>{item.categoryName}</TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        {item.units.map((unit) => (
+                          <p key={unit.name} className="text-xs">
+                            {unit.name} = {formatNumber(unit.factor)} {item.mainUnit}
+                          </p>
+                        ))}
+                      </div>
+                    </TableCell>
+                    <TableCell>{item.taxRate ? `${formatNumber(item.taxRate)}٪` : "بدون"}</TableCell>
+                    <TableCell>
+                      <Badge tone="success">{formatNumber(item.stockQuantity)}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge tone={item.isActive ? "success" : "muted"}>{item.isActive ? "نشط" : "غير نشط"}</Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Plus className="h-5 w-5 text-primary" />
+              صنف جديد
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ActionForm action={saveCatalogItemAction} submitLabel="حفظ الصنف" className="space-y-4">
+              <div className="grid gap-2">
+                <Label htmlFor="name">اسم الصنف</Label>
+                <Input id="name" name="name" placeholder="مثال: شاورما دبل" required />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="code">كود الصنف</Label>
+                <Input id="code" name="code" placeholder="مثال: SH-001" required />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="categoryName">الفئة</Label>
+                <Input id="categoryName" name="categoryName" placeholder="مثال: الوجبات" required />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="mainUnit">الوحدة الأساسية</Label>
+                <Input id="mainUnit" name="mainUnit" placeholder="مثال: وجبة" required />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="retailPrice">سعر البيع للتجزئة</Label>
+                <Input id="retailPrice" name="retailPrice" type="number" step="0.01" required />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="taxRate">نسبة الضريبة (٪)</Label>
+                <Input id="taxRate" name="taxRate" type="number" step="0.01" defaultValue="0" required />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="barcode">الباركود (اختياري)</Label>
+                <Input id="barcode" name="barcode" placeholder="مثال: 6281100..." />
+              </div>
+            </ActionForm>
+          </CardContent>
+        </Card>
+      </div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <Card>

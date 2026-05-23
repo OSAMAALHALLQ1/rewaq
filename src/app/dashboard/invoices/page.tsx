@@ -10,6 +10,8 @@ import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatNumber } from "@/lib/utils";
 import { getPurchasingData } from "@/server/queries/app";
+import { ActionForm } from "@/components/action-form";
+import { saveInvoiceAction } from "@/server/actions/mutations";
 
 const expiryByItem: Record<string, string> = {
   دجاج: "2026-05-25",
@@ -19,7 +21,7 @@ const expiryByItem: Record<string, string> = {
 };
 
 export default async function InvoicesPage() {
-  const { invoices, suppliers, purchaseOrders, items } = await getPurchasingData();
+  const { invoices, suppliers, purchaseOrders, items, branches } = await getPurchasingData();
 
   return (
     <>
@@ -100,54 +102,59 @@ export default async function InvoicesPage() {
           <CardHeader>
             <CardTitle>إدخال فاتورة توريد</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-2">
-              <Label>اسم المورد</Label>
-              <Select>
-                {suppliers.map((supplier) => (
-                  <option key={supplier.id}>{supplier.name}</option>
-                ))}
-              </Select>
-            </div>
-            <div className="grid gap-2">
-              <Label>رقم جوال المورد</Label>
-              <Input placeholder="05xxxxxxxx" />
-            </div>
-            <div className="grid gap-2">
-              <Label>رقم الفاتورة</Label>
-              <Input placeholder="INV-0001" />
-            </div>
-            <div className="grid gap-2">
-              <Label>تاريخ الفاتورة</Label>
-              <Input type="date" defaultValue="2026-05-20" />
-            </div>
-            <div className="grid gap-2">
-              <Label>صورة الفاتورة</Label>
-              <Input type="file" accept="image/*,.pdf" />
-            </div>
-            <div className="grid gap-2">
-              <Label>الصنف</Label>
-              <Select>
-                {items.slice(0, 8).map((item) => (
-                  <option key={item.id}>{item.name}</option>
-                ))}
-              </Select>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
+          <CardContent>
+            <ActionForm action={saveInvoiceAction} submitLabel="حفظ الفاتورة" className="space-y-4">
               <div className="grid gap-2">
-                <Label>الكمية</Label>
-                <Input type="number" min="0" />
+                <Label htmlFor="supplierId">اسم المورد</Label>
+                <Select id="supplierId" name="supplierId" required>
+                  <option value="">اختر المورد</option>
+                  {suppliers.map((supplier) => (
+                    <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
+                  ))}
+                </Select>
               </div>
               <div className="grid gap-2">
-                <Label>السعر بدون كسور</Label>
-                <Input type="number" step="1" min="0" />
+                <Label htmlFor="branchId">القسم / الفرع المستلم</Label>
+                <Select id="branchId" name="branchId" required>
+                  <option value="">اختر القسم / الفرع</option>
+                  {branches.map((branch) => (
+                    <option key={branch.id} value={branch.id}>{branch.name}</option>
+                  ))}
+                </Select>
               </div>
-            </div>
-            <div className="grid gap-2">
-              <Label>تاريخ انتهاء الصلاحية</Label>
-              <Input type="date" />
-            </div>
-            <Badge tone="muted">يمكن إضافة أكثر من صنف للفاتورة من نفس النموذج لاحقًا.</Badge>
+              <div className="grid gap-2">
+                <Label htmlFor="invoiceNumber">رقم الفاتورة</Label>
+                <Input id="invoiceNumber" name="invoiceNumber" placeholder="INV-0001" required />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="issuedAt">تاريخ الفاتورة</Label>
+                <Input id="issuedAt" name="issuedAt" type="date" defaultValue="2026-05-20" required />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="itemId">الصنف</Label>
+                <Select id="itemId" name="itemId" required>
+                  <option value="">اختر الصنف</option>
+                  {items.map((item) => (
+                    <option key={item.id} value={item.id}>{item.name}</option>
+                  ))}
+                </Select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="grid gap-2">
+                  <Label htmlFor="quantity">الكمية</Label>
+                  <Input id="quantity" name="quantity" type="number" min="0" step="0.01" required />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="unitPrice">السعر</Label>
+                  <Input id="unitPrice" name="unitPrice" type="number" step="0.01" min="0" required />
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="expiryDate">تاريخ انتهاء الصلاحية (اختياري)</Label>
+                <Input id="expiryDate" name="expiryDate" type="date" />
+              </div>
+              <Badge tone="muted">سيتم إضافة الصنف وتحديث المخزون ومتوسط التكلفة مباشرة فور الحفظ.</Badge>
+            </ActionForm>
           </CardContent>
         </Card>
       </div>

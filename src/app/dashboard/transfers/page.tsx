@@ -8,6 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getOperationsData } from "@/server/queries/app";
+import { ActionForm } from "@/components/action-form";
+import { saveTransferAction } from "@/server/actions/mutations";
 
 export default async function TransfersPage() {
   const { transfers, branches, items } = await getOperationsData();
@@ -59,39 +61,40 @@ export default async function TransfersPage() {
               تحويل جديد
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-2">
-              <Label>من قسم</Label>
-              <Select>
-                {branches.map((branch) => (
-                  <option key={branch.id}>{branch.name}</option>
-                ))}
-              </Select>
-            </div>
-            <div className="grid gap-2">
-              <Label>إلى قسم</Label>
-              <Select>
-                {branches.map((branch) => (
-                  <option key={branch.id}>{branch.name}</option>
-                ))}
-              </Select>
-            </div>
-            <div className="grid gap-2">
-              <Label>المادة</Label>
-              <Select>
-                {items.map((item) => (
-                  <option key={item.id}>{item.name}</option>
-                ))}
-              </Select>
-            </div>
-            <div className="grid gap-2">
-              <Label>الكمية</Label>
-              <Input type="number" />
-            </div>
-            <Button className="w-full">
-              <Plus className="h-4 w-4" />
-              حفظ كمسودة
-            </Button>
+          <CardContent>
+            <ActionForm action={saveTransferAction} submitLabel="حفظ كمسودة" className="space-y-4">
+              <div className="grid gap-2">
+                <Label htmlFor="fromBranchId">من قسم</Label>
+                <Select id="fromBranchId" name="fromBranchId" required>
+                  <option value="">اختر القسم المرسل</option>
+                  {branches.map((branch) => (
+                    <option key={branch.id} value={branch.id}>{branch.name}</option>
+                  ))}
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="toBranchId">إلى قسم</Label>
+                <Select id="toBranchId" name="toBranchId" required>
+                  <option value="">اختر القسم المستقبل</option>
+                  {branches.map((branch) => (
+                    <option key={branch.id} value={branch.id}>{branch.name}</option>
+                  ))}
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="itemId">المادة</Label>
+                <Select id="itemId" name="itemId" required>
+                  <option value="">اختر المادة</option>
+                  {items.map((item) => (
+                    <option key={item.id} value={item.id}>{item.name}</option>
+                  ))}
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="quantity">الكمية</Label>
+                <Input id="quantity" name="quantity" type="number" step="0.01" min="0" required />
+              </div>
+            </ActionForm>
           </CardContent>
         </Card>
       </div>

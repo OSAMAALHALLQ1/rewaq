@@ -32,38 +32,45 @@ export default async function PurchaseOrdersPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>الرقم</TableHead>
-                  <TableHead>المورد</TableHead>
-                  <TableHead>القسم</TableHead>
+                  <TableHead>القسم المرسل</TableHead>
+                  <TableHead>القسم المستقبل</TableHead>
                   <TableHead>الحالة</TableHead>
                   <TableHead>المجموع</TableHead>
                   <TableHead>إجراء</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {purchaseOrders.map((order) => (
-                  <TableRow key={order.id}>
-                    <TableCell className="font-semibold">{order.id}</TableCell>
-                    <TableCell>{order.supplierName}</TableCell>
-                    <TableCell>{order.branchName}</TableCell>
-                    <TableCell>
-                      <StatusBadge status={order.status} />
-                    </TableCell>
-                    <TableCell>{formatCurrency(order.total)}</TableCell>
-                    <TableCell>
-                      {order.status !== "received" ? (
-                        <form action={receivePurchaseOrderFormAction}>
-                          <input type="hidden" name="purchaseOrderId" value={order.id} />
-                          <Button size="sm" variant="outline" type="submit">
-                            <PackageCheck className="h-4 w-4" />
-                            استلام
-                          </Button>
-                        </form>
-                      ) : (
-                        <span className="text-sm text-muted-foreground">مكتمل</span>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {purchaseOrders.map((order) => {
+                  const toBranchName = order.notes?.match(/\[إلى:\s*([^\]]+)\]/)?.[1] || "المخزن الرئيسي";
+                  const cleanNotes = order.notes?.replace(/\[إلى:\s*[^\]]+\]\s*/, "") || order.notes;
+
+                  return (
+                    <TableRow key={order.id}>
+                      <TableCell className="font-semibold text-xs truncate max-w-28" title={order.id}>
+                        {order.id.slice(0, 8)}
+                      </TableCell>
+                      <TableCell>{order.branchName}</TableCell>
+                      <TableCell>{toBranchName}</TableCell>
+                      <TableCell>
+                        <StatusBadge status={order.status} />
+                      </TableCell>
+                      <TableCell>{formatCurrency(order.total)}</TableCell>
+                      <TableCell>
+                        {order.status !== "received" ? (
+                          <form action={receivePurchaseOrderFormAction}>
+                            <input type="hidden" name="purchaseOrderId" value={order.id} />
+                            <Button size="sm" variant="outline" type="submit">
+                              <PackageCheck className="h-4 w-4" />
+                              استلام
+                            </Button>
+                          </form>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">مكتمل</span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </CardContent>
@@ -79,20 +86,20 @@ export default async function PurchaseOrdersPage() {
           <CardContent>
             <ActionForm action={savePurchaseOrderAction} submitLabel="حفظ الطلب" className="space-y-4">
               <div className="grid gap-2">
-                <Label htmlFor="supplierId">المورد</Label>
-                <Select id="supplierId" name="supplierId" required>
-                  <option value="">اختر</option>
-                  {suppliers.map((supplier) => (
-                    <option key={supplier.id} value={supplier.id}>
-                      {supplier.name}
+                <Label htmlFor="fromBranchId">القسم الطالب (المرسل)</Label>
+                <Select id="fromBranchId" name="fromBranchId" required>
+                  <option value="">اختر القسم الطالب</option>
+                  {branches.map((branch) => (
+                    <option key={branch.id} value={branch.id}>
+                      {branch.name}
                     </option>
                   ))}
                 </Select>
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="branchId">القسم الطالب</Label>
-                <Select id="branchId" name="branchId" required>
-                  <option value="">اختر</option>
+                <Label htmlFor="toBranchId">القسم المستلم (المخزن)</Label>
+                <Select id="toBranchId" name="toBranchId" required>
+                  <option value="">اختر القسم المستلم</option>
                   {branches.map((branch) => (
                     <option key={branch.id} value={branch.id}>
                       {branch.name}
@@ -116,7 +123,7 @@ export default async function PurchaseOrdersPage() {
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="notes">ملاحظات</Label>
-                <Textarea id="notes" name="notes" />
+                <Textarea id="notes" name="notes" placeholder="ملاحظات اختيارية..." />
               </div>
             </ActionForm>
           </CardContent>
