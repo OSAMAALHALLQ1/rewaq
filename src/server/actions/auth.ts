@@ -8,6 +8,7 @@ import { createAdminClient, hasSupabaseAdminEnv } from "@/lib/supabase/admin";
 import { hasSupabaseEnv } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/auth/require-auth";
+import { requireAdminSession } from "@/lib/auth/admin-session";
 import type { Json } from "@/types/database";
 
 export type ActionState = {
@@ -26,15 +27,7 @@ function makeSlug(value: string) {
   return slug || "organization";
 }
 
-async function requireSuperAdminAction() {
-  const user = await requireAuth();
 
-  if (user.role !== "super_admin") {
-    throw new Error("هذه العملية مخصصة للأدمن الرئيسي فقط.");
-  }
-
-  return user;
-}
 
 export async function loginAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
   const parsed = authSchema.safeParse({
@@ -198,7 +191,7 @@ export async function approveAccountRequestAction(_prevState: ActionState, formD
   }
 
   if (hasSupabaseAdminEnv()) {
-    const currentAdmin = await requireSuperAdminAction();
+    const currentAdmin = await requireAdminSession();
     const admin = createAdminClient();
     const { data: request, error: requestError } = await admin
       .from("account_approval_requests")
@@ -277,7 +270,6 @@ export async function approveAccountRequestAction(_prevState: ActionState, formD
         user_id: authUser.id,
         role: "organization_owner",
         branch_id: null,
-        created_by: currentAdmin.id,
       },
       { onConflict: "organization_id,user_id" },
     );
@@ -303,13 +295,12 @@ export async function approveAccountRequestAction(_prevState: ActionState, formD
       .update({
         status: "approved",
         approved_at: new Date().toISOString(),
-        approved_by: currentAdmin.id,
         rejection_reason: null,
         metadata: {
           ...metadata,
           authUserId: authUser.id,
           organizationId,
-          approvedBy: currentAdmin.id,
+          approvedBy: currentAdmin.username,
           approvedAt: new Date().toISOString(),
         } satisfies Json,
       })
@@ -333,7 +324,7 @@ export async function rejectAccountRequestAction(_prevState: ActionState, formDa
   }
 
   if (hasSupabaseAdminEnv()) {
-    const currentAdmin = await requireSuperAdminAction();
+    const currentAdmin = await requireAdminSession();
     const admin = createAdminClient();
     const { data: request } = await admin
       .from("account_approval_requests")
@@ -360,7 +351,6 @@ export async function rejectAccountRequestAction(_prevState: ActionState, formDa
       .update({
         status: "rejected",
         rejection_reason: reason,
-        approved_by: currentAdmin.id,
       })
       .eq("id", requestId);
 

@@ -9,6 +9,9 @@ import {
   purchaseOrderSchema,
   recipeSchema,
   supplierSchema,
+  transferSchema,
+  supplyInvoiceSchema,
+  salesReturnSchema,
 } from "@/lib/validation/schemas";
 import { createClient } from "@/lib/supabase/server";
 import { hasSupabaseEnv } from "@/lib/supabase/env";
@@ -56,7 +59,7 @@ const wasteLogSchema = z.object({
   branchId: z.string().uuid("اختر الفرع"),
   itemId: z.string().uuid("اختر المادة"),
   quantity: z.coerce.number().positive("الكمية يجب أن تكون أكبر من صفر"),
-  reason: z.enum(["تلف", "انتهاء صلاحية", "خطأ تحضير", "كسر/انسكاب", "محاريق", "منظفات", "إرجاع", "سبب آخر"]),
+  reason: z.enum(["تلف", "محاريق"]),
   notes: z.string().optional(),
 });
 
@@ -743,6 +746,197 @@ export async function saveSupplierAction(_prevState: ActionState, formData: Form
   revalidatePath("/dashboard/suppliers");
   revalidatePath("/dashboard/purchase-orders");
   return ok("تم حفظ المورد في Supabase.");
+}
+
+export async function saveTransferAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
+  const parsed = transferSchema.safeParse({
+    fromBranchId: formData.get("fromBranchId"),
+    toBranchId: formData.get("toBranchId"),
+    itemId: formData.get("itemId"),
+    quantity: formData.get("quantity"),
+    notes: formData.get("notes") || "",
+  });
+
+  if (!parsed.success) return invalid(parsed.error.issues[0]?.message ?? "بيانات التحويل غير صحيحة");
+  if (parsed.data.fromBranchId === parsed.data.toBranchId) return invalid("القسم المرسل والمستلم يجب أن يكونا مختلفين.");
+
+  if (!hasSupabaseAdminEnv()) {
+    return invalid("مفتاح Supabase الإداري غير موجود. لا يمكن حفظ التحويل الداخلي في قاعدة البيانات.");
+  }
+
+  try {
+    const { admin, organizationId, userId } = await resolveMutationScope();
+    const [fromBranch, toBranch, item] = await Promise.all([
+      getScopedBranch(admin, organizationId, parsed.data.fromBranchId),
+      getScopedBranch(admin, organizationId, parsed.data.toBranchId),
+      getScopedInventoryItem(admin, organizationId, parsed.data.itemId),
+    ]);
+
+    if (!fromBranch?.id) return invalid("القسم المرسل غير موجود في المؤسسة الحالية.");
+    if (!toBranch?.id) return invalid("القسم المستقبل غير موجود في المؤسسة الحالية.");
+    if (!item?.id) return invalid("المادة المختارة غير موجودة في المؤسسة الحالية.");
+
+    const { data: transfer, error: transferError } = await admin
+      .from("transfers")
+      .insert({
+        organization_id: organizationId,
+        from_branch_id: parsed.data.fromBranchId,
+        to_branch_id: parsed.data.toBranchId,
+        status: "sent",
+        notes: parsed.data.notes || null,
+        created_by: userId,
+      })
+      .select("id")
+      .single();
+
+    if (transferError) return invalid(transferError.message);
+    if (!transfer?.id) return invalid("تعذر إنشاء التحويل الداخلي.");
+
+    const { error: itemError } = await admin.from("transfer_items").insert({
+      organization_id: organizationId,
+      transfer_id: transfer.id,
+      item_id: parsed.data.itemId,
+      quantity: parsed.data.quantity,
+      unit_cost: 0,
+      created_by: userId,
+    });
+
+    if (itemError) return invalid(itemError.message);
+  } catch (error) {
+    return invalid(error instanceof Error ? error.message : "تعذر حفظ التحويل الداخلي في Supabase.");
+  }
+
+  revalidatePath("/dashboard/transfers");
+  revalidatePath("/dashboard/purchase-orders");
+  return ok("تم حفظ التحويل الداخلي.");
+}
+
+export async function saveSupplyInvoiceAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
+  const parsed = supplyInvoiceSchema.safeParse({
+    supplierId: formData.get("supplierId"),
+    branchId: formData.get("branchId"),
+    invoiceNumber: formData.get("invoiceNumber"),
+    issuedAt: formData.get("issuedAt"),
+    itemId: formData.get("itemId"),
+    quantity: formData.get("quantity"),
+    unitPrice: formData.get("unitPrice"),
+    expirationDate: formData.get("expirationDate") || "",
+    notes: formData.get("notes") || "",
+  });
+
+  if (!parsed.success) return invalid(parsed.error.issues[0]?.message ?? "بيانات الفاتورة غير صحيحة");
+
+  if (!hasSupabaseAdminEnv()) {
+    return invalid("مفتاح Supabase الإداري غير موجود. لا يمكن حفظ الفاتورة في قاعدة البيانات.");
+  }
+
+  try {
+    const { admin, organizationId, userId } = await resolveMutationScope();
+    const [supplierResult, branch, item] = await Promise.all([
+      admin
+        .from("suppliers")
+        .select("id")
+        .eq("id", parsed.data.supplierId)
+        .eq("organization_id", organizationId)
+        .maybeSingle(),
+      getScopedBranch(admin, organizationId, parsed.data.branchId),
+      getScopedInventoryItem(admin, organizationId, parsed.data.itemId),
+    ]);
+
+    if (supplierResult.error) return invalid(supplierResult.error.message);
+    if (!supplierResult.data?.id) return invalid("المورد المختار غير موجود في المؤسسة الحالية.");
+    if (!branch?.id) return invalid("الفرع المختار غير موجود في المؤسسة الحالية.");
+    if (!item?.id) return invalid("المادة المختارة غير موجودة في المؤسسة الحالية.");
+
+    const invoiceTotal = Math.round(parsed.data.quantity * parsed.data.unitPrice * 100) / 100;
+    const { data: invoice, error: invoiceError } = await admin
+      .from("invoices")
+      .insert({
+        organization_id: organizationId,
+        supplier_id: parsed.data.supplierId,
+        branch_id: parsed.data.branchId,
+        invoice_number: parsed.data.invoiceNumber,
+        issued_at: parsed.data.issuedAt,
+        status: "draft",
+        total: invoiceTotal,
+        notes: parsed.data.notes || null,
+        created_by: userId,
+      })
+      .select("id")
+      .single();
+
+    if (invoiceError) return invalid(invoiceError.message);
+    if (!invoice?.id) return invalid("تعذر إنشاء فاتورة التوريد.");
+
+    const { error: itemError } = await admin.from("invoice_items").insert({
+      organization_id: organizationId,
+      invoice_id: invoice.id,
+      item_id: parsed.data.itemId,
+      quantity: parsed.data.quantity,
+      unit_price: parsed.data.unitPrice,
+      total: invoiceTotal,
+      created_by: userId,
+    });
+
+    if (itemError) return invalid(itemError.message);
+  } catch (error) {
+    return invalid(error instanceof Error ? error.message : "تعذر حفظ فاتورة التوريد في Supabase.");
+  }
+
+  revalidatePath("/dashboard/invoices");
+  return ok("تم حفظ فاتورة التوريد.");
+}
+
+export async function saveSalesReturnAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
+  const parsed = salesReturnSchema.safeParse({
+    branchId: formData.get("branchId"),
+    itemId: formData.get("itemId"),
+    quantity: formData.get("quantity"),
+    reason: formData.get("reason"),
+    notes: formData.get("notes") || "",
+  });
+
+  if (!parsed.success) return invalid(parsed.error.issues[0]?.message ?? "بيانات المرتجع غير صحيحة");
+
+  if (!hasSupabaseAdminEnv()) {
+    return invalid("مفتاح Supabase الإداري غير موجود. لا يمكن حفظ المرتجع في قاعدة البيانات.");
+  }
+
+  try {
+    const { admin, organizationId, userId } = await resolveMutationScope();
+    const [branch, item] = await Promise.all([
+      getScopedBranch(admin, organizationId, parsed.data.branchId),
+      getScopedInventoryItem(admin, organizationId, parsed.data.itemId),
+    ]);
+
+    if (!branch?.id) return invalid("الفرع المختار غير موجود في المؤسسة الحالية.");
+    if (!item?.id) return invalid("المادة المختارة غير موجودة في المؤسسة الحالية.");
+
+    const unitCost = Number(item.average_cost ?? 0);
+    const { error: movementError } = await admin.from("stock_movements").insert({
+      organization_id: organizationId,
+      branch_id: parsed.data.branchId,
+      item_id: parsed.data.itemId,
+      movement_type: "return",
+      quantity: parsed.data.quantity,
+      unit_cost: unitCost,
+      total_cost: parsed.data.quantity * unitCost,
+      source_doc_type: "return",
+      source_doc_id: null,
+      notes: `${parsed.data.reason}${parsed.data.notes ? ` - ${parsed.data.notes}` : ""}`,
+      created_by: userId,
+    });
+
+    if (movementError) return invalid(movementError.message);
+    await addToBranchStock(admin, organizationId, parsed.data.branchId, parsed.data.itemId, parsed.data.quantity, userId);
+  } catch (error) {
+    return invalid(error instanceof Error ? error.message : "تعذر حفظ المرتجع في Supabase.");
+  }
+
+  revalidatePath("/dashboard/sales-returns");
+  revalidatePath("/dashboard/stock-movements");
+  revalidatePath("/dashboard/inventory");
+  return ok("تم تسجيل المرتجع وتحديث المخزون.");
 }
 
 export async function savePurchaseOrderAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {

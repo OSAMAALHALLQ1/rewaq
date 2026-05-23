@@ -66,6 +66,7 @@ export default async function WastePage() {
           </CardHeader>
           <CardContent>
             <ActionForm action={saveWasteLogAction} submitLabel="حفظ السجل" className="space-y-4">
+<<<<<<< HEAD
               <div className="grid gap-2">
                 <Label htmlFor="branchId">القسم</Label>
                 <Select id="branchId" name="branchId" required>
@@ -98,6 +99,40 @@ export default async function WastePage() {
                 <Label htmlFor="notes">ملاحظات</Label>
                 <Textarea id="notes" name="notes" placeholder="ملاحظات اختيارية..." />
               </div>
+=======
+            <div className="grid gap-2">
+              <Label htmlFor="branchId">القسم</Label>
+              <Select id="branchId" name="branchId" required>
+                {branches.map((branch) => (
+                  <option key={branch.id} value={branch.id}>{branch.name}</option>
+                ))}
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="itemId">المادة</Label>
+              <Select id="itemId" name="itemId" required>
+                {items.map((item) => (
+                  <option key={item.id} value={item.id}>{item.name}</option>
+                ))}
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="quantity">الكمية</Label>
+              <Input id="quantity" name="quantity" type="number" min="0" step="0.01" required />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="reason">النوع</Label>
+              <Select id="reason" name="reason" required>
+                {["تلف", "محاريق"].map((reason) => (
+                  <option key={reason} value={reason}>{reason}</option>
+                ))}
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="notes">ملاحظات</Label>
+              <Textarea id="notes" name="notes" />
+            </div>
+>>>>>>> 1e006f5ad7af41e7d414774f408bb5e7d5cdf4db
             </ActionForm>
           </CardContent>
         </Card>

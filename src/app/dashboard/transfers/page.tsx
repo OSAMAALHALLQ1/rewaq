@@ -1,4 +1,5 @@
 import { ArrowLeftRight, Plus } from "lucide-react";
+import { ActionForm } from "@/components/action-form";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { saveTransferAction } from "@/server/actions/mutations";
 import { getOperationsData } from "@/server/queries/app";
 import { ActionForm } from "@/components/action-form";
 import { saveTransferAction } from "@/server/actions/mutations";
@@ -18,7 +20,7 @@ export default async function TransfersPage() {
     <>
       <PageHeader
         title="التحويلات الداخلية"
-        description="تحويل المواد بين الأقسام الداخلية مع حركة صادر من القسم المرسل ووارد للقسم المستقبل."
+        description="تحويل المواد بين الأقسام الداخلية مع حركة صادر للمرسل ووارد للمستقبل."
       />
       <div className="grid gap-4 xl:grid-cols-[1fr_360px]">
         <Card>
@@ -54,6 +56,7 @@ export default async function TransfersPage() {
             </Table>
           </CardContent>
         </Card>
+
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -62,13 +65,23 @@ export default async function TransfersPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
+<<<<<<< HEAD
             <ActionForm action={saveTransferAction} submitLabel="حفظ كمسودة" className="space-y-4">
+=======
+            <ActionForm action={saveTransferAction} submitLabel="حفظ التحويل" className="space-y-4">
+>>>>>>> 1e006f5ad7af41e7d414774f408bb5e7d5cdf4db
               <div className="grid gap-2">
                 <Label htmlFor="fromBranchId">من قسم</Label>
                 <Select id="fromBranchId" name="fromBranchId" required>
                   <option value="">اختر القسم المرسل</option>
                   {branches.map((branch) => (
+<<<<<<< HEAD
                     <option key={branch.id} value={branch.id}>{branch.name}</option>
+=======
+                    <option key={branch.id} value={branch.id}>
+                      {branch.name}
+                    </option>
+>>>>>>> 1e006f5ad7af41e7d414774f408bb5e7d5cdf4db
                   ))}
                 </Select>
               </div>
@@ -77,7 +90,13 @@ export default async function TransfersPage() {
                 <Select id="toBranchId" name="toBranchId" required>
                   <option value="">اختر القسم المستقبل</option>
                   {branches.map((branch) => (
+<<<<<<< HEAD
                     <option key={branch.id} value={branch.id}>{branch.name}</option>
+=======
+                    <option key={branch.id} value={branch.id}>
+                      {branch.name}
+                    </option>
+>>>>>>> 1e006f5ad7af41e7d414774f408bb5e7d5cdf4db
                   ))}
                 </Select>
               </div>
@@ -86,13 +105,27 @@ export default async function TransfersPage() {
                 <Select id="itemId" name="itemId" required>
                   <option value="">اختر المادة</option>
                   {items.map((item) => (
+<<<<<<< HEAD
                     <option key={item.id} value={item.id}>{item.name}</option>
+=======
+                    <option key={item.id} value={item.id}>
+                      {item.name}
+                    </option>
+>>>>>>> 1e006f5ad7af41e7d414774f408bb5e7d5cdf4db
                   ))}
                 </Select>
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="quantity">الكمية</Label>
+<<<<<<< HEAD
                 <Input id="quantity" name="quantity" type="number" step="0.01" min="0" required />
+=======
+                <Input id="quantity" name="quantity" type="number" min="0" step="0.01" required />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="notes">ملاحظات</Label>
+                <Input id="notes" name="notes" />
+>>>>>>> 1e006f5ad7af41e7d414774f408bb5e7d5cdf4db
               </div>
             </ActionForm>
           </CardContent>

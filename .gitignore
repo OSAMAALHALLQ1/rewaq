@@ -31,6 +31,8 @@ yarn-error.log*
 .pnpm-debug.log*
 dev-server.log
 dev-*.log
+build.log
+build2.log
 .expo/
 supabase/.temp/
 

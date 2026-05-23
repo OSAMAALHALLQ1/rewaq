@@ -1,4 +1,4 @@
-import { PackageCheck, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { ActionForm } from "@/components/action-form";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
@@ -10,36 +10,41 @@ import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { formatCurrency } from "@/lib/utils";
-import { receivePurchaseOrderFormAction, savePurchaseOrderAction } from "@/server/actions/mutations";
-import { getPurchasingData } from "@/server/queries/app";
+import { saveTransferAction } from "@/server/actions/mutations";
+import { getOperationsData } from "@/server/queries/app";
 
 export default async function PurchaseOrdersPage() {
-  const { purchaseOrders, suppliers, branches } = await getPurchasingData();
+  const { transfers, branches, items } = await getOperationsData();
 
   return (
     <>
       <PageHeader
-        title="طلبيات الأقسام"
-        description="تدفق طلبيات الأقسام: مسودة، إرسال، تجهيز، واستلام. الاعتماد يحدث المخزون وسجل الصادر والوارد."
+        title="طلبات الأقسام"
+        description="تدفق إنشاء طلبات الأقسام الداخلية وإرسالها بين الفروع / الأقسام بدون ربط الموردين."
       />
       <div className="grid gap-4 xl:grid-cols-[1fr_360px]">
         <Card>
           <CardHeader>
-            <CardTitle>طلبيات الأقسام المفتوحة والسابقة</CardTitle>
+            <CardTitle>طلبات الأقسام المفتوحة والسابقة</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>الرقم</TableHead>
+<<<<<<< HEAD
                   <TableHead>القسم المرسل</TableHead>
                   <TableHead>القسم المستقبل</TableHead>
+=======
+                  <TableHead>من</TableHead>
+                  <TableHead>إلى</TableHead>
+>>>>>>> 1e006f5ad7af41e7d414774f408bb5e7d5cdf4db
                   <TableHead>الحالة</TableHead>
-                  <TableHead>المجموع</TableHead>
-                  <TableHead>إجراء</TableHead>
+                  <TableHead>عدد المواد</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
+<<<<<<< HEAD
                 {purchaseOrders.map((order) => {
                   const toBranchName = order.notes?.match(/\[إلى:\s*([^\]]+)\]/)?.[1] || "المخزن الرئيسي";
                   const cleanNotes = order.notes?.replace(/\[إلى:\s*[^\]]+\]\s*/, "") || order.notes;
@@ -71,6 +76,19 @@ export default async function PurchaseOrdersPage() {
                     </TableRow>
                   );
                 })}
+=======
+                {transfers.map((transfer) => (
+                  <TableRow key={transfer.id}>
+                    <TableCell className="font-semibold">{transfer.id}</TableCell>
+                    <TableCell>{transfer.fromBranchName}</TableCell>
+                    <TableCell>{transfer.toBranchName}</TableCell>
+                    <TableCell>
+                      <StatusBadge status={transfer.status} />
+                    </TableCell>
+                    <TableCell>{transfer.totalItems}</TableCell>
+                  </TableRow>
+                ))}
+>>>>>>> 1e006f5ad7af41e7d414774f408bb5e7d5cdf4db
               </TableBody>
             </Table>
           </CardContent>
@@ -84,8 +102,9 @@ export default async function PurchaseOrdersPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ActionForm action={savePurchaseOrderAction} submitLabel="حفظ الطلب" className="space-y-4">
+            <ActionForm action={saveTransferAction} submitLabel="حفظ الطلب" className="space-y-4">
               <div className="grid gap-2">
+<<<<<<< HEAD
                 <Label htmlFor="fromBranchId">القسم الطالب (المرسل)</Label>
                 <Select id="fromBranchId" name="fromBranchId" required>
                   <option value="">اختر القسم الطالب</option>
@@ -100,6 +119,11 @@ export default async function PurchaseOrdersPage() {
                 <Label htmlFor="toBranchId">القسم المستلم (المخزن)</Label>
                 <Select id="toBranchId" name="toBranchId" required>
                   <option value="">اختر القسم المستلم</option>
+=======
+                <Label htmlFor="fromBranchId">من قسم</Label>
+                <Select id="fromBranchId" name="fromBranchId" required>
+                  <option value="">اختر القسم المرسل</option>
+>>>>>>> 1e006f5ad7af41e7d414774f408bb5e7d5cdf4db
                   {branches.map((branch) => (
                     <option key={branch.id} value={branch.id}>
                       {branch.name}
@@ -108,18 +132,30 @@ export default async function PurchaseOrdersPage() {
                 </Select>
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="status">الحالة</Label>
-                <Select id="status" name="status" defaultValue="draft">
-                  <option value="draft">مسودة</option>
-                  <option value="sent">مرسل</option>
+                <Label htmlFor="toBranchId">إلى قسم</Label>
+                <Select id="toBranchId" name="toBranchId" required>
+                  <option value="">اختر القسم المستقبل</option>
+                  {branches.map((branch) => (
+                    <option key={branch.id} value={branch.id}>
+                      {branch.name}
+                    </option>
+                  ))}
                 </Select>
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="orderDate">التاريخ</Label>
-                <Input id="orderDate" name="orderDate" type="date" defaultValue="2026-05-16" required />
+                <Label htmlFor="itemId">المادة</Label>
+                <Select id="itemId" name="itemId" required>
+                  <option value="">اختر المادة</option>
+                  {items.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name}
+                    </option>
+                  ))}
+                </Select>
               </div>
-              <div className="rounded-lg border bg-slate-50 p-3 text-sm leading-6 text-muted-foreground">
-                في هذه المرحلة يتم حفظ رأس الطلب. يمكن إضافة المواد والكميات على الطلب من شاشة التفاصيل لاحقًا.
+              <div className="grid gap-2">
+                <Label htmlFor="quantity">الكمية</Label>
+                <Input id="quantity" name="quantity" type="number" min="0" step="0.01" required />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="notes">ملاحظات</Label>

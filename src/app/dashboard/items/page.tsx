@@ -21,6 +21,17 @@ export default async function ItemsPage() {
       <PageHeader
         title="الأصناف والباركود"
         description="إدارة كود الصنف، الباركود، الوحدات، تحويل الوحدات، الفئات، وربط المواد بالمخزن."
+<<<<<<< HEAD
+=======
+        actions={
+          <Button asChild>
+            <Link href="/dashboard/inventory">
+              <Plus className="h-4 w-4" />
+              صنف جديد
+            </Link>
+          </Button>
+        }
+>>>>>>> 1e006f5ad7af41e7d414774f408bb5e7d5cdf4db
       />
 
       <div className="grid gap-4 md:grid-cols-4">
