@@ -10,3 +10,14 @@ try {
   console.log('LAST LOG:');
   console.log(s.execSync('git log --oneline -5 --format="%h %ae %s"', o).toString().trim());
 } catch (e) { console.error(e.stderr?.toString() || e.message); }
+
+// Also check status and recent commits
+try {
+  console.log('=== STATUS ===');
+  console.log(s.execSync('git status --short', o).toString().trim() || '(clean)');
+  console.log('=== LAST 5 COMMITS ===');
+  console.log(s.execSync('git log --oneline -5', o).toString().trim());
+  console.log('=== UNPUSHED COMMITS ===');
+  const unpushed = s.execSync('git log origin/main..HEAD --oneline', o).toString().trim();
+  console.log(unpushed || '(none)');
+} catch (e2) { console.error(e2.stderr?.toString() || e2.message); }
