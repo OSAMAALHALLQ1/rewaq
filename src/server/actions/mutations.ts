@@ -795,7 +795,6 @@ export async function saveSupplyInvoiceAction(_prevState: ActionState, formData:
         issued_at: parsed.data.issuedAt,
         status: "draft",
         total: invoiceTotal,
-        notes: parsed.data.notes || null,
         created_by: userId,
       })
       .select("id")
@@ -810,7 +809,6 @@ export async function saveSupplyInvoiceAction(_prevState: ActionState, formData:
       item_id: parsed.data.itemId,
       quantity: parsed.data.quantity,
       unit_price: parsed.data.unitPrice,
-      total: invoiceTotal,
       created_by: userId,
     });
 
@@ -856,7 +854,6 @@ export async function saveSalesReturnAction(_prevState: ActionState, formData: F
       movement_type: "return",
       quantity: parsed.data.quantity,
       unit_cost: unitCost,
-      total_cost: parsed.data.quantity * unitCost,
       source_doc_type: "return",
       source_doc_id: null,
       notes: `${parsed.data.reason}${parsed.data.notes ? ` - ${parsed.data.notes}` : ""}`,
