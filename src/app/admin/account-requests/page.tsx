@@ -60,7 +60,7 @@ export default async function AccountRequestsPage() {
         <Card>
           <CardContent className="p-5">
             <p className="text-sm text-muted-foreground">المسار</p>
-            <p className="mt-2 font-bold">تسجيل → تفعيل بريد → موافقة أدمن → دخول</p>
+            <p className="mt-2 font-bold">تسجيل → موافقة أدمن → رابط دخول مباشر</p>
           </CardContent>
         </Card>
       </div>
@@ -122,7 +122,7 @@ export default async function AccountRequestsPage() {
                       <ActionForm action={approveAccountRequestAction} submitLabel="موافقة" className="space-y-2">
                         <Input type="hidden" name="requestId" value={request.id} readOnly />
                         <div className="rounded-lg bg-green-50 p-2 text-xs leading-5 text-green-700">
-                          ينشئ مؤسسة وعضوية مالك ويربطها بحساب Auth.
+                          ينشئ المؤسسة والعضوية ثم يرسل رابط دخول مباشر.
                         </div>
                       </ActionForm>
 
@@ -151,7 +151,7 @@ export default async function AccountRequestsPage() {
             <div>
               <h2 className="font-semibold">عند الموافقة</h2>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                يتم ربط حساب Supabase Auth بالبريد، إنشاء المؤسسة والفرع الرئيسي، ثم إضافة صاحب الطلب كمالك مؤسسة.
+                يتم ربط حساب Supabase Auth بالبريد، إنشاء المؤسسة والفرع الرئيسي، ثم إرسال رابط دخول مباشر لصاحب الطلب.
               </p>
             </div>
           </CardContent>

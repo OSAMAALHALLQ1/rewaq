@@ -164,6 +164,47 @@ async function findOrCreateUnit(
   return created.id;
 }
 
+async function findOrCreateInventoryCategory(
+  admin: ReturnType<typeof createAdminClient>,
+  organizationId: string,
+  name: string,
+  userId: string | null,
+) {
+  const normalizedName = name.trim();
+
+  const { data: existing, error: selectError } = await admin
+    .from("inventory_categories")
+    .select("id")
+    .eq("organization_id", organizationId)
+    .ilike("name", normalizedName)
+    .limit(1)
+    .maybeSingle();
+
+  if (selectError) {
+    throw new Error(selectError.message);
+  }
+
+  if (existing?.id) {
+    return existing.id;
+  }
+
+  const { data: created, error: insertError } = await admin
+    .from("inventory_categories")
+    .insert({
+      organization_id: organizationId,
+      name: normalizedName,
+      created_by: userId,
+    })
+    .select("id")
+    .single();
+
+  if (insertError) {
+    throw new Error(insertError.message);
+  }
+
+  return created.id;
+}
+
 async function getScopedBranch(admin: ReturnType<typeof createAdminClient>, organizationId: string, branchId: string) {
   const { data, error } = await admin
     .from("branches")
@@ -628,6 +669,7 @@ export async function saveInventoryItemAction(_prevState: ActionState, formData:
   const parsed = inventoryItemSchema.safeParse({
     name: formData.get("name"),
     categoryId: formData.get("categoryId"),
+    categoryName: formData.get("categoryName") || undefined,
     purchaseUnit: formData.get("purchaseUnit"),
     usageUnit: formData.get("usageUnit"),
     lastPurchasePrice: formData.get("lastPurchasePrice"),
@@ -648,25 +690,32 @@ export async function saveInventoryItemAction(_prevState: ActionState, formData:
   try {
     const { admin, organizationId, userId } = await resolveMutationScope();
 
-    const [{ data: category }, supplierResult] = await Promise.all([
-      admin
+    const supplierResult = parsed.data.primarySupplierId
+      ? await admin
+          .from("suppliers")
+          .select("id")
+          .eq("id", parsed.data.primarySupplierId)
+          .eq("organization_id", organizationId)
+          .maybeSingle()
+      : { data: null, error: null };
+
+    if (supplierResult.error) return invalid(supplierResult.error.message);
+
+    let categoryId = parsed.data.categoryId || "";
+    if (parsed.data.categoryName?.trim()) {
+      categoryId = await findOrCreateInventoryCategory(admin, organizationId, parsed.data.categoryName, userId);
+    } else if (categoryId) {
+      const { data: category, error: categoryError } = await admin
         .from("inventory_categories")
         .select("id")
-        .eq("id", parsed.data.categoryId)
+        .eq("id", categoryId)
         .eq("organization_id", organizationId)
-        .maybeSingle(),
-      parsed.data.primarySupplierId
-        ? admin
-            .from("suppliers")
-            .select("id")
-            .eq("id", parsed.data.primarySupplierId)
-            .eq("organization_id", organizationId)
-            .maybeSingle()
-        : Promise.resolve({ data: null, error: null }),
-    ]);
+        .maybeSingle();
 
-    if (!category?.id) {
-      return invalid("الفئة المختارة غير موجودة في المؤسسة الحالية.");
+      if (categoryError) return invalid(categoryError.message);
+      if (!category?.id) {
+        return invalid("الفئة المختارة غير موجودة في المؤسسة الحالية.");
+      }
     }
 
     if (parsed.data.primarySupplierId && !supplierResult.data?.id) {
@@ -680,7 +729,7 @@ export async function saveInventoryItemAction(_prevState: ActionState, formData:
 
     const { error } = await admin.from("inventory_items").insert({
       organization_id: organizationId,
-      category_id: parsed.data.categoryId,
+      category_id: categoryId,
       primary_supplier_id: parsed.data.primarySupplierId || null,
       name: parsed.data.name,
       purchase_unit_id: purchaseUnitId,

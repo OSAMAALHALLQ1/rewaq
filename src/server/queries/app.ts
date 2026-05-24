@@ -37,6 +37,7 @@ import {
 import { hasSupabaseEnv } from "@/lib/supabase/env";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { createAdminClient, hasSupabaseAdminEnv } from "@/lib/supabase/admin";
+import { mergeCategoryNames } from "@/lib/catalog/categories";
 import type { Tables } from "@/types/database";
 import type {
   AdminMetric,
@@ -477,11 +478,14 @@ async function loadInventoryBundle(admin: AdminClient, organizationId: string) {
 
   return {
     items: itemRows.map((row) => mapInventoryItem(row, categoryMap, supplierMap, unitMap)),
-    categories: categoryRows.map((row) => ({
-      id: row.id,
-      organizationId: row.organization_id,
-      name: row.name,
-    })) satisfies InventoryCategory[],
+    categories: mergeCategoryNames(categoryRows.map((row) => row.name)).map((name) => {
+      const persisted = categoryRows.find((row) => row.name === name);
+      return {
+        id: persisted?.id ?? `suggested-${name}`,
+        organizationId,
+        name,
+      };
+    }) satisfies InventoryCategory[],
     branchStock: stockRows.map((row) => mapBranchStock(row, branchMap)),
     movements: movementRows.map((row) => mapStockMovement(row, branchMap, itemMap)),
     suppliers: supplierRows.map((row) => mapSupplier(row, priceRiskBySupplier.get(row.id) ?? 0)),
@@ -844,7 +848,7 @@ async function loadCatalogBundle(admin: AdminClient, organizationId: string) {
         row.inventory_item_id ? stockByItem.get(row.inventory_item_id) ?? 0 : 0,
       ),
     ),
-    categories: Array.from(new Set(catalogRows.map((row) => row.category_name).filter(Boolean))).map((name, index) => ({
+    categories: mergeCategoryNames(catalogRows.map((row) => row.category_name ?? "")).map((name, index) => ({
       id: `catalog-category-${index}`,
       organizationId,
       name: String(name),

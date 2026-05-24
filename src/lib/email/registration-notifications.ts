@@ -10,8 +10,52 @@ type RegistrationNotificationInput = {
   businessType: string;
 };
 
+type ApprovalMagicLinkInput = {
+  to: string;
+  ownerName: string;
+  organizationName: string;
+  actionLink: string;
+};
+
 export function getRegistrationAdminEmail() {
   return process.env.ADMIN_REGISTRATION_EMAIL || FALLBACK_ADMIN_EMAIL;
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+async function sendEmail({ to, subject, text, html }: { to: string; subject: string; text: string; html?: string }) {
+  if (process.env.RESEND_API_KEY && process.env.EMAIL_FROM) {
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        from: process.env.EMAIL_FROM,
+        to,
+        subject,
+        text,
+        ...(html ? { html } : {}),
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => "");
+      throw new Error(`تعذر إرسال البريد: ${errorText || response.status}`);
+    }
+
+    return { sent: true, to };
+  }
+
+  console.info("Email notification", { to, subject, text });
+  return { sent: false, to };
 }
 
 export async function sendRegistrationRequestNotification(input: RegistrationNotificationInput) {
@@ -29,71 +73,36 @@ export async function sendRegistrationRequestNotification(input: RegistrationNot
     "افتح لوحة الأدمن ثم صفحة طلبات التسجيل للموافقة أو الرفض.",
   ].join("\n");
 
-  if (process.env.RESEND_API_KEY && process.env.EMAIL_FROM) {
-    const response = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        from: process.env.EMAIL_FROM,
-        to,
-        subject,
-        text,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => "");
-      throw new Error(`تعذر إرسال بريد إشعار التسجيل: ${errorText || response.status}`);
-    }
-
-    return { sent: true, to };
-  }
-
-  console.info("Registration approval email notification", { to, subject, text });
-  return { sent: false, to };
+  return sendEmail({ to, subject, text });
 }
 
-export async function sendRegistrationApprovedNotification(input: {
-  email: string;
-  ownerName: string;
-  organizationName: string;
-}) {
-  const to = input.email;
-  const subject = `تم اعتماد حسابك في رواق - ${input.organizationName}`;
+export async function sendAccountApprovedMagicLink(input: ApprovalMagicLinkInput) {
+  const subject = `تمت الموافقة على حسابك في رواق - ${input.organizationName}`;
   const text = [
-    `مرحبًا ${input.ownerName},`,
+    `أهلًا ${input.ownerName},`,
     "",
-    `تمت الموافقة على طلب إنشاء حساب مؤسستك (${input.organizationName}). يمكنك الآن تسجيل الدخول إلى لوحة التحكم.`,
+    "تمت الموافقة على حسابك في رواق.",
+    "اضغط الرابط التالي للدخول مباشرة إلى لوحة التحكم بدون كتابة كلمة المرور:",
+    input.actionLink,
     "",
-    `رابط تسجيل الدخول: ${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/login`,
+    "إذا لم تطلب هذا الحساب، تجاهل هذه الرسالة.",
   ].join("\n");
+  const ownerName = escapeHtml(input.ownerName);
+  const organizationName = escapeHtml(input.organizationName);
+  const actionLink = escapeHtml(input.actionLink);
+  const html = `
+    <div dir="rtl" style="font-family: Arial, sans-serif; line-height: 1.8; color: #0f172a;">
+      <h2>تمت الموافقة على حسابك في رواق</h2>
+      <p>أهلًا ${ownerName}, حساب ${organizationName} جاهز الآن.</p>
+      <p>
+        <a href="${actionLink}" style="display:inline-block;background:#2563eb;color:#fff;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:700;">
+          الدخول إلى لوحة التحكم
+        </a>
+      </p>
+      <p style="font-size:13px;color:#64748b;">إذا لم يعمل الزر، انسخ الرابط التالي وافتحه في المتصفح:</p>
+      <p style="direction:ltr;font-size:13px;word-break:break-all;color:#334155;">${actionLink}</p>
+    </div>
+  `;
 
-  if (process.env.RESEND_API_KEY && process.env.EMAIL_FROM) {
-    const response = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        from: process.env.EMAIL_FROM,
-        to,
-        subject,
-        text,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => "");
-      throw new Error(`تعذر إرسال بريد اعتماد التسجيل: ${errorText || response.status}`);
-    }
-
-    return { sent: true, to };
-  }
-
-  console.info("Registration approved email (mock)", { to, subject, text });
-  return { sent: false, to };
+  return sendEmail({ to: input.to, subject, text, html });
 }

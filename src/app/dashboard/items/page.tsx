@@ -16,6 +16,7 @@ import { saveCatalogItemAction } from "@/server/actions/mutations";
 export default async function ItemsPage() {
   const { items, categories, permissions } = await getCatalogData();
   const activeItems = items.filter((item) => item.isActive).length;
+  const categoryNames = categories.map((category) => category.name);
 
   return (
     <>
@@ -143,7 +144,12 @@ export default async function ItemsPage() {
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="categoryName">الفئة</Label>
-                <Input id="categoryName" name="categoryName" placeholder="مثال: الوجبات" required />
+                <Input id="categoryName" name="categoryName" list="catalog-category-options" placeholder="اختر فئة أو اكتب فئة جديدة" required />
+                <datalist id="catalog-category-options">
+                  {categoryNames.map((name) => (
+                    <option key={name} value={name} />
+                  ))}
+                </datalist>
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="mainUnit">الوحدة الأساسية</Label>

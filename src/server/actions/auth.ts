@@ -2,10 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import {
-  sendRegistrationRequestNotification,
-  sendRegistrationApprovedNotification,
-} from "@/lib/email/registration-notifications";
+import { sendAccountApprovedMagicLink, sendRegistrationRequestNotification } from "@/lib/email/registration-notifications";
 import { authSchema, registerSchema, teamInviteSchema } from "@/lib/validation/schemas";
 import { createAdminClient, hasSupabaseAdminEnv } from "@/lib/supabase/admin";
 import { hasSupabaseEnv } from "@/lib/supabase/env";
@@ -30,7 +27,17 @@ function makeSlug(value: string) {
   return slug || "organization";
 }
 
+function getAppUrl() {
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
+  }
 
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+
+  return "http://localhost:3000";
+}
 
 export async function loginAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
   const parsed = authSchema.safeParse({
@@ -288,8 +295,6 @@ export async function approveAccountRequestAction(_prevState: ActionState, formD
         organization_id: organizationId,
         role: "organization_owner",
       },
-      // Confirm the user's email so they can sign in immediately after approval
-      email_confirm: true,
     });
 
     const metadata = typeof request.metadata === "object" && request.metadata !== null && !Array.isArray(request.metadata)
@@ -315,20 +320,38 @@ export async function approveAccountRequestAction(_prevState: ActionState, formD
       return { ok: false, message: error.message };
     }
 
-    // Notify the user that their account has been approved
+    const { data: magicLinkData, error: magicLinkError } = await admin.auth.admin.generateLink({
+      type: "magiclink",
+      email: normalizedEmail,
+      options: {
+        redirectTo: `${getAppUrl()}/auth/callback?next=/dashboard`,
+      },
+    });
+
+    if (magicLinkError || !magicLinkData?.properties?.action_link) {
+      return { ok: true, message: magicLinkError?.message ?? "تمت الموافقة، لكن تعذر إنشاء رابط الدخول المباشر." };
+    }
+
     try {
-      await sendRegistrationApprovedNotification({
-        email: normalizedEmail,
+      await sendAccountApprovedMagicLink({
+        to: normalizedEmail,
         ownerName: request.owner_name,
         organizationName: request.organization_name,
+        actionLink: magicLinkData.properties.action_link,
       });
-    } catch (e) {
-      console.error("Failed to send approval email", e);
+    } catch (emailError) {
+      return {
+        ok: true,
+        message:
+          emailError instanceof Error
+            ? `تمت الموافقة على الحساب، لكن تعذر إرسال رابط الدخول المباشر: ${emailError.message}`
+            : "تمت الموافقة على الحساب، لكن تعذر إرسال رابط الدخول المباشر.",
+      };
     }
   }
 
   revalidatePath("/admin/account-requests");
-  return { ok: true, message: "تمت الموافقة على الحساب. أرسل لصاحب الحساب أن تسجيل الدخول أصبح متاحًا بعد تفعيل البريد." };
+  return { ok: true, message: "تمت الموافقة على الحساب وإرسال رابط دخول مباشر لصاحب الحساب." };
 }
 
 export async function rejectAccountRequestAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {

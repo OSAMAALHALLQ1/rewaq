@@ -30,7 +30,8 @@ export const supplierSchema = z.object({
 
 export const inventoryItemSchema = z.object({
   name: z.string().min(2, "اسم المادة مطلوب"),
-  categoryId: z.string().min(1, "اختر الفئة"),
+  categoryId: z.string().optional(),
+  categoryName: z.string().optional(),
   purchaseUnit: z.string().min(1, "وحدة الشراء مطلوبة"),
   usageUnit: z.string().min(1, "وحدة الاستخدام مطلوبة"),
   lastPurchasePrice: z.coerce.number().nonnegative(),
@@ -40,6 +41,9 @@ export const inventoryItemSchema = z.object({
   sku: z.string().optional(),
   notes: z.string().optional(),
   isActive: z.boolean().default(true),
+}).refine((value) => Boolean(value.categoryId || value.categoryName?.trim()), {
+  message: "اختر الفئة أو أضف فئة جديدة",
+  path: ["categoryId"],
 });
 
 export const purchaseOrderSchema = z.object({

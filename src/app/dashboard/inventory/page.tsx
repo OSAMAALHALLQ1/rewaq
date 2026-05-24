@@ -16,6 +16,8 @@ import { getInventoryData } from "@/server/queries/app";
 
 export default async function InventoryPage() {
   const { items, categories, branchStock, suppliers, branches } = await getInventoryData();
+  const savedCategories = categories.filter((category) => !category.id.startsWith("suggested-"));
+  const categoryNames = categories.map((category) => category.name);
 
   return (
     <>
@@ -130,14 +132,23 @@ export default async function InventoryPage() {
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="categoryId">الفئة</Label>
-                <Select id="categoryId" name="categoryId" required>
-                  <option value="">اختر</option>
-                  {categories.map((category) => (
+                <Select id="categoryId" name="categoryId">
+                  <option value="">اختر فئة محفوظة</option>
+                  {savedCategories.map((category) => (
                     <option key={category.id} value={category.id}>
                       {category.name}
                     </option>
                   ))}
                 </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="categoryName">أو أضف فئة جديدة</Label>
+                <Input id="categoryName" name="categoryName" list="inventory-category-options" placeholder="مثال: بهارات" />
+                <datalist id="inventory-category-options">
+                  {categoryNames.map((name) => (
+                    <option key={name} value={name} />
+                  ))}
+                </datalist>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="grid gap-2">
