@@ -2,7 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { sendRegistrationRequestNotification } from "@/lib/email/registration-notifications";
+import {
+  sendRegistrationRequestNotification,
+  sendRegistrationApprovedNotification,
+} from "@/lib/email/registration-notifications";
 import { authSchema, registerSchema, teamInviteSchema } from "@/lib/validation/schemas";
 import { createAdminClient, hasSupabaseAdminEnv } from "@/lib/supabase/admin";
 import { hasSupabaseEnv } from "@/lib/supabase/env";
@@ -285,6 +288,8 @@ export async function approveAccountRequestAction(_prevState: ActionState, formD
         organization_id: organizationId,
         role: "organization_owner",
       },
+      // Confirm the user's email so they can sign in immediately after approval
+      email_confirm: true,
     });
 
     const metadata = typeof request.metadata === "object" && request.metadata !== null && !Array.isArray(request.metadata)
@@ -308,6 +313,17 @@ export async function approveAccountRequestAction(_prevState: ActionState, formD
 
     if (error) {
       return { ok: false, message: error.message };
+    }
+
+    // Notify the user that their account has been approved
+    try {
+      await sendRegistrationApprovedNotification({
+        email: normalizedEmail,
+        ownerName: request.owner_name,
+        organizationName: request.organization_name,
+      });
+    } catch (e) {
+      console.error("Failed to send approval email", e);
     }
   }
 
