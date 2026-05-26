@@ -44,7 +44,8 @@ $files = @(
   "db\migrations\005_business_profiles_and_cashier_role.sql",
   "db\migrations\006_email_approval_and_team_invites.sql",
   "db\migrations\007_whatsapp_social_platform.sql",
-  "db\migrations\008_department_access_and_messaging.sql"
+  "db\migrations\008_department_access_and_messaging.sql",
+  "db\migrations\009_fix_rls_infinite_recursion.sql"
 )
 
 if (-not $SkipSeed) {
