@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowRight, ClipboardList, PackageMinus, Plus } from "lucide-react";
+import { ArrowRight, ClipboardList, PackageMinus } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatCurrency, formatNumber } from "@/lib/utils";
 import { getInventoryItem } from "@/server/queries/app";
+import { AddMovementDialog } from "@/components/inventory/add-movement-dialog";
 
 export default async function InventoryItemDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -29,10 +30,14 @@ export default async function InventoryItemDetailsPage({ params }: { params: Pro
                 رجوع
               </Link>
             </Button>
-            <Button>
-              <Plus className="h-4 w-4" />
-              إضافة حركة
-            </Button>
+            
+            {/* Fully Functional Interactive AddMovementDialog component */}
+            <AddMovementDialog
+              itemId={item.id}
+              itemName={item.name}
+              usageUnit={item.usageUnit}
+              branches={stock.map((s) => ({ id: s.branchId, name: s.branchName }))}
+            />
           </>
         }
       />
