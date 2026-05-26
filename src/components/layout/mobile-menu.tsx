@@ -10,9 +10,10 @@ import { cn } from "@/lib/utils";
 type MobileMenuProps = {
   mode?: "app" | "admin";
   onClose?: () => void;
+  onChatOpen?: () => void;
 };
 
-export function MobileMenu({ mode = "app", onClose }: MobileMenuProps) {
+export function MobileMenu({ mode = "app", onClose, onChatOpen }: MobileMenuProps) {
   const pathname = usePathname();
   const sections = mode === "app" ? appNav : [{ title: "Platform", items: adminNav }];
   const quickLinks = [
@@ -87,7 +88,15 @@ export function MobileMenu({ mode = "app", onClose }: MobileMenuProps) {
                   <Link
                     key={item.href}
                     href={item.href}
-                    onClick={handleLinkClick}
+                    onClick={(e) => {
+                      if (item.href === "#chat" && onChatOpen) {
+                        e.preventDefault();
+                        if (onClose) onClose();
+                        onChatOpen();
+                      } else {
+                        handleLinkClick();
+                      }
+                    }}
                     className={cn(
                       "flex items-center gap-2.5 rounded-xl px-3 py-3 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-950",
                       isActive && "bg-blue-50 text-primary font-semibold",

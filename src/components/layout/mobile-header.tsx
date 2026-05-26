@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Menu, Search } from "lucide-react";
+import { Menu, Search, MessageSquare } from "lucide-react";
 import { useState } from "react";
 import { NotificationBell } from "@/components/layout/notification-bell";
 import type { AppSession } from "@/lib/auth/session";
@@ -12,6 +12,7 @@ type MobileHeaderProps = {
   branches: Branch[];
   notifications: Notification[];
   onMenuOpen?: () => void;
+  onChatOpen?: () => void;
 };
 
 export function MobileHeader({
@@ -19,6 +20,7 @@ export function MobileHeader({
   branches,
   notifications,
   onMenuOpen,
+  onChatOpen,
 }: MobileHeaderProps) {
   const [searchOpen, setSearchOpen] = useState(false);
 
@@ -54,6 +56,21 @@ export function MobileHeader({
             >
               <Search className="h-5 w-5 text-slate-600" />
             </button>
+
+            {/* Glowing Chat Trigger Button for Mobile */}
+            {onChatOpen && (
+              <button
+                onClick={onChatOpen}
+                className="p-2 hover:bg-slate-100 rounded-lg transition relative"
+                aria-label="الرسائل الداخلية"
+              >
+                <MessageSquare className="h-5 w-5 text-slate-600" />
+                <span className="absolute top-1 end-1 flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-teal-500"></span>
+                </span>
+              </button>
+            )}
 
             <NotificationBell notifications={notifications} />
 

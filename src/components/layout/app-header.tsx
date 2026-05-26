@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Boxes, FileText, Megaphone, ReceiptText, Search, ShoppingCart } from "lucide-react";
+import { Boxes, FileText, Megaphone, ReceiptText, Search, ShoppingCart, MessageSquare } from "lucide-react";
 import { NotificationBell } from "@/components/layout/notification-bell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,9 +11,10 @@ type AppHeaderProps = {
   session: AppSession;
   branches: Branch[];
   notifications: Notification[];
+  onChatOpen?: () => void;
 };
 
-export function AppHeader({ session, branches, notifications }: AppHeaderProps) {
+export function AppHeader({ session, branches, notifications, onChatOpen }: AppHeaderProps) {
   return (
     <header className="sticky top-0 z-20 border-b border-border bg-white/88 backdrop-blur">
       <div className="flex min-h-16 items-center gap-2 px-3 md:gap-3 md:px-4 lg:px-6">
@@ -68,6 +69,24 @@ export function AppHeader({ session, branches, notifications }: AppHeaderProps) 
               بيع سريع
             </Link>
           </Button>
+
+          {/* Premium Glowing Chat Trigger Button */}
+          {onChatOpen && (
+            <Button 
+              onClick={onChatOpen} 
+              variant="ghost" 
+              size="icon" 
+              className="text-slate-600 hover:text-primary relative hover:bg-slate-50 rounded-lg transition-all h-9 w-9" 
+              title="الرسائل الداخلية"
+            >
+              <MessageSquare className="h-4.5 w-4.5" />
+              <span className="absolute top-1 end-1 flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-teal-500"></span>
+              </span>
+            </Button>
+          )}
+
           <NotificationBell notifications={notifications} />
           <div className="hidden text-end sm:block">
             <p className="text-sm font-semibold">{session.user.name}</p>

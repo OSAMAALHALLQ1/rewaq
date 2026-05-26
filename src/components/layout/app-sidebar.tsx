@@ -11,9 +11,10 @@ type AppSidebarProps = {
   activePath?: string;
   mode?: "app" | "admin";
   onNavigate?: () => void;
+  onChatOpen?: () => void;
 };
 
-export function AppSidebar({ activePath = "", mode = "app", onNavigate }: AppSidebarProps) {
+export function AppSidebar({ activePath = "", mode = "app", onNavigate, onChatOpen }: AppSidebarProps) {
   const pathname = usePathname();
   const currentPath = activePath || pathname;
   const sections = mode === "app" ? appNav : [{ title: "Platform", items: adminNav }];
@@ -78,7 +79,14 @@ export function AppSidebar({ activePath = "", mode = "app", onNavigate }: AppSid
                     <Link
                       key={item.href}
                       href={item.href}
-                      onClick={handleLinkClick}
+                      onClick={(e) => {
+                        if (item.href === "#chat" && onChatOpen) {
+                          e.preventDefault();
+                          onChatOpen();
+                        } else {
+                          handleLinkClick();
+                        }
+                      }}
                       className={cn(
                         "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-950",
                         isActive && "bg-blue-50 text-primary",

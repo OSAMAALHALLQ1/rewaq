@@ -1,4 +1,6 @@
-import { Bell, Building2, Shield, Store, Plus } from "lucide-react";
+import { Bell, Building2, Shield, Store, Plus, Tablet } from "lucide-react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -118,6 +120,27 @@ export default async function SettingsPage() {
                   <Input id="name" name="name" placeholder="مثال: المطبخ الشرقي، قسم المطبخ، المستودع" required />
                 </div>
               </ActionForm>
+            </CardContent>
+          </Card>
+
+          {/* Premium Glowing CTA shortcut to unbury devices customization */}
+          <Card className="border-teal-100 bg-teal-50/15 shadow-sm relative overflow-hidden">
+            <div className="absolute top-0 start-0 w-1.5 h-full bg-teal-500" />
+            <CardHeader className="bg-teal-50/30">
+              <CardTitle className="flex items-center gap-2 text-teal-800 text-sm font-black">
+                <Tablet className="h-5 w-5 text-teal-600 animate-pulse" />
+                ربط وتخصيص الأجهزة اللوحية
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 pt-3">
+              <p className="text-xs leading-relaxed text-slate-600">
+                قم بتوليد روابط فحص وأكواد الـ API المكونة من 10 رموز لشاشات الأقسام المختلفة مثل شاشات المطبخ (KDS) وأجهزة الكاشير المخصصة (POS) دون استخدام البريد أو كلمات المرور.
+              </p>
+              <Button asChild className="w-full mt-1.5 bg-teal-600 hover:bg-teal-700 text-white font-bold h-10 text-xs shadow-sm">
+                <Link href="/dashboard/settings/devices">
+                  تخصيص وإدارة الأجهزة اللوحية ←
+                </Link>
+              </Button>
             </CardContent>
           </Card>
         </div>
