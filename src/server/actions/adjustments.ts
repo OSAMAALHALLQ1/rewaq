@@ -58,7 +58,7 @@ export async function saveManualAdjustmentAction(formData: FormData): Promise<Ac
     // Fetch item details
     const { data: item } = await admin
       .from("inventory_items")
-      .select("id, name, average_cost")
+      .select("*")
       .eq("id", itemId)
       .eq("organization_id", organizationId)
       .maybeSingle();
