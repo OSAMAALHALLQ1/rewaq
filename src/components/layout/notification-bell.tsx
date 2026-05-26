@@ -5,6 +5,7 @@ import { Bell, Check, Info, AlertTriangle, AlertCircle, CheckCircle2 } from "luc
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
+import { hasSupabaseEnv } from "@/lib/supabase/env";
 import type { Notification } from "@/types/domain";
 
 // Map notification types to custom Arabic icons and styles
@@ -21,11 +22,15 @@ export function NotificationBell({ notifications: initialNotifications }: { noti
   const [notifications, setNotifications] = useState<Notification[]>(initialNotifications);
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const supabase = createClient();
+  
+  const hasEnv = hasSupabaseEnv();
+  const supabase = hasEnv ? createClient() as any : null;
 
   const unread = notifications.filter((n) => !n.readAt);
 
   useEffect(() => {
+    if (!supabase) return;
+
     // 1. Request permission for native push notifications on boot
     if (typeof window !== "undefined" && "Notification" in window) {
       if (Notification.permission === "default") {
@@ -125,10 +130,12 @@ export function NotificationBell({ notifications: initialNotifications }: { noti
     );
 
     // Save update in Supabase database
-    await supabase
-      .from("notifications")
-      .update({ read_at: now })
-      .eq("id", id);
+    if (supabase) {
+      await supabase
+        .from("notifications")
+        .update({ read_at: now })
+        .eq("id", id);
+    }
   };
 
   const handleMarkAllAsRead = async () => {
@@ -136,7 +143,7 @@ export function NotificationBell({ notifications: initialNotifications }: { noti
     
     setNotifications((prev) => prev.map((n) => ({ ...n, readAt: now })));
 
-    if (notifications.length > 0) {
+    if (notifications.length > 0 && supabase) {
       await supabase
         .from("notifications")
         .update({ read_at: now })

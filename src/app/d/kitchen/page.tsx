@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { InternalChatDrawer } from "@/components/layout/internal-chat-drawer";
 import { createClient } from "@/lib/supabase/client";
+import { hasSupabaseEnv } from "@/lib/supabase/env";
 
 type OrderItem = {
   name: string;
@@ -36,7 +37,9 @@ export default function KitchenKDSWorkspace() {
   const [chatOpen, setChatOpen] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
   const [searchRecipe, setSearchRecipe] = useState("");
-  const supabase = createClient();
+  
+  const hasEnv = hasSupabaseEnv();
+  const supabase = hasEnv ? createClient() as any : null;
 
   // Mock recipe database matching seed structure
   const recipes = [

@@ -13,7 +13,14 @@ if (-not $DatabaseUrl) {
 }
 
 if (-not $DatabaseUrl) {
-  throw "DATABASE_URL is missing. Add the Supabase pooler connection string to .env.local."
+  $envFile2 = Join-Path $PSScriptRoot "..\.env"
+  if (Test-Path $envFile2) {
+    $DatabaseUrl = ((Get-Content -LiteralPath $envFile2 | Where-Object { $_ -like "DATABASE_URL=*" }) -replace "^DATABASE_URL=", "")
+  }
+}
+
+if (-not $DatabaseUrl) {
+  throw "DATABASE_URL is missing. Add the Supabase pooler connection string to .env or .env.local."
 }
 
 if ($DatabaseUrl -match "\[YOUR-PASSWORD\]") {
@@ -35,7 +42,9 @@ $files = @(
   "db\migrations\003_social_platform_expansion.sql",
   "db\migrations\004_social_publishing_engine.sql",
   "db\migrations\005_business_profiles_and_cashier_role.sql",
-  "db\migrations\006_email_approval_and_team_invites.sql"
+  "db\migrations\006_email_approval_and_team_invites.sql",
+  "db\migrations\007_whatsapp_social_platform.sql",
+  "db\migrations\008_department_access_and_messaging.sql"
 )
 
 if (-not $SkipSeed) {

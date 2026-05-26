@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { createClient } from "@/lib/supabase/client";
+import { hasSupabaseEnv } from "@/lib/supabase/env";
 
 type DeviceKey = {
   id: string;
@@ -59,11 +60,24 @@ export default function SettingsDevicesPage() {
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const supabase = createClient() as any;
+  const hasEnv = hasSupabaseEnv();
+  const supabase = hasEnv ? createClient() as any : null;
 
   useEffect(() => {
     // 1. Fetch organization ID and branches
     const loadMetadata = async () => {
+      if (!supabase) {
+        // Load mock branches for Demo Mode
+        setBranches([
+          { id: "br_1", name: "فرع شارع عبد القادر الحسيني" },
+          { id: "br_2", name: "فرع الرمال" }
+        ]);
+        setSelectedBranch("br_1");
+        setOrgId("demo_org");
+        loadDevices("demo_org");
+        loadAuditChats("demo_org");
+        return;
+      }
       // For demo or active session
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -100,6 +114,13 @@ export default function SettingsDevicesPage() {
   }, [supabase]);
 
   const loadDevices = async (organizationId: string) => {
+    if (!supabase) {
+      setDevices([
+        { id: "dev_1", device_name: "تابلت المطبخ الرئيسي", role: "chef", allowed_modules: ["recipes"], is_active: true, created_at: new Date().toISOString(), last_used_at: new Date().toISOString() },
+        { id: "dev_2", device_name: "كاشير الصالة", role: "cashier", allowed_modules: ["pos"], is_active: true, created_at: new Date().toISOString(), last_used_at: new Date().toISOString() },
+      ]);
+      return;
+    }
     const { data, error } = await supabase
       .from("department_api_keys")
       .select("*")
@@ -120,6 +141,13 @@ export default function SettingsDevicesPage() {
   };
 
   const loadAuditChats = async (organizationId: string) => {
+    if (!supabase) {
+      setAuditChats([
+        { id: "chat_1", sender_name: "أبو أحمد", sender_role: "chef", recipient_role: null, content: "مرحباً بالجميع! أهلاً بكم في دردشة المطعم.", created_at: new Date().toISOString() },
+        { id: "chat_2", sender_name: "مروان", sender_role: "cashier", recipient_role: "chef", content: "شيف، هل أرز البخاري دبل جاهز؟", created_at: new Date().toISOString() }
+      ]);
+      return;
+    }
     const { data, error } = await supabase
       .from("internal_messages")
       .select("*")
@@ -174,22 +202,43 @@ export default function SettingsDevicesPage() {
       is_active: true,
     };
 
-    const { error } = await supabase.from("department_api_keys").insert(insertData);
+    if (supabase) {
+      const { error } = await supabase.from("department_api_keys").insert(insertData);
 
-    if (!error) {
-      // Setup successful generation alert display values
+      if (!error) {
+        // Setup successful generation alert display values
+        setGeneratedKey(rawKey);
+        const origin = typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
+        setGeneratedLink(`${origin}/d/gate?key=${rawKey}`);
+        
+        // Reset inputs
+        setDeviceName("");
+        setSelectedModules(["recipes"]);
+        
+        // Reload devices table
+        loadDevices(orgId);
+      } else {
+        alert("خطأ في إنشاء الجهاز اللوحي");
+      }
+    } else {
+      // Local fallback for Demo Mode
       setGeneratedKey(rawKey);
       const origin = typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
       setGeneratedLink(`${origin}/d/gate?key=${rawKey}`);
       
-      // Reset inputs
+      const newDev: DeviceKey = {
+        id: Math.random().toString(),
+        device_name: deviceName.trim(),
+        role: selectedRole,
+        allowed_modules: selectedModules,
+        is_active: true,
+        created_at: new Date().toISOString(),
+        last_used_at: null
+      };
+      
+      setDevices(prev => [newDev, ...prev]);
       setDeviceName("");
       setSelectedModules(["recipes"]);
-      
-      // Reload devices table
-      loadDevices(orgId);
-    } else {
-      alert("خطأ في إنشاء الجهاز اللوحي");
     }
     setLoading(false);
   };
@@ -197,13 +246,17 @@ export default function SettingsDevicesPage() {
   const handleRevokeDevice = async (id: string) => {
     if (!confirm("هل أنت متأكد من رغبتك في إلغاء تنشيط وصول هذا الجهاز اللوحي فوراً؟")) return;
 
-    const { error } = await supabase
-      .from("department_api_keys")
-      .update({ is_active: false })
-      .eq("id", id);
+    if (supabase) {
+      const { error } = await supabase
+        .from("department_api_keys")
+        .update({ is_active: false })
+        .eq("id", id);
 
-    if (!error && orgId) {
-      loadDevices(orgId);
+      if (!error && orgId) {
+        loadDevices(orgId);
+      }
+    } else {
+      setDevices(prev => prev.map(d => d.id === id ? { ...d, is_active: false } : d));
     }
   };
 

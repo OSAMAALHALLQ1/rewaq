@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { InternalChatDrawer } from "@/components/layout/internal-chat-drawer";
 import { createClient } from "@/lib/supabase/client";
+import { hasSupabaseEnv } from "@/lib/supabase/env";
 
 type CartItem = {
   id: string;
@@ -28,7 +29,9 @@ export default function CashierPOSWorkspace() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeShift, setActiveShift] = useState("الوردية الصباحية - نشطة");
-  const supabase = createClient();
+  
+  const hasEnv = hasSupabaseEnv();
+  const supabase = hasEnv ? createClient() as any : null;
 
   // Menu items list matching seed data
   const menuItems = [

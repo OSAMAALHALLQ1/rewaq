@@ -43,6 +43,7 @@ create trigger set_department_api_keys_updated_at
 
 -- 5. RLS Policies for department_api_keys
 -- Owners and super admins can manage keys
+drop policy if exists "Owners manage keys" on public.department_api_keys;
 create policy "Owners manage keys" on public.department_api_keys
   for all to authenticated
   using (
@@ -56,12 +57,14 @@ create policy "Owners manage keys" on public.department_api_keys
   );
 
 -- Authorized members of the organization can read keys
+drop policy if exists "Org members read keys" on public.department_api_keys;
 create policy "Org members read keys" on public.department_api_keys
   for select to authenticated
   using (public.is_org_member(organization_id));
 
 -- 6. RLS Policies for internal_messages
 -- Managers/Owners can view all messages for oversight
+drop policy if exists "Managers read all messages" on public.internal_messages;
 create policy "Managers read all messages" on public.internal_messages
   for select to authenticated
   using (
@@ -75,6 +78,7 @@ create policy "Managers read all messages" on public.internal_messages
   );
 
 -- Staff can view messages sent to their role, sent by them, or sent to the general channel (NULL)
+drop policy if exists "Staff read relevant messages" on public.internal_messages;
 create policy "Staff read relevant messages" on public.internal_messages
   for select to authenticated
   using (
@@ -92,6 +96,7 @@ create policy "Staff read relevant messages" on public.internal_messages
   );
 
 -- Any authenticated organization member can insert a message
+drop policy if exists "Org members insert messages" on public.internal_messages;
 create policy "Org members insert messages" on public.internal_messages
   for insert to authenticated
   with check (

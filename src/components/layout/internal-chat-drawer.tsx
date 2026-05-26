@@ -5,6 +5,7 @@ import { MessageSquare, Send, X, Users, MessageCircleCode, Eye, CheckCheck } fro
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createClient } from "@/lib/supabase/client";
+import { hasSupabaseEnv } from "@/lib/supabase/env";
 
 type Message = {
   id: string;
@@ -46,7 +47,9 @@ export function InternalChatDrawer({
   const [activeTab, setActiveTab] = useState<"general" | "kitchen" | "pos" | "warehouse">("general");
   const [inputText, setInputText] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const supabase = createClient() as any;
+  
+  const hasEnv = hasSupabaseEnv();
+  const supabase = hasEnv ? createClient() as any : null;
 
   const isManager = currentRole === "organization_owner" || currentRole === "branch_manager";
 
@@ -63,6 +66,14 @@ export function InternalChatDrawer({
 
   useEffect(() => {
     if (!orgId) return;
+    if (!supabase) {
+      // Seed a couple of mock chats in Demo Mode
+      setMessages([
+        { id: "mock_1", sender_name: "أبو أحمد", sender_role: "chef", recipient_role: null, content: "مرحباً بالجميع! أهلاً بكم في دردشة المطعم.", created_at: new Date(Date.now() - 60000 * 10).toISOString() },
+        { id: "mock_2", sender_name: "مروان", sender_role: "cashier", recipient_role: "chef", content: "شيف، هل أرز البخاري دبل جاهز؟", created_at: new Date(Date.now() - 60000 * 5).toISOString() }
+      ]);
+      return;
+    }
 
     // 1. Fetch initial message history
     const fetchHistory = async () => {
@@ -132,9 +143,22 @@ export function InternalChatDrawer({
       content: inputText.trim(),
     };
 
-    const { error } = await supabase.from("internal_messages").insert(newMessageData);
-
-    if (!error) {
+    if (supabase) {
+      const { error } = await supabase.from("internal_messages").insert(newMessageData);
+      if (!error) {
+        setInputText("");
+      }
+    } else {
+      // Local fallback for Demo Mode
+      const mockMsg: Message = {
+        id: Math.random().toString(),
+        sender_name: currentName,
+        sender_role: currentRole,
+        recipient_role: recipient,
+        content: inputText.trim(),
+        created_at: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, mockMsg]);
       setInputText("");
     }
   };
