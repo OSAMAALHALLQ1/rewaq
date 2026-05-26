@@ -98,7 +98,7 @@ export function InternalChatDrawer({
 
     // 2. Subscribe to new PG inserts in Realtime
     const channel = supabase
-      .channel("internal-messages-live")
+      .channel("internal-messages-live-" + Math.random().toString(36).substring(2, 9))
       .on(
         "postgres_changes",
         {

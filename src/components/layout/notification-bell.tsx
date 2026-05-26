@@ -37,10 +37,8 @@ export function NotificationBell({ notifications: initialNotifications }: { noti
         Notification.requestPermission();
       }
     }
-
-    // 2. Realtime WebSocket subscription for notifications table
     const channel = supabase
-      .channel("live-notifications")
+      .channel("live-notifications-" + Math.random().toString(36).substring(2, 9))
       .on(
         "postgres_changes",
         {
