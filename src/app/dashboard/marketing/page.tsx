@@ -38,10 +38,10 @@ export default async function MarketingCenterPage() {
   const nodeRedStatus = getNodeRedSocialPublishingStatus();
   const triggerDevStatus = getTriggerDevSocialPublishingStatus();
   const defaultAccountIds = new Set(preferences.defaultAccountIds);
-  const connectedAccounts = accounts.filter((account) => account.status === "connected").length;
-  const scheduledPosts = posts.filter((post) => post.status === "scheduled").length;
-  const failedTargets = posts.flatMap((post) => post.targets).filter((target) => target.status === "failed").length;
-  const defaultAccounts = accounts.filter((account) => defaultAccountIds.has(account.id));
+  const connectedAccounts = accounts.filter((account: any) => account.status === "connected").length;
+  const scheduledPosts = posts.filter((post: any) => post.status === "scheduled").length;
+  const failedTargets = posts.flatMap((post: any) => post.targets).filter((target: any) => target.status === "failed").length;
+  const defaultAccounts = accounts.filter((account: any) => defaultAccountIds.has(account.id));
   const workflowSteps = [
     {
       title: "Trigger.dev Task",
@@ -261,7 +261,7 @@ export default async function MarketingCenterPage() {
           <CardContent>
             <ActionForm action={saveMarketingPublishPreferencesAction} submitLabel="حفظ الحسابات الدائمة" className="space-y-4">
               <div className="grid gap-3 md:grid-cols-2">
-                {accounts.map((account) => {
+                {accounts.map((account: any) => {
                   const isConnected = account.status === "connected";
 
                   return (
@@ -294,7 +294,7 @@ export default async function MarketingCenterPage() {
             <CardTitle>النشر القادم يستخدم</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {defaultAccounts.map((account) => (
+            {defaultAccounts.map((account: any) => (
               <div key={account.id} className="flex items-center justify-between rounded-lg border bg-white p-3">
                 <div>
                   <p className="text-sm font-semibold">{getSocialPlatformLabel(account.platform)}</p>
@@ -328,7 +328,7 @@ export default async function MarketingCenterPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {posts.map((post) => (
+                {posts.map((post: any) => (
                   <TableRow key={post.id}>
                     <TableCell>
                       <div className="font-semibold">{post.title}</div>
@@ -339,7 +339,7 @@ export default async function MarketingCenterPage() {
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
-                        {post.targets.map((target) => (
+                        {post.targets.map((target: any) => (
                           <Badge key={`${post.id}-${target.platform}`} tone={target.status === "failed" ? "danger" : "success"}>
                             {getSocialPlatformLabel(target.platform)}
                           </Badge>
@@ -362,7 +362,7 @@ export default async function MarketingCenterPage() {
             <div>
               <h3 className="mb-2 text-sm font-semibold">قوالب سريعة</h3>
               <div className="flex flex-wrap gap-2">
-                {templates.map((template) => (
+                {templates.map((template: any) => (
                   <Badge key={template.id} tone="muted">
                     {template.name}
                   </Badge>

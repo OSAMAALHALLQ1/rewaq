@@ -32,7 +32,7 @@ export async function PATCH(request: Request) {
     const admin = createAdminClient();
 
     // Verify the key belongs to this organization
-    const { data: existing } = await admin
+    const { data: existing } = await (admin as any)
       .from("department_api_keys")
       .select("id, organization_id, is_active")
       .eq("id", keyId)
@@ -59,7 +59,7 @@ export async function PATCH(request: Request) {
       );
     }
 
-    const { error } = await admin
+    const { error } = await (admin as any)
       .from("department_api_keys")
       .update({ is_active: false })
       .eq("id", keyId);

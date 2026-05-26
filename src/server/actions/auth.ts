@@ -232,7 +232,7 @@ export async function approveAccountRequestAction(_prevState: ActionState, formD
       { onConflict: "id" },
     );
 
-    const { data: existingMembership, error: membershipLookupError } = await admin
+    const { data: existingMembership, error: membershipLookupError } = await (admin as any)
       .from("organization_memberships")
       .select("organization_id")
       .eq("user_id", authUser.id)
@@ -274,7 +274,7 @@ export async function approveAccountRequestAction(_prevState: ActionState, formD
       });
     }
 
-    const { error: membershipError } = await admin.from("organization_memberships").upsert(
+    const { error: membershipError } = await (admin as any).from("organization_memberships").upsert(
       {
         organization_id: organizationId,
         user_id: authUser.id,

@@ -8,8 +8,8 @@ import { getMarketingData } from "@/server/queries/app";
 
 export default async function PublishingLogsPage() {
   const { posts } = await getMarketingData();
-  const rows = posts.flatMap((post) =>
-    post.targets.map((target) => ({
+  const rows = posts.flatMap((post: any) =>
+    post.targets.map((target: any) => ({
       id: `${post.id}-${target.platform}`,
       postTitle: post.title,
       ...target,
@@ -42,7 +42,7 @@ export default async function PublishingLogsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.map((row) => (
+              {rows.map((row: any) => (
                 <TableRow key={row.id}>
                   <TableCell className="font-medium">{row.postTitle}</TableCell>
                   <TableCell>{getSocialPlatformLabel(row.platform)}</TableCell>

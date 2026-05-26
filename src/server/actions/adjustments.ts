@@ -40,7 +40,7 @@ export async function saveManualAdjustmentAction(formData: FormData): Promise<Ac
     const admin = createAdminClientWithContext("adjustments.ts/saveManualAdjustmentAction");
     
     // Find organization membership
-    const { data: membership } = await admin
+    const { data: membership } = await (admin as any)
       .from("organization_memberships")
       .select("organization_id")
       .eq("user_id", auth.id)

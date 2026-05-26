@@ -31,7 +31,7 @@ async function resolveSocialScope() {
   }
 
   // Fallback: look up org from membership
-  const { data: membership } = await admin
+  const { data: membership } = await (admin as any)
     .from("organization_memberships")
     .select("organization_id")
     .eq("user_id", auth.id)

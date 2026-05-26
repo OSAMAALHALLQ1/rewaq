@@ -17,7 +17,7 @@ export async function GET(request: Request) {
     const before = url.searchParams.get("before"); // cursor pagination by created_at
 
     const admin = createAdminClient();
-    let query = admin
+    let query = (admin as any)
       .from("internal_messages")
       .select("id, organization_id, branch_id, sender_id, sender_name, sender_role, recipient_role, content, created_at, read_at")
       .eq("organization_id", session.organizationId);

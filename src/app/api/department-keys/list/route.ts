@@ -16,7 +16,7 @@ export async function GET(request: Request) {
     const includeInactive = url.searchParams.get("includeInactive") === "true";
 
     const admin = createAdminClient();
-    let query = admin
+    let query = (admin as any)
       .from("department_api_keys")
       .select(`
         id,
@@ -47,22 +47,21 @@ export async function GET(request: Request) {
       );
     }
 
-    // Fetch branch names for keys that have branch_id
-    const branchIds = [...new Set(keys.filter((k) => k.branch_id).map((k) => k.branch_id!))];
+    const branchIds: any[] = [...new Set(keys.filter((k: any) => k.branch_id).map((k: any) => k.branch_id!))];
     let branchMap: Record<string, string> = {};
     if (branchIds.length > 0) {
-      const { data: branches } = await admin
+      const { data: branches } = await (admin as any)
         .from("branches")
         .select("id, name")
         .in("id", branchIds);
       if (branches) {
-        for (const b of branches) {
+        for (const b of (branches as any[])) {
           branchMap[b.id] = b.name;
         }
       }
     }
 
-    const enriched = keys.map((key) => ({
+    const enriched = keys.map((key: any) => ({
       ...key,
       branch_name: key.branch_id ? branchMap[key.branch_id] || null : null,
     }));

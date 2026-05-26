@@ -25,12 +25,12 @@ export default async function CreateSocialPostPage({
     getMarketingData(),
     getMarketingPublishPreferences(),
   ]);
-  const selectedMenuItem = menuItems.find((item) => item.id === menuItem);
+  const selectedMenuItem = menuItems.find((item: any) => item.id === menuItem);
   const imageKitStatus = getImageKitStatus();
   const nodeRedStatus = getNodeRedSocialPublishingStatus();
   const triggerDevStatus = getTriggerDevSocialPublishingStatus();
   const defaultAccountIds = new Set(preferences.defaultAccountIds);
-  const defaultAccounts = accounts.filter((account) => defaultAccountIds.has(account.id));
+  const defaultAccounts = accounts.filter((account: any) => defaultAccountIds.has(account.id));
 
   return (
     <>
@@ -56,7 +56,7 @@ export default async function CreateSocialPostPage({
                 <Label htmlFor="template">قالب</Label>
                 <Select id="template" name="template">
                   <option value="">بدون قالب</option>
-                  {templates.map((template) => (
+                  {templates.map((template: any) => (
                     <option key={template.id} value={template.id}>
                       {template.name}
                     </option>
@@ -158,7 +158,7 @@ export default async function CreateSocialPostPage({
                 <div className="grid gap-2 sm:grid-cols-2">
                   {SOCIAL_PLATFORM_IDS.map((platform) => {
                     const meta = socialPlatformMeta[platform];
-                    const account = accounts.find((candidate) => candidate.platform === platform);
+                    const account = accounts.find((candidate: any) => candidate.platform === platform);
 
                     return (
                       <label
@@ -272,7 +272,7 @@ export default async function CreateSocialPostPage({
                     <p className="text-sm font-semibold">مطعم إيوان</p>
                     <p className="text-xs text-muted-foreground">
                       {defaultAccounts.length > 0
-                        ? defaultAccounts.map((account) => socialPlatformMeta[account.platform].label).join(" / ")
+                        ? defaultAccounts.map((account: any) => socialPlatformMeta[account.platform as keyof typeof socialPlatformMeta].label).join(" / ")
                         : "اختر حسابًا دائمًا أو نشر لمرة واحدة"}
                     </p>
                   </div>

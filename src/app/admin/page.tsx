@@ -16,7 +16,7 @@ export default async function AdminDashboardPage() {
         description="إدارة العملاء، الاشتراكات، مفاتيح الميزات، السجلات، وتذاكر الدعم عبر المنصة."
       />
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {metrics.map((metric) => (
+        {metrics.map((metric: any) => (
           <MetricCard
             key={metric.label}
             label={metric.label}
@@ -42,7 +42,7 @@ export default async function AdminDashboardPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {logs.map((log) => (
+                {logs.map((log: any) => (
                   <TableRow key={log.id}>
                     <TableCell>
                       <StatusBadge status={log.level} />
@@ -70,7 +70,7 @@ export default async function AdminDashboardPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {tickets.map((ticket) => (
+                {tickets.map((ticket: any) => (
                   <TableRow key={ticket.id}>
                     <TableCell className="font-semibold">{ticket.id}</TableCell>
                     <TableCell>{ticket.organization}</TableCell>

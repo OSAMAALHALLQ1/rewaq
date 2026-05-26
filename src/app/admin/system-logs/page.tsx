@@ -28,7 +28,7 @@ export default async function SystemLogsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {logs.map((log) => (
+              {logs.map((log: any) => (
                 <TableRow key={log.id}>
                   <TableCell>
                     <StatusBadge status={log.level} />

@@ -74,7 +74,7 @@ export default async function SocialAccountsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {accounts.map((account) => (
+              {accounts.map((account: any) => (
                 <TableRow key={account.id}>
                   <TableCell>{getSocialPlatformLabel(account.platform)}</TableCell>
                   <TableCell className="font-medium">{account.accountName}</TableCell>

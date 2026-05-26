@@ -38,14 +38,14 @@ export async function getCurrentSession(): Promise<AppSession> {
   }
 
   // Fetch membership and organization details from DB
-  const { data: membership } = await supabase
+  const { data: membership } = await (supabase as any)
     .from("organization_memberships")
     .select("organization_id, role, branch_id, organizations(name)")
     .eq("user_id", user.id)
     .maybeSingle();
 
   const { data: org } = membership?.organization_id
-    ? await supabase
+    ? await (supabase as any)
         .from("organizations")
         .select("name")
         .eq("id", membership.organization_id)

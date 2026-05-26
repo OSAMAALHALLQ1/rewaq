@@ -1074,10 +1074,10 @@ function expenseCategory(costCenter: string): FinancialCalendarExpense["category
 
 async function loadFinancialCalendar(admin: AdminClient, organizationId: string): Promise<FinancialCalendarDay[]> {
   const [invoiceRows, invoiceItemRows, branchRows, costRows] = await Promise.all([
-    query(admin.from("customer_invoices").select("*").eq("organization_id", organizationId).limit(500), "customer_invoices"),
-    query(admin.from("customer_invoice_items").select("*").eq("organization_id", organizationId).limit(1000), "customer_invoice_items"),
-    query(admin.from("branches").select("*").eq("organization_id", organizationId), "branches"),
-    query(admin.from("daily_cost_entries").select("*").eq("organization_id", organizationId).limit(1000), "daily_cost_entries"),
+    query<any>(admin.from("customer_invoices").select("*").eq("organization_id", organizationId).limit(500), "customer_invoices"),
+    query<any>(admin.from("customer_invoice_items").select("*").eq("organization_id", organizationId).limit(1000), "customer_invoice_items"),
+    query<any>(admin.from("branches").select("*").eq("organization_id", organizationId), "branches"),
+    query<any>((admin as any).from("daily_cost_entries").select("*").eq("organization_id", organizationId).limit(1000), "daily_cost_entries"),
   ]);
 
   const branchMap = indexBy(branchRows, (row) => row.id);
@@ -1126,9 +1126,9 @@ async function loadFinancialCalendar(admin: AdminClient, organizationId: string)
 
 async function loadCostTracking(admin: AdminClient, organizationId: string): Promise<CostTrackingData> {
   const [summaryRows, costRows, branchRows] = await Promise.all([
-    query(admin.from("sales_daily_summaries").select("*").eq("organization_id", organizationId).limit(500), "sales_daily_summaries"),
-    query(admin.from("daily_cost_entries").select("*").eq("organization_id", organizationId).limit(1000), "daily_cost_entries"),
-    query(admin.from("branches").select("*").eq("organization_id", organizationId), "branches"),
+    query<any>((admin as any).from("sales_daily_summaries").select("*").eq("organization_id", organizationId).limit(500), "sales_daily_summaries"),
+    query<any>((admin as any).from("daily_cost_entries").select("*").eq("organization_id", organizationId).limit(1000), "daily_cost_entries"),
+    query<any>((admin as any).from("branches").select("*").eq("organization_id", organizationId), "branches"),
   ]);
 
   const latestDate =
@@ -1276,9 +1276,9 @@ function mapSocialPost(
 
 async function loadMarketingBundle(admin: AdminClient, organizationId: string) {
   const [accountRows, postRows, targetRows, templateRows, assetRows] = await Promise.all([
-    query(admin.from("social_accounts").select("*").eq("organization_id", organizationId).order("platform"), "social_accounts"),
-    query(
-      admin
+    query<any>((admin as any).from("social_accounts").select("*").eq("organization_id", organizationId).order("platform"), "social_accounts"),
+    query<any>(
+      (admin as any)
         .from("social_posts")
         .select("*")
         .eq("organization_id", organizationId)
@@ -1286,9 +1286,9 @@ async function loadMarketingBundle(admin: AdminClient, organizationId: string) {
         .limit(150),
       "social_posts",
     ),
-    query(admin.from("social_post_targets").select("*").eq("organization_id", organizationId), "social_post_targets"),
-    query(admin.from("social_templates").select("*").eq("organization_id", organizationId).order("name"), "social_templates"),
-    query(admin.from("social_media_assets").select("*").eq("organization_id", organizationId), "social_media_assets"),
+    query<any>((admin as any).from("social_post_targets").select("*").eq("organization_id", organizationId), "social_post_targets"),
+    query<any>((admin as any).from("social_templates").select("*").eq("organization_id", organizationId).order("name"), "social_templates"),
+    query<any>((admin as any).from("social_media_assets").select("*").eq("organization_id", organizationId), "social_media_assets"),
   ]);
 
   const accountMap = indexBy(accountRows, (row) => row.id);
@@ -1319,7 +1319,7 @@ async function loadMarketingBundle(admin: AdminClient, organizationId: string) {
 
 async function loadBillPayments(admin: AdminClient, organizationId: string): Promise<BillPaymentsData> {
   const costRows = await query(
-    admin
+    (admin as any)
       .from("daily_cost_entries")
       .select("*")
       .eq("organization_id", organizationId)
@@ -1759,14 +1759,14 @@ export async function getAdminData() {
     async (admin) => {
       const [organizationRows, membershipRows, profileRows, planRows, flagRows, logRows, ticketRows, approvalRows] =
         await Promise.all([
-          query(admin.from("organizations").select("*").order("created_at", { ascending: false }).limit(100), "organizations"),
-          query(admin.from("organization_memberships").select("*").order("created_at", { ascending: false }).limit(500), "organization_memberships"),
-          query(admin.from("profiles").select("*").limit(500), "profiles"),
-          query(admin.from("plans").select("*").order("monthly_price", { ascending: true }), "plans"),
-          query(admin.from("feature_flags").select("*").order("key"), "feature_flags"),
-          query(admin.from("system_logs").select("*").order("created_at", { ascending: false }).limit(100), "system_logs"),
-          query(admin.from("support_tickets").select("*").order("created_at", { ascending: false }).limit(100), "support_tickets"),
-          query(admin.from("account_approval_requests").select("*").limit(200), "account_approval_requests"),
+          query<any>(admin.from("organizations").select("*").order("created_at", { ascending: false }).limit(100), "organizations"),
+          query<any>(admin.from("organization_memberships").select("*").order("created_at", { ascending: false }).limit(500), "organization_memberships"),
+          query<any>(admin.from("profiles").select("*").limit(500), "profiles"),
+          query<any>(admin.from("plans").select("*").order("monthly_price", { ascending: true }), "plans"),
+          query<any>((admin as any).from("feature_flags").select("*").order("key"), "feature_flags"),
+          query<any>((admin as any).from("system_logs").select("*").order("created_at", { ascending: false }).limit(100), "system_logs"),
+          query<any>((admin as any).from("support_tickets").select("*").order("created_at", { ascending: false }).limit(100), "support_tickets"),
+          query<any>(admin.from("account_approval_requests").select("*").limit(200), "account_approval_requests"),
         ]);
 
       const profileMap = indexBy(profileRows, (row) => row.id);
@@ -1846,12 +1846,12 @@ export async function getAccountApprovalRequests(): Promise<AccountApprovalReque
     ],
     async (admin) => {
       const requests = await query(
-        admin
+        (admin as any)
           .from("account_approval_requests")
           .select("id,email,owner_name,organization_name,business_type,phone,status,requested_at,approved_at,rejection_reason")
           .order("requested_at", { ascending: false }),
         "account_approval_requests",
-      );
+      ) as any[];
       const authUsers = await admin.auth.admin.listUsers().catch(() => null);
       const authUserByEmail = new Map(
         (authUsers?.data.users ?? []).map((user) => [(user.email ?? "").toLowerCase(), user]),
@@ -1859,12 +1859,12 @@ export async function getAccountApprovalRequests(): Promise<AccountApprovalReque
       const userIds = (authUsers?.data.users ?? []).map((user) => user.id);
       const membershipRows = userIds.length
         ? await query(
-            admin
+            (admin as any)
               .from("organization_memberships")
               .select("organization_id,user_id,role")
               .in("user_id", userIds),
             "organization_memberships",
-          )
+          ) as any[]
         : [];
       const ownerOrgByUserId = new Map(
         membershipRows

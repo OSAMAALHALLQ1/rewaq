@@ -10,7 +10,7 @@ export default async function AdminPlansPage() {
     <>
       <PageHeader title="الخطط" description="إدارة خطط الاشتراك وحدود الاستخدام." />
       <div className="grid gap-4 md:grid-cols-3">
-        {plans.map((plan) => (
+        {plans.map((plan: any) => (
           <Card key={plan.id}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -21,7 +21,7 @@ export default async function AdminPlansPage() {
             <CardContent>
               <p className="text-3xl font-black">{plan.price}</p>
               <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
-                {plan.features.map((feature) => (
+                {plan.features.map((feature: string) => (
                   <li key={feature}>{feature}</li>
                 ))}
               </ul>

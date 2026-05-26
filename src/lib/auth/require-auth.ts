@@ -47,7 +47,7 @@ export async function requireAuth(): Promise<AuthenticatedUser> {
   }
 
   // Fetch user's role and organization from the database
-  const { data: membership } = await supabase
+  const { data: membership } = await (supabase as any)
     .from("organization_memberships")
     .select("organization_id, role, branch_id")
     .eq("user_id", user.id)

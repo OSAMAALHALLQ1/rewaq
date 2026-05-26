@@ -77,7 +77,7 @@ async function resolveMutationScope() {
   }
 
   // Fallback: direct membership lookup
-  const { data: membership } = await admin
+  const { data: membership } = await (admin as any)
     .from("organization_memberships")
     .select("organization_id")
     .eq("user_id", auth.id)

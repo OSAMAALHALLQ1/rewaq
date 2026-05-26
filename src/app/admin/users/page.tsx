@@ -30,7 +30,7 @@ export default async function AdminUsersPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users.map((user) => (
+              {users.map((user: any) => (
                 <TableRow key={user.id}>
                   <TableCell className="font-semibold">{user.name}</TableCell>
                   <TableCell>{user.email}</TableCell>

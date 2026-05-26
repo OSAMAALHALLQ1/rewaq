@@ -23,7 +23,7 @@ export async function POST(request: Request) {
     const keyHash = createHash("sha256").update(apiKey.trim()).digest("hex");
 
     // 2. Query the department key in Supabase
-    const { data: keyData, error: keyError } = await supabaseAdmin
+    const { data: keyData, error: keyError } = await (supabaseAdmin as any)
       .from("department_api_keys")
       .select(`
         id,
@@ -52,7 +52,7 @@ export async function POST(request: Request) {
     }
 
     // 3. Update last used timestamp
-    await supabaseAdmin
+    await (supabaseAdmin as any)
       .from("department_api_keys")
       .update({ last_used_at: new Date().toISOString() })
       .eq("id", keyData.id);

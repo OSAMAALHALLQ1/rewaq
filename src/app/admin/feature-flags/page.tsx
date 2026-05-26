@@ -18,7 +18,7 @@ export default async function FeatureFlagsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {flags.map((flag) => (
+          {flags.map((flag: any) => (
             <div key={flag.key} className="flex items-center justify-between gap-4 rounded-lg border p-4">
               <div>
                 <p className="font-mono text-sm font-semibold">{flag.key}</p>

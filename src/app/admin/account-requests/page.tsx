@@ -83,7 +83,7 @@ export default async function AccountRequestsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {requests.map((request) => (
+              {requests.map((request: any) => (
                 <TableRow key={request.id}>
                   <TableCell className="font-semibold">{request.organizationName}</TableCell>
                   <TableCell>

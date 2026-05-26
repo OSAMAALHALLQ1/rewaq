@@ -24,12 +24,12 @@ export default async function PublishingCalendarPage() {
           <div className="grid gap-3 md:grid-cols-7">
             {Array.from({ length: 21 }).map((_, index) => {
               const day = index + 1;
-              const dayPosts = posts.filter((post) => new Date(post.scheduledAt ?? post.createdAt).getDate() === day);
+              const dayPosts = posts.filter((post: any) => new Date(post.scheduledAt ?? post.createdAt).getDate() === day);
               return (
                 <div key={day} className="min-h-28 rounded-lg border bg-white p-3">
                   <p className="text-sm font-semibold">{day}</p>
                   <div className="mt-2 space-y-2">
-                    {dayPosts.map((post) => (
+                    {dayPosts.map((post: any) => (
                       <div key={post.id} className="rounded-md bg-slate-50 p-2 text-xs">
                         <p className="line-clamp-1 font-medium">{post.title}</p>
                         <div className="mt-1">

@@ -23,7 +23,7 @@ export async function POST(request: Request) {
     }
 
     const admin = createAdminClient();
-    const { data, error } = await admin
+    const { data, error } = await (admin as any)
       .from("internal_messages")
       .insert({
         organization_id: session.organizationId,

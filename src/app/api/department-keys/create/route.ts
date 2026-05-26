@@ -44,7 +44,7 @@ export async function POST(request: Request) {
     const keyHash = createHash("sha256").update(rawKey).digest("hex");
 
     const admin = createAdminClient();
-    const { data, error } = await admin
+    const { data, error } = await (admin as any)
       .from("department_api_keys")
       .insert({
         organization_id: session.organizationId,

@@ -30,7 +30,7 @@ export default async function SupportTicketsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {tickets.map((ticket) => (
+              {tickets.map((ticket: any) => (
                 <TableRow key={ticket.id}>
                   <TableCell className="font-semibold">{ticket.id}</TableCell>
                   <TableCell>{ticket.organization}</TableCell>
