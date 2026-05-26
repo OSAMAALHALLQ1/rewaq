@@ -11,8 +11,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { createClient } from "@/lib/supabase/client";
-import { hasSupabaseEnv } from "@/lib/supabase/env";
 
 type DeviceKey = {
   id: string;
@@ -74,8 +72,7 @@ export function DevicesClient({ orgId, branches, currentRole, currentName }: Dev
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  const hasEnv = hasSupabaseEnv();
-  const supabase = hasEnv ? createClient() as any : null;
+  const isDemo = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 
   useEffect(() => {
     loadDevices();
@@ -83,7 +80,7 @@ export function DevicesClient({ orgId, branches, currentRole, currentName }: Dev
   }, [orgId]);
 
   const loadDevices = async () => {
-    if (!supabase) {
+    if (isDemo) {
       // Mock devices in Demo Mode
       setDevices([
         { 
@@ -113,33 +110,30 @@ export function DevicesClient({ orgId, branches, currentRole, currentName }: Dev
     }
 
     setRefreshing(true);
-    const { data, error } = await supabase
-      .from("department_api_keys")
-      .select("*")
-      .eq("organization_id", orgId)
-      .order("created_at", { ascending: false });
-
-    if (data && !error) {
-      setDevices(data.map((d: any) => {
-        const branchObj = branches.find(b => b.id === d.branch_id);
-        return {
+    try {
+      const res = await fetch(`/api/department-keys/list?orgId=${encodeURIComponent(orgId)}`);
+      const result = await res.json();
+      if (result.success && result.keys) {
+        setDevices(result.keys.map((d: any) => ({
           id: d.id,
           device_name: d.device_name,
           role: d.role,
           branch_id: d.branch_id,
-          branch_name: branchObj ? branchObj.name : "فرع غير محدد",
+          branch_name: d.branch_name || "فرع غير محدد",
           allowed_modules: d.allowed_modules,
           is_active: d.is_active,
           created_at: d.created_at,
           last_used_at: d.last_used_at,
-        };
-      }));
+        })));
+      }
+    } catch (err) {
+      console.error("Error loading devices:", err);
     }
     setRefreshing(false);
   };
 
   const loadAuditChats = async () => {
-    if (!supabase) {
+    if (isDemo) {
       setAuditChats([
         { id: "chat_1", sender_name: "أبو أحمد", sender_role: "chef", recipient_role: null, content: "مرحباً بالجميع! أهلاً بكم في دردشة المطعم الفورية لجهاز المطبخ.", created_at: new Date(Date.now() - 60000 * 30).toISOString() },
         { id: "chat_2", sender_name: "مروان", sender_role: "cashier", recipient_role: "chef", content: "شيف، تم إرسال طلب طاولة رقم 4، هل أرز البخاري دبل جاهز؟", created_at: new Date(Date.now() - 60000 * 15).toISOString() },
@@ -148,15 +142,14 @@ export function DevicesClient({ orgId, branches, currentRole, currentName }: Dev
       return;
     }
 
-    const { data, error } = await supabase
-      .from("internal_messages")
-      .select("*")
-      .eq("organization_id", orgId)
-      .order("created_at", { ascending: false })
-      .limit(15);
-
-    if (data && !error) {
-      setAuditChats(data);
+    try {
+      const res = await fetch(`/api/internal-messages/list?orgId=${encodeURIComponent(orgId)}&limit=15`);
+      const result = await res.json();
+      if (result.success && result.messages) {
+        setAuditChats(result.messages);
+      }
+    } catch (err) {
+      console.error("Error loading messages:", err);
     }
   };
 
@@ -186,45 +179,39 @@ export function DevicesClient({ orgId, branches, currentRole, currentName }: Dev
     }
 
     setLoading(true);
-    const rawKey = generateRaw10SymbolKey();
-    
-    // Hash key using SHA-256 for secure DB lookup
-    const encoder = new TextEncoder();
-    const data = encoder.encode(rawKey);
-    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const keyHash = hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
 
-    const insertData = {
-      organization_id: orgId,
-      branch_id: selectedBranch || null,
-      device_name: deviceName.trim(),
-      key_hash: keyHash,
-      role: selectedRole,
-      allowed_modules: selectedModules,
-      is_active: true,
-    };
+    if (!isDemo) {
+      try {
+        const res = await fetch("/api/department-keys/create", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            deviceName: deviceName.trim(),
+            branchId: selectedBranch || null,
+            role: selectedRole,
+            allowedModules: selectedModules,
+          }),
+        });
+        const result = await res.json();
 
-    if (supabase) {
-      const { error } = await supabase.from("department_api_keys").insert(insertData);
-
-      if (!error) {
-        setGeneratedKey(rawKey);
-        const origin = typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
-        setGeneratedLink(`${origin}/d/gate?key=${rawKey}`);
-        
-        // Reset inputs
-        setDeviceName("");
-        setSelectedModules(["recipes"]);
-        
-        // Reload devices
-        loadDevices();
-      } else {
-        console.error("Error creating device key:", error);
-        alert(`خطأ في إنشاء الجهاز اللوحي: ${error.message || error.details || "عطل في قاعدة البيانات"}`);
+        if (result.success) {
+          setGeneratedKey(result.key);
+          const origin = typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
+          setGeneratedLink(`${origin}/d/gate?key=${result.key}`);
+          setDeviceName("");
+          setSelectedModules(["recipes"]);
+          loadDevices();
+        } else {
+          console.error("Error creating device key:", result.error);
+          alert(`خطأ في إنشاء الجهاز اللوحي: ${result.error || "عطل في قاعدة البيانات"}`);
+        }
+      } catch (err) {
+        console.error("Error creating device key:", err);
+        alert("خطأ في إنشاء الجهاز اللوحي بسبب مشكلة في الاتصال.");
       }
     } else {
       // Local fallback for Demo Mode
+      const rawKey = generateRaw10SymbolKey();
       setGeneratedKey(rawKey);
       const origin = typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
       setGeneratedLink(`${origin}/d/gate?key=${rawKey}`);
@@ -251,16 +238,21 @@ export function DevicesClient({ orgId, branches, currentRole, currentName }: Dev
   const handleRevokeDevice = async (id: string) => {
     if (!confirm("هل أنت متأكد من رغبتك في إلغاء تنشيط وصول هذا الجهاز اللوحي فوراً؟")) return;
 
-    if (supabase) {
-      const { error } = await supabase
-        .from("department_api_keys")
-        .update({ is_active: false })
-        .eq("id", id);
-
-      if (!error) {
-        loadDevices();
-      } else {
-        alert("فشل إلغاء تنشيط الجهاز.");
+    if (!isDemo) {
+      try {
+        const res = await fetch("/api/department-keys/revoke", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ keyId: id }),
+        });
+        const result = await res.json();
+        if (result.success) {
+          loadDevices();
+        } else {
+          alert(result.error || "فشل إلغاء تنشيط الجهاز.");
+        }
+      } catch (err) {
+        alert("فشل إلغاء تنشيط الجهاز بسبب مشكلة في الاتصال.");
       }
     } else {
       setDevices(prev => prev.map(d => d.id === id ? { ...d, is_active: false } : d));

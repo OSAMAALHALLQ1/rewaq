@@ -2265,6 +2265,122 @@ export type Database = {
         };
         Relationships: [];
       };
+      department_api_keys: {
+        Row: {
+          id: string;
+          organization_id: string;
+          branch_id: string | null;
+          device_name: string;
+          key_hash: string;
+          role: Database["public"]["Enums"]["app_role"];
+          allowed_modules: string[];
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+          last_used_at: string | null;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          branch_id?: string | null;
+          device_name: string;
+          key_hash: string;
+          role?: Database["public"]["Enums"]["app_role"];
+          allowed_modules?: string[];
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+          last_used_at?: string | null;
+          created_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          branch_id?: string | null;
+          device_name?: string;
+          key_hash?: string;
+          role?: Database["public"]["Enums"]["app_role"];
+          allowed_modules?: string[];
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+          last_used_at?: string | null;
+          created_by?: string | null;
+        };
+        Relationships: [
+          {
+            type: "foreignKey";
+            columns: ["organization_id"];
+            foreignTable: "organizations";
+            foreignColumns: ["id"];
+          },
+          {
+            type: "foreignKey";
+            columns: ["branch_id"];
+            foreignTable: "branches";
+            foreignColumns: ["id"];
+          },
+        ];
+      };
+      internal_messages: {
+        Row: {
+          id: string;
+          organization_id: string;
+          branch_id: string | null;
+          sender_id: string | null;
+          sender_name: string;
+          sender_role: Database["public"]["Enums"]["app_role"];
+          recipient_role: Database["public"]["Enums"]["app_role"] | null;
+          content: string;
+          created_at: string;
+          read_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          branch_id?: string | null;
+          sender_id?: string | null;
+          sender_name: string;
+          sender_role?: Database["public"]["Enums"]["app_role"];
+          recipient_role?: Database["public"]["Enums"]["app_role"] | null;
+          content: string;
+          created_at?: string;
+          read_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          branch_id?: string | null;
+          sender_id?: string | null;
+          sender_name?: string;
+          sender_role?: Database["public"]["Enums"]["app_role"];
+          recipient_role?: Database["public"]["Enums"]["app_role"] | null;
+          content?: string;
+          created_at?: string;
+          read_at?: string | null;
+        };
+        Relationships: [
+          {
+            type: "foreignKey";
+            columns: ["organization_id"];
+            foreignTable: "organizations";
+            foreignColumns: ["id"];
+          },
+          {
+            type: "foreignKey";
+            columns: ["branch_id"];
+            foreignTable: "branches";
+            foreignColumns: ["id"];
+          },
+          {
+            type: "foreignKey";
+            columns: ["sender_id"];
+            foreignTable: "users";
+            foreignColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       amwali_daily_summary: {
