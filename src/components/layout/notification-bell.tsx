@@ -43,7 +43,7 @@ export function NotificationBell({ notifications: initialNotifications }: { noti
           schema: "public",
           table: "notifications",
         },
-        (payload) => {
+        (payload: any) => {
           const newNotification = payload.new as any;
           
           const camelNotification: Notification = {

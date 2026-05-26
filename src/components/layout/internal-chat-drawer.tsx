@@ -96,7 +96,7 @@ export function InternalChatDrawer({
           table: "internal_messages",
           filter: `organization_id=eq.${orgId}`,
         },
-        (payload) => {
+        (payload: any) => {
           const newMsg = payload.new as Message;
           
           // Verify if message belongs to this branch
