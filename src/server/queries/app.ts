@@ -1442,6 +1442,7 @@ export async function getInventoryItem(id: string) {
             item,
             stock: demoBranchStock.filter((stock) => stock.itemId === id),
             movements: demoStockMovements.filter((movement) => movement.itemId === id),
+            branches: demoBranches,
           }
         : null;
     })(),
@@ -1453,6 +1454,7 @@ export async function getInventoryItem(id: string) {
             item,
             stock: inventory.branchStock.filter((stock) => stock.itemId === id),
             movements: inventory.movements.filter((movement) => movement.itemId === id),
+            branches: inventory.branches,
           }
         : null;
     },

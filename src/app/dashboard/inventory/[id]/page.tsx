@@ -15,7 +15,7 @@ export default async function InventoryItemDetailsPage({ params }: { params: Pro
   const data = await getInventoryItem(id);
   if (!data) notFound();
 
-  const { item, stock, movements } = data;
+  const { item, stock, movements, branches = [] } = data;
 
   return (
     <>
@@ -36,7 +36,7 @@ export default async function InventoryItemDetailsPage({ params }: { params: Pro
               itemId={item.id}
               itemName={item.name}
               usageUnit={item.usageUnit}
-              branches={stock.map((s) => ({ id: s.branchId, name: s.branchName }))}
+              branches={branches.map((b) => ({ id: b.id, name: b.name }))}
             />
           </>
         }
