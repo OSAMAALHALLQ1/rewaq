@@ -10,7 +10,6 @@ import {
   SprayCan,
   Truck,
 } from "lucide-react";
-import { PurchaseAreaChart, WasteBarChart } from "@/components/dashboard/charts";
 import { MetricCard } from "@/components/metric-card";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -27,22 +26,6 @@ const focusCards = [
   { title: "الصادر والوارد", value: "18 حركة", body: "حركة يومية لكل إدخال أو صرف أو تحويل.", href: "/dashboard/stock-movements", icon: Truck, tone: "success" as const },
   { title: "طلبيات الأقسام", value: "7 طلبيات", body: "طلبات صرف داخلية بانتظار التجهيز أو الاعتماد.", href: "/dashboard/purchase-orders", icon: ClipboardCheck, tone: "warning" as const },
   { title: "انتهاء الصلاحية", value: "4 قريبة", body: "مواد تحتاج استخدامًا أو إرجاعًا قبل انتهاء الصلاحية.", href: "/dashboard/reports", icon: AlertTriangle, tone: "danger" as const },
-];
-
-const departments = [
-  "قسم المحاسبة",
-  "قسم الضيافة",
-  "قسم الخدمات",
-  "المطبخ الغربي",
-  "المطبخ الشرقي",
-  "الشاورمة والمشاوي",
-  "قسم التسويق",
-];
-
-const expiryRows = [
-  ["لبنة", "قسم الضيافة", "2026-05-24", "قريب"],
-  ["دجاج مبرد", "الشاورمة والمشاوي", "2026-05-25", "قريب"],
-  ["صلصة طماطم", "المطبخ الشرقي", "2026-05-29", "متابعة"],
 ];
 
 export default async function DashboardPage() {
@@ -95,69 +78,7 @@ export default async function DashboardPage() {
         <MetricCard label="فواتير توريد" value={formatNumber(purchasing.invoices.length)} description="فواتير موردين مسجلة" icon={PackageCheck} tone="success" />
       </div>
 
-      <div className="mt-4 grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
-        <Card>
-          <CardHeader>
-            <CardTitle>الأقسام المعتمدة</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-2 sm:grid-cols-2">
-            {departments.map((department) => (
-              <div key={department} className="rounded-lg border bg-slate-50 p-3 text-sm font-semibold">
-                {department}
-              </div>
-            ))}
-          </CardContent>
-        </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>مواد قريبة من انتهاء الصلاحية</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>المادة</TableHead>
-                  <TableHead>القسم</TableHead>
-                  <TableHead>تاريخ الانتهاء</TableHead>
-                  <TableHead>الحالة</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {expiryRows.map(([item, department, date, status]) => (
-                  <TableRow key={`${item}-${date}`}>
-                    <TableCell className="font-medium">{item}</TableCell>
-                    <TableCell>{department}</TableCell>
-                    <TableCell>{date}</TableCell>
-                    <TableCell>
-                      <Badge tone={status === "قريب" ? "danger" : "warning"}>{status}</Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="mt-4 grid gap-4 xl:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>الصادر والوارد اليومي</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <PurchaseAreaChart data={data.purchaseCost30Days} />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>التالف والمحاريق حسب القسم</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <WasteBarChart data={data.wasteByBranch} />
-          </CardContent>
-        </Card>
-      </div>
 
       <Card className="mt-4">
         <CardHeader>
