@@ -46,7 +46,7 @@ export function InternalChatDrawer({
   const [activeTab, setActiveTab] = useState<"general" | "kitchen" | "pos" | "warehouse">("general");
   const [inputText, setInputText] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const supabase = createClient();
+  const supabase = createClient() as any;
 
   const isManager = currentRole === "organization_owner" || currentRole === "branch_manager";
 

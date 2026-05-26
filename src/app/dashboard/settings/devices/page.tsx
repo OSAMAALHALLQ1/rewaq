@@ -59,7 +59,7 @@ export default function SettingsDevicesPage() {
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const supabase = createClient();
+  const supabase = createClient() as any;
 
   useEffect(() => {
     // 1. Fetch organization ID and branches
