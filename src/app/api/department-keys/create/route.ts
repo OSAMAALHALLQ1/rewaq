@@ -5,12 +5,12 @@ import { getOptionalSession } from "@/lib/auth/session";
 
 function generateRawKey(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  const bytes = randomBytes(10);
-  let key = "";
-  for (let i = 0; i < 10; i++) {
+  const bytes = randomBytes(6);
+  let key = "RWQ_";
+  for (let i = 0; i < 6; i++) {
     key += chars[bytes[i] % chars.length];
   }
-  return "RWQ_" + key;
+  return key;
 }
 
 export async function POST(request: Request) {

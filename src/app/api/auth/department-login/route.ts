@@ -2,17 +2,19 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createHash } from "crypto";
 
-// Create a Supabase admin client to query keys and profiles with high privileges
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+function getSupabaseAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+}
 
 export async function POST(request: Request) {
   try {
     const { apiKey } = await request.json();
+    const normalizedKey = typeof apiKey === "string" ? apiKey.trim().toUpperCase() : "";
 
-    if (!apiKey || apiKey.length !== 10) {
+    if (!normalizedKey || normalizedKey.length !== 10) {
       return NextResponse.json(
         { success: false, error: "كود غير صالح. يجب أن يتكون الكود من 10 رموز." },
         { status: 400 }
@@ -20,9 +22,10 @@ export async function POST(request: Request) {
     }
 
     // 1. Hash the key using SHA-256 for secure database lookup
-    const keyHash = createHash("sha256").update(apiKey.trim()).digest("hex");
+    const keyHash = createHash("sha256").update(normalizedKey).digest("hex");
 
     // 2. Query the department key in Supabase
+    const supabaseAdmin = getSupabaseAdmin();
     const { data: keyData, error: keyError } = await (supabaseAdmin as any)
       .from("department_api_keys")
       .select(`
@@ -60,7 +63,7 @@ export async function POST(request: Request) {
     // 4. Return successful metadata to the client
     return NextResponse.json({
       success: true,
-      token: apiKey, // The raw key acts as a client-side session token
+      token: normalizedKey, // The raw key acts as a client-side session token
       organizationId: keyData.organization_id,
       branchId: keyData.branch_id,
       role: keyData.role,

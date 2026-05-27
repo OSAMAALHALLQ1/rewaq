@@ -137,7 +137,12 @@ export type StockCountSummary = {
   notes?: string;
 };
 
-const fallbackContext = {
+type OrganizationContext = {
+  organization: Organization;
+  branches: Branch[];
+};
+
+const fallbackContext: OrganizationContext = {
   organization: demoOrganization,
   branches: demoBranches,
 };
@@ -401,7 +406,7 @@ function mapStockMovement(
   };
 }
 
-async function loadBranches(admin: AdminClient, organizationId: string) {
+async function loadBranches(admin: AdminClient, organizationId: string): Promise<Branch[]> {
   const rows = await query(
     admin.from("branches").select("*").eq("organization_id", organizationId).order("name", { ascending: true }),
     "branches",
@@ -410,13 +415,13 @@ async function loadBranches(admin: AdminClient, organizationId: string) {
   return rows.map(mapBranch);
 }
 
-async function loadOrganizationContext(admin: AdminClient, organizationId: string) {
+async function loadOrganizationContext(admin: AdminClient, organizationId: string): Promise<OrganizationContext> {
   const [organizationRow, branchRows] = await Promise.all([
-    query<any>(
+    query<Tables<"organizations">>(
       admin.from("organizations").select("*").eq("id", organizationId).single(),
       "organization",
     ),
-    query<any>(
+    query<BranchRow[]>(
       admin.from("branches").select("*").eq("organization_id", organizationId).order("name", { ascending: true }),
       "branches",
     ),
@@ -1394,7 +1399,7 @@ async function loadDigitalReceipts(admin: AdminClient, organizationId: string): 
   }));
 }
 
-export async function getOrganizationContext() {
+export async function getOrganizationContext(): Promise<OrganizationContext> {
   return withAdminScope(fallbackContext, (admin, scope) => loadOrganizationContext(admin, scope.organizationId));
 }
 
