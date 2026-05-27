@@ -16,10 +16,17 @@ function generateRawKey(): string {
 export async function POST(request: Request) {
   try {
     const session = await getOptionalSession();
-    if (!session || !session.organizationId) {
+    if (!session) {
       return NextResponse.json(
         { success: false, error: "يجب تسجيل الدخول أولاً." },
         { status: 401 }
+      );
+    }
+
+    if (!session.organizationId) {
+      return NextResponse.json(
+        { success: false, error: "حسابك مسجل دخول لكنه غير مربوط بأي مؤسسة. اعتمد الحساب أو أضفه إلى organization_memberships أولاً." },
+        { status: 403 }
       );
     }
 

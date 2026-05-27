@@ -5,10 +5,17 @@ import { getOptionalSession } from "@/lib/auth/session";
 export async function PATCH(request: Request) {
   try {
     const session = await getOptionalSession();
-    if (!session || !session.organizationId) {
+    if (!session) {
       return NextResponse.json(
         { success: false, error: "يجب تسجيل الدخول أولاً." },
         { status: 401 }
+      );
+    }
+
+    if (!session.organizationId) {
+      return NextResponse.json(
+        { success: false, error: "حسابك مسجل دخول لكنه غير مربوط بأي مؤسسة." },
+        { status: 403 }
       );
     }
 
