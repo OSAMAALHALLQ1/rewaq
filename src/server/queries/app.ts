@@ -173,7 +173,8 @@ const smartSavingsFeatures: SmartSavingsFeature[] = [
   },
 ];
 
-async function query<T>(promise: PromiseLike<QueryResult<T>>, label: string): Promise<NonNullable<T>> {
+/** Wraps a Supabase query, throws on error/null, and returns typed data. */
+async function query<T>(promise: PromiseLike<QueryResult<T>>, label: string): Promise<T> {
   const { data, error } = await promise;
 
   if (error) {
@@ -184,7 +185,7 @@ async function query<T>(promise: PromiseLike<QueryResult<T>>, label: string): Pr
     throw new Error(`${label}: no data returned`);
   }
 
-  return data as NonNullable<T>;
+  return data as T;
 }
 
 async function withAdminScope<T>(
@@ -411,11 +412,11 @@ async function loadBranches(admin: AdminClient, organizationId: string) {
 
 async function loadOrganizationContext(admin: AdminClient, organizationId: string) {
   const [organizationRow, branchRows] = await Promise.all([
-    query(
+    query<any>(
       admin.from("organizations").select("*").eq("id", organizationId).single(),
       "organization",
     ),
-    query(
+    query<any>(
       admin.from("branches").select("*").eq("organization_id", organizationId).order("name", { ascending: true }),
       "branches",
     ),
@@ -1073,15 +1074,13 @@ function expenseCategory(costCenter: string): FinancialCalendarExpense["category
 }
 
 async function loadFinancialCalendar(admin: AdminClient, organizationId: string): Promise<FinancialCalendarDay[]> {
-  const [invoiceRows, invoiceItemRows, branchRows, costRows] = await Promise.all([
-    query<any>(admin.from("customer_invoices").select("*").eq("organization_id", organizationId).limit(500), "customer_invoices"),
-    query<any>(admin.from("customer_invoice_items").select("*").eq("organization_id", organizationId).limit(1000), "customer_invoice_items"),
-    query<any>(admin.from("branches").select("*").eq("organization_id", organizationId), "branches"),
-    query<any>((admin as any).from("daily_cost_entries").select("*").eq("organization_id", organizationId).limit(1000), "daily_cost_entries"),
-  ]);
+  const invoiceRows: any = await query<any>(admin.from("customer_invoices").select("*").eq("organization_id", organizationId).limit(500), "customer_invoices");
+  const invoiceItemRows: any = await query<any>(admin.from("customer_invoice_items").select("*").eq("organization_id", organizationId).limit(1000), "customer_invoice_items");
+  const branchRows: any = await query<any>(admin.from("branches").select("*").eq("organization_id", organizationId), "branches");
+  const costRows: any = await query<any>((admin as any).from("daily_cost_entries").select("*").eq("organization_id", organizationId).limit(1000), "daily_cost_entries");
 
-  const branchMap = indexBy(branchRows, (row) => row.id);
-  const itemsByInvoice = groupBy(invoiceItemRows, (row) => row.customer_invoice_id);
+  const branchMap = indexBy<any>(branchRows, (row) => row.id);
+  const itemsByInvoice = groupBy<any>(invoiceItemRows, (row) => row.customer_invoice_id);
   const dayKeys = new Set<string>();
 
   for (const invoice of invoiceRows) dayKeys.add(`${dateKey(invoice.issued_at)}:${invoice.branch_id}`);
@@ -1091,56 +1090,55 @@ async function loadFinancialCalendar(admin: AdminClient, organizationId: string)
     .sort()
     .map((key) => {
       const [date, branchId] = key.split(":");
-      const invoices = invoiceRows.filter((invoice) => dateKey(invoice.issued_at) === date && invoice.branch_id === branchId);
-      const expensesForDay = costRows.filter((cost) => dateKey(cost.entry_date) === date && cost.branch_id === branchId);
-      const sales: FinancialCalendarSale[] = invoices.flatMap((invoice) =>
-        (itemsByInvoice.get(invoice.id) ?? []).map((item) => ({
+      const invoices = invoiceRows.filter((invoice: any) => dateKey(invoice.issued_at) === date && invoice.branch_id === branchId);
+      const expensesForDay = costRows.filter((cost: any) => dateKey(cost.entry_date) === date && cost.branch_id === branchId);
+      const sales: FinancialCalendarSale[] = invoices.flatMap((invoice: any) =>
+        (itemsByInvoice.get(invoice.id) ?? []).map((item: any) => ({
           itemName: item.name,
           quantity: numberValue(item.quantity),
           revenue: numberValue(item.total) || numberValue(item.quantity) * numberValue(item.unit_price),
         })),
       );
-      const expenses: FinancialCalendarExpense[] = expensesForDay.map((cost) => ({
+      const expenses: FinancialCalendarExpense[] = expensesForDay.map((cost: any) => ({
         category: expenseCategory(cost.cost_center),
         amount: numberValue(cost.amount),
         notes: optionalText(cost.notes ?? cost.name),
       }));
-      const salesTotal = sumBy(invoices, (invoice) => numberValue(invoice.total));
-      const expensesTotal = sumBy(expenses, (expense) => expense.amount);
-      const netProfit = salesTotal - expensesTotal;
+      const salesTotal = sumBy<any>(invoices, (invoice) => numberValue(invoice.total));
+      const expensesTotal = sumBy(expenses, (expense: any) => expense.amount);
 
       return {
         date,
         branchName: branchMap.get(branchId)?.name ?? "فرع غير معروف",
         salesTotal,
         expensesTotal,
-        netProfit,
-        cashSales: sumBy(invoices.filter((invoice) => invoice.payment_method === "cash"), (invoice) => numberValue(invoice.total)),
-        cardSales: sumBy(invoices.filter((invoice) => invoice.payment_method !== "cash"), (invoice) => numberValue(invoice.total)),
+        netProfit: salesTotal - expensesTotal,
+        cashSales: sumBy<any>(invoices.filter((invoice: any) => invoice.payment_method === "cash"), (invoice) => numberValue(invoice.total)),
+        cardSales: sumBy<any>(invoices.filter((invoice: any) => invoice.payment_method !== "cash"), (invoice) => numberValue(invoice.total)),
         sales,
         expenses,
-        status: netProfit > 0 ? "profit" : netProfit < 0 ? "loss" : "balanced",
+        status: salesTotal - expensesTotal > 0 ? "profit" : salesTotal - expensesTotal < 0 ? "loss" : "balanced",
       };
     });
 }
 
 async function loadCostTracking(admin: AdminClient, organizationId: string): Promise<CostTrackingData> {
-  const [summaryRows, costRows, branchRows] = await Promise.all([
+  const [summaryRows, costRows, branchRows]: [any, any, any] = await Promise.all([
     query<any>((admin as any).from("sales_daily_summaries").select("*").eq("organization_id", organizationId).limit(500), "sales_daily_summaries"),
     query<any>((admin as any).from("daily_cost_entries").select("*").eq("organization_id", organizationId).limit(1000), "daily_cost_entries"),
     query<any>((admin as any).from("branches").select("*").eq("organization_id", organizationId), "branches"),
   ]);
 
   const latestDate =
-    [...summaryRows.map((row) => row.summary_date), ...costRows.map((row) => row.entry_date)].sort().at(-1) ??
+    [...summaryRows.map((row: any) => row.summary_date), ...costRows.map((row: any) => row.entry_date)].sort().at(-1) ??
     dateKey(new Date().toISOString());
-  const branchId = summaryRows.find((row) => row.summary_date === latestDate)?.branch_id ?? costRows.find((row) => row.entry_date === latestDate)?.branch_id ?? branchRows[0]?.id ?? "";
-  const branchName = branchRows.find((row) => row.id === branchId)?.name ?? "كل الفروع";
-  const daySummaries = summaryRows.filter((row) => row.summary_date === latestDate && row.branch_id === branchId);
-  const dayCosts = costRows.filter((row) => row.entry_date === latestDate && row.branch_id === branchId);
-  const salesTotal = sumBy(daySummaries, (row) => numberValue(row.sales_total));
-  const rawMaterials = sumBy(daySummaries, (row) => numberValue(row.ingredient_cost_total));
-  const expensesTotal = sumBy(dayCosts, (row) => numberValue(row.amount)) + rawMaterials;
+  const branchId = summaryRows.find((row: any) => row.summary_date === latestDate)?.branch_id ?? costRows.find((row: any) => row.entry_date === latestDate)?.branch_id ?? branchRows[0]?.id ?? "";
+  const branchName = branchRows.find((row: any) => row.id === branchId)?.name ?? "كل الفروع";
+  const daySummaries = summaryRows.filter((row: any) => row.summary_date === latestDate && row.branch_id === branchId);
+  const dayCosts = costRows.filter((row: any) => row.entry_date === latestDate && row.branch_id === branchId);
+  const salesTotal = sumBy<any>(daySummaries, (row) => numberValue(row.sales_total));
+  const rawMaterials = sumBy<any>(daySummaries, (row) => numberValue(row.ingredient_cost_total));
+  const expensesTotal = sumBy<any>(dayCosts, (row) => numberValue(row.amount)) + rawMaterials;
   const netProfit = salesTotal - expensesTotal;
 
   const channelLabel: Record<SalesDailySummaryRow["channel"], "الصالة" | "الدليفري" | "الاستلام"> = {
@@ -1165,7 +1163,7 @@ async function loadCostTracking(admin: AdminClient, organizationId: string): Pro
   };
 
   const sectionMap = new Map<string, DailyCostEntryRow[]>();
-  for (const cost of dayCosts) {
+  for (const cost of dayCosts as any[]) {
     const id = costCenterId(cost.cost_center);
     sectionMap.set(id, [...(sectionMap.get(id) ?? []), cost]);
   }
@@ -1176,8 +1174,8 @@ async function loadCostTracking(admin: AdminClient, organizationId: string): Pro
       title: sectionLabels.raw_materials.title,
       description: sectionLabels.raw_materials.description,
       total: rawMaterials,
-      lines: daySummaries.map((summary) => ({
-        name: `مبيعات ${channelLabel[summary.channel]}`,
+      lines: daySummaries.map((summary: any) => ({
+        name: `مبيعات ${channelLabel[summary.channel as keyof typeof channelLabel]}`,
         amount: numberValue(summary.ingredient_cost_total),
         quantity: numberValue(summary.orders_count),
         unit: "طلبات",
@@ -1187,8 +1185,8 @@ async function loadCostTracking(admin: AdminClient, organizationId: string): Pro
       id,
       title: sectionLabels[id]?.title ?? "مصروفات أخرى",
       description: sectionLabels[id]?.description ?? "مصروفات تشغيلية مرتبطة باليوم.",
-      total: sumBy(rows, (row) => numberValue(row.amount)),
-      lines: rows.map((row) => ({
+      total: sumBy<any>(rows, (row) => numberValue(row.amount)),
+      lines: rows.map((row: any) => ({
         name: row.name,
         amount: numberValue(row.amount),
         quantity: row.quantity === null ? undefined : numberValue(row.quantity),
@@ -1201,8 +1199,8 @@ async function loadCostTracking(admin: AdminClient, organizationId: string): Pro
   return {
     date: latestDate,
     branchName,
-    channelBreakdown: daySummaries.map((summary) => ({
-      channel: channelLabel[summary.channel],
+    channelBreakdown: daySummaries.map((summary: any) => ({
+      channel: channelLabel[summary.channel as keyof typeof channelLabel],
       orders: numberValue(summary.orders_count),
       revenue: numberValue(summary.sales_total),
       directCost: numberValue(summary.ingredient_cost_total),
@@ -1275,7 +1273,7 @@ function mapSocialPost(
 }
 
 async function loadMarketingBundle(admin: AdminClient, organizationId: string) {
-  const [accountRows, postRows, targetRows, templateRows, assetRows] = await Promise.all([
+  const [accountRows, postRows, targetRows, templateRows, assetRows]: [any, any, any, any, any] = await Promise.all([
     query<any>((admin as any).from("social_accounts").select("*").eq("organization_id", organizationId).order("platform"), "social_accounts"),
     query<any>(
       (admin as any)
@@ -1291,11 +1289,11 @@ async function loadMarketingBundle(admin: AdminClient, organizationId: string) {
     query<any>((admin as any).from("social_media_assets").select("*").eq("organization_id", organizationId), "social_media_assets"),
   ]);
 
-  const accountMap = indexBy(accountRows, (row) => row.id);
-  const targetsByPost = groupBy(targetRows, (row) => row.social_post_id);
-  const assetsByPost = groupBy(assetRows, (row) => row.social_post_id);
+  const accountMap = indexBy<any>(accountRows, (row) => row.id);
+  const targetsByPost = groupBy<any>(targetRows, (row) => row.social_post_id);
+  const assetsByPost = groupBy<any>(assetRows, (row) => row.social_post_id);
 
-  const templates: SocialTemplate[] = templateRows.map((row) => ({
+  const templates: SocialTemplate[] = templateRows.map((row: any) => ({
     id: row.id,
     organizationId: row.organization_id,
     name: row.name,
@@ -1305,10 +1303,10 @@ async function loadMarketingBundle(admin: AdminClient, organizationId: string) {
 
   return {
     accounts: accountRows.map(mapSocialAccount),
-    posts: postRows.map((row) =>
+    posts: postRows.map((row: any) =>
       mapSocialPost(
         row,
-        (targetsByPost.get(row.id) ?? []).map((target) => mapSocialTarget(target, accountMap)),
+        (targetsByPost.get(row.id) ?? []).map((target: any) => mapSocialTarget(target, accountMap)),
         assetsByPost.get(row.id) ?? [],
       ),
     ),
@@ -1318,7 +1316,7 @@ async function loadMarketingBundle(admin: AdminClient, organizationId: string) {
 }
 
 async function loadBillPayments(admin: AdminClient, organizationId: string): Promise<BillPaymentsData> {
-  const costRows = await query(
+  const costRows = await query<any>(
     (admin as any)
       .from("daily_cost_entries")
       .select("*")
@@ -1328,10 +1326,10 @@ async function loadBillPayments(admin: AdminClient, organizationId: string): Pro
     "daily_cost_entries",
   );
 
-  const bills: PayableBill[] = costRows
+  const bills: PayableBill[] = (costRows as any[])
     .filter((row) => numberValue(row.amount) > 0)
     .slice(0, 20)
-    .map((row) => ({
+    .map((row: any) => ({
       id: row.id,
       organizationId: row.organization_id,
       billerName: row.name,
@@ -1757,7 +1755,7 @@ export async function getAdminData() {
       ],
     },
     async (admin) => {
-      const [organizationRows, membershipRows, profileRows, planRows, flagRows, logRows, ticketRows, approvalRows] =
+      const [organizationRows, membershipRows, profileRows, planRows, flagRows, logRows, ticketRows, approvalRows]: [any, any, any, any, any, any, any, any] =
         await Promise.all([
           query<any>(admin.from("organizations").select("*").order("created_at", { ascending: false }).limit(100), "organizations"),
           query<any>(admin.from("organization_memberships").select("*").order("created_at", { ascending: false }).limit(500), "organization_memberships"),
@@ -1769,16 +1767,16 @@ export async function getAdminData() {
           query<any>(admin.from("account_approval_requests").select("*").limit(200), "account_approval_requests"),
         ]);
 
-      const profileMap = indexBy(profileRows, (row) => row.id);
-      const organizationMap = indexBy(organizationRows, (row) => row.id);
+      const profileMap = indexBy<any>(profileRows, (row) => row.id);
+      const organizationMap = indexBy<any>(organizationRows, (row) => row.id);
       const authUsers = await admin.auth.admin.listUsers().catch(() => null);
       const emailByUserId = new Map((authUsers?.data.users ?? []).map((user) => [user.id, user.email ?? user.id]));
-      const activeOrganizations = organizationRows.filter((organization) => organization.status === "active").length;
-      const openTickets = ticketRows.filter((ticket) => ticket.status !== "closed").length;
+      const activeOrganizations = organizationRows.filter((organization: any) => organization.status === "active").length;
+      const openTickets = ticketRows.filter((ticket: any) => ticket.status !== "closed").length;
 
       const metrics: AdminMetric[] = [
         { label: "المؤسسات", value: String(organizationRows.length), delta: `${activeOrganizations} نشطة`, tone: "default" },
-        { label: "طلبات اعتماد", value: String(approvalRows.filter((request) => request.status !== "approved").length), delta: "بانتظار المراجعة", tone: "warning" },
+        { label: "طلبات اعتماد", value: String(approvalRows.filter((request: any) => request.status !== "approved").length), delta: "بانتظار المراجعة", tone: "warning" },
         { label: "المستخدمون", value: String(membershipRows.length), delta: "عضويات مسجلة", tone: "success" },
         { label: "تذاكر مفتوحة", value: String(openTickets), delta: "دعم العملاء", tone: openTickets > 0 ? "warning" : "success" },
       ];
@@ -1786,7 +1784,7 @@ export async function getAdminData() {
       return {
         metrics,
         organizations: organizationRows.map(mapOrganization),
-        users: membershipRows.map((membership) => {
+        users: membershipRows.map((membership: any) => {
           const profile = profileMap.get(membership.user_id);
           return {
             id: membership.user_id,
@@ -1795,24 +1793,24 @@ export async function getAdminData() {
             role: membership.role as Role,
           };
         }),
-        plans: planRows.map((plan) => ({
+        plans: planRows.map((plan: any) => ({
           id: plan.code,
           name: plan.name,
           price: `₪${numberValue(plan.monthly_price)}`,
           features: Array.isArray(plan.features) ? plan.features.map(String) : [],
         })),
-        flags: flagRows.map((flag) => ({
+        flags: flagRows.map((flag: any) => ({
           key: flag.key,
           enabled: flag.enabled,
           description: flag.description ?? "",
         })),
-        logs: logRows.map((log) => ({
+        logs: logRows.map((log: any) => ({
           id: log.id,
           level: log.level,
           message: log.message,
           createdAt: log.created_at,
         })),
-        tickets: ticketRows.map((ticket) => ({
+        tickets: ticketRows.map((ticket: any) => ({
           id: ticket.id,
           organization: ticket.organization_id ? organizationMap.get(ticket.organization_id)?.name ?? "مؤسسة غير معروفة" : "عام",
           subject: ticket.subject,
