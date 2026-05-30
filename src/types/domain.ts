@@ -424,7 +424,9 @@ export type SocialAccount = {
 };
 
 export type SocialPostTarget = {
+  id?: string;
   platform: SocialPlatform;
+  socialAccountId?: string;
   accountName: string;
   status: "pending" | "publishing" | "published" | "failed";
   error?: string;
@@ -437,6 +439,7 @@ export type SocialPost = {
   body: string;
   status: "draft" | "scheduled" | "publishing" | "published" | "failed";
   scheduledAt?: string;
+  recurrenceInterval?: "none" | "daily" | "weekly";
   assetUrl?: string;
   targets: SocialPostTarget[];
   createdAt: string;

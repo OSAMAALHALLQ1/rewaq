@@ -1252,7 +1252,9 @@ function mapSocialTarget(row: SocialPostTargetRow, accountMap: Map<string, Socia
   const account = accountMap.get(row.social_account_id);
 
   return {
+    id: row.id,
     platform: row.platform as SocialPlatform,
+    socialAccountId: row.social_account_id,
     accountName: account?.account_name ?? row.platform,
     status: row.status,
     error: optionalText(row.error_message),
@@ -1271,6 +1273,9 @@ function mapSocialPost(
     body: row.body,
     status: row.status,
     scheduledAt: optionalText(row.scheduled_at),
+    recurrenceInterval: ((row as any).recurrence_interval === "daily" || (row as any).recurrence_interval === "weekly"
+      ? (row as any).recurrence_interval
+      : "none") as "none" | "daily" | "weekly",
     assetUrl: optionalText(assets[0]?.url ?? assets[0]?.storage_path),
     targets,
     createdAt: row.created_at,

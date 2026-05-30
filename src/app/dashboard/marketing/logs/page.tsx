@@ -5,12 +5,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getSocialPlatformLabel } from "@/lib/social/platforms";
 import { getMarketingData } from "@/server/queries/app";
+import { RetrySocialPostForm } from "@/components/marketing/retry-social-post-form";
+import { retrySocialPostAction } from "@/server/actions/social";
 
 export default async function PublishingLogsPage() {
   const { posts } = await getMarketingData();
   const rows = posts.flatMap((post: any) =>
     post.targets.map((target: any) => ({
       id: `${post.id}-${target.platform}`,
+      postId: post.id,
+      targetId: target.id,
       postTitle: post.title,
       ...target,
       createdAt: post.createdAt,
@@ -39,6 +43,7 @@ export default async function PublishingLogsPage() {
                 <TableHead>الحساب</TableHead>
                 <TableHead>الحالة</TableHead>
                 <TableHead>الخطأ</TableHead>
+                <TableHead>الإجراءات</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -51,6 +56,18 @@ export default async function PublishingLogsPage() {
                     <StatusBadge status={row.status} />
                   </TableCell>
                   <TableCell>{row.error ?? "-"}</TableCell>
+                  <TableCell>
+                    {row.status === "failed" ? (
+                      <RetrySocialPostForm
+                        action={retrySocialPostAction}
+                        postId={row.postId}
+                        targetId={row.targetId}
+                        label="إعادة هذه القناة"
+                      />
+                    ) : (
+                      "-"
+                    )}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

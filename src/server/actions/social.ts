@@ -5,6 +5,7 @@ import { demoSocialAccounts } from "@/lib/demo-data";
 import { uploadMarketingAssetToImageKit } from "@/lib/imagekit";
 import { createAdminClientWithContext, hasSupabaseAdminEnv } from "@/lib/supabase/admin";
 import { getMarketingPublishPreferences, saveMarketingPublishPreferences } from "@/lib/social/preferences";
+import { cloneNextRecurringPost, publishTargetsForPost, refreshPostStatus } from "@/lib/social/automation";
 import { publishSocialPost } from "@/lib/social/publisher";
 import { socialPostSchema } from "@/lib/validation/schemas";
 import { can } from "@/lib/permissions/roles";
@@ -66,6 +67,10 @@ function postStatusForMode(mode: "now" | "schedule" | "draft") {
   return "draft" as const;
 }
 
+function recurrenceInterval(value: FormDataEntryValue | null) {
+  return value === "daily" || value === "weekly" ? value : "none";
+}
+
 export async function saveMarketingPublishPreferencesAction(
   _prevState: ActionState,
   formData: FormData,
@@ -86,6 +91,7 @@ export async function createSocialPostAction(_prevState: ActionState, formData: 
   const mediaKind = String(formData.get("mediaKind") || "text");
   const approvalRequired = formData.get("approvalRequired") === "on";
   const errorPolicy = String(formData.get("errorPolicy") || "retry_failed_only");
+  const recurrence = recurrenceInterval(formData.get("recurrenceInterval"));
   const preferences = await getMarketingPublishPreferences();
 
   if (!hasSupabaseAdminEnv()) {
@@ -187,7 +193,7 @@ export async function createSocialPostAction(_prevState: ActionState, formData: 
     }
   }
 
-  const { data: post, error: postError } = await scope.admin
+  const { data: post, error: postError } = await (scope.admin as any)
     .from("social_posts")
     .insert({
       organization_id: scope.organizationId,
@@ -195,6 +201,7 @@ export async function createSocialPostAction(_prevState: ActionState, formData: 
       body: parsed.data.body,
       status: postStatusForMode(parsed.data.publishMode),
       scheduled_at: parsed.data.publishMode === "schedule" ? parsed.data.scheduledAt ?? null : null,
+      recurrence_interval: recurrence,
       created_by: scope.userId,
     })
     .select("id")
@@ -291,6 +298,18 @@ export async function createSocialPostAction(_prevState: ActionState, formData: 
       })
       .eq("id", post.id);
 
+    if (postStatus === "published" && recurrence !== "none") {
+      await cloneNextRecurringPost(scope.admin as any, {
+        id: post.id,
+        organization_id: scope.organizationId,
+        title: parsed.data.title,
+        body: parsed.data.body,
+        scheduled_at: parsed.data.scheduledAt ?? new Date().toISOString(),
+        recurrence_interval: recurrence,
+        created_by: scope.userId,
+      });
+    }
+
     revalidatePath("/dashboard/marketing");
     revalidatePath("/dashboard/marketing/logs");
 
@@ -314,9 +333,96 @@ export async function createSocialPostAction(_prevState: ActionState, formData: 
     ok: true,
     message:
       parsed.data.publishMode === "schedule"
-        ? `تمت جدولة المنشور بنمط ${scheduleKind} وحفظه في Supabase.`
+        ? `تمت جدولة المنشور بنمط ${scheduleKind}${recurrence !== "none" ? " مع تكرار تلقائي" : ""} وحفظه في Supabase.`
         : approvalRequired
           ? "تم حفظ المنشور بانتظار الموافقة في Supabase."
           : "تم حفظ المنشور كمسودة في Supabase.",
   };
+}
+
+export async function retrySocialPostAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
+  if (!hasSupabaseAdminEnv()) {
+    return { ok: false, message: "مفتاح Supabase الإداري غير موجود. لا يمكن إعادة النشر." };
+  }
+
+  const postId = String(formData.get("postId") || "");
+  const targetId = String(formData.get("targetId") || "");
+
+  if (!postId) {
+    return { ok: false, message: "منشور غير معروف." };
+  }
+
+  try {
+    const scope = await resolveSocialScope();
+
+    const { data: post, error: postError } = await (scope.admin as any)
+      .from("social_posts")
+      .select("*")
+      .eq("id", postId)
+      .eq("organization_id", scope.organizationId)
+      .single();
+
+    if (postError || !post) {
+      return { ok: false, message: postError?.message ?? "لم يتم العثور على المنشور." };
+    }
+
+    let targetQuery = (scope.admin as any)
+      .from("social_post_targets")
+      .select("*")
+      .eq("social_post_id", postId)
+      .eq("organization_id", scope.organizationId)
+      .eq("status", "failed");
+
+    if (targetId) {
+      targetQuery = targetQuery.eq("id", targetId);
+    }
+
+    const { data: targets, error: targetError } = await targetQuery;
+
+    if (targetError) {
+      return { ok: false, message: targetError.message };
+    }
+
+    if (!targets || targets.length === 0) {
+      return { ok: false, message: "لا توجد قنوات فاشلة لإعادة المحاولة." };
+    }
+
+    await Promise.all(
+      targets.map((target: any) =>
+        (scope.admin as any)
+          .from("social_post_targets")
+          .update({ status: "publishing", error_message: null, updated_at: new Date().toISOString() })
+          .eq("id", target.id),
+      ),
+    );
+
+    const summary = await publishTargetsForPost({
+      admin: scope.admin as any,
+      post,
+      targets,
+      requestedBy: scope.userId,
+    });
+
+    const postStatus = await refreshPostStatus(scope.admin as any, post.id);
+
+    revalidatePath("/dashboard/marketing");
+    revalidatePath("/dashboard/marketing/logs");
+
+    if (summary.failed > 0) {
+      return {
+        ok: true,
+        message: `تمت إعادة المحاولة. نجحت ${summary.published} قناة وفشلت ${summary.failed} قناة.`,
+      };
+    }
+
+    return {
+      ok: true,
+      message: postStatus === "published" ? "تمت إعادة النشر بنجاح واكتملت كل القنوات." : "تم إرسال إعادة المحاولة إلى محرك الخلفية.",
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : "تعذرت إعادة المحاولة.",
+    };
+  }
 }

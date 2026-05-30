@@ -28,8 +28,9 @@ import { getNodeRedSocialPublishingStatus } from "@/lib/social/node-red";
 import { getSocialPlatformLabel } from "@/lib/social/platforms";
 import { getMarketingPublishPreferences } from "@/lib/social/preferences";
 import { getTriggerDevSocialPublishingStatus } from "@/lib/social/trigger-dev";
-import { saveMarketingPublishPreferencesAction } from "@/server/actions/social";
+import { saveMarketingPublishPreferencesAction, retrySocialPostAction } from "@/server/actions/social";
 import { getMarketingData } from "@/server/queries/app";
+import { RetrySocialPostForm } from "@/components/marketing/retry-social-post-form";
 
 export default async function MarketingCenterPage() {
   const { accounts, posts, templates } = await getMarketingData();
@@ -325,6 +326,7 @@ export default async function MarketingCenterPage() {
                   <TableHead>الحالة</TableHead>
                   <TableHead>المنصات</TableHead>
                   <TableHead>التاريخ</TableHead>
+                  <TableHead>الإجراءات</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -333,6 +335,11 @@ export default async function MarketingCenterPage() {
                     <TableCell>
                       <div className="font-semibold">{post.title}</div>
                       <p className="line-clamp-1 text-xs text-muted-foreground">{post.body}</p>
+                      {post.recurrenceInterval && post.recurrenceInterval !== "none" ? (
+                        <Badge tone="default" className="mt-1 text-[10px]">
+                          تكرار {post.recurrenceInterval === "daily" ? "يومي" : "أسبوعي"}
+                        </Badge>
+                      ) : null}
                     </TableCell>
                     <TableCell>
                       <StatusBadge status={post.status} />
@@ -347,6 +354,13 @@ export default async function MarketingCenterPage() {
                       </div>
                     </TableCell>
                     <TableCell>{new Date(post.createdAt).toLocaleDateString("ar-PS")}</TableCell>
+                    <TableCell>
+                      {post.status === "failed" ? (
+                        <RetrySocialPostForm action={retrySocialPostAction} postId={post.id} />
+                      ) : (
+                        <span className="text-xs text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

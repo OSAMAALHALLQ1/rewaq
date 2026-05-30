@@ -35,3 +35,23 @@ Internal messaging is structured into:
 
 ### ADR 0005: Dynamic Custom Permission Mapping per Device Key
 Rather than relying on rigid, pre-defined server roles alone, the Organization Owner (Manager) can selectively assign granular module permissions (e.g., Inventory, Recipes, Waste Logging, POS, Purchasing) to a Department Key upon creation. The system dynamically restricts client-side navigation elements (hiding/showing links) and enforces server-side route guards matching this list of allowed modules, allowing maximum operational flexibility.
+
+### ADR 0006: Multi-Table Database Schema for Social Publishing
+We adhere to the existing advanced multi-table database schema (`social_posts`, `social_post_targets`, `social_media_assets`, `social_publish_jobs`, and `social_publish_logs`) instead of a single flattened table. This architectural choice is essential for supporting robust multi-platform posting simultaneously (e.g., cross-posting to Facebook Page and Instagram Business at the exact same scheduled time) while maintaining clean, separate audit trails, error logs, and platform-specific caption overrides per target channel.
+
+### ADR 0007: Vercel Cron Authentication using Authorization Header
+To secure the automated scheduled publishing API route (`/api/cron/publish`), we enforce standard bearer token authentication. The handler validates the incoming request header `Authorization: Bearer ${CRON_SECRET}`. If the token is invalid or missing, it responds with a HTTP `401 Unauthorized` status. During local development, the security check permits execution if `CRON_SECRET` is not set in the environment or matches a local override, ensuring frictionless local testing.
+
+### ADR 0008: Parallel Execution for Scheduled Social Publishing
+To minimize the execution duration of the Vercel serverless environment and prevent runtime timeouts (specifically under the standard 10-15s serverless limits), the cron handler processes multiple pending scheduled posts and platform targets in parallel using `Promise.all`. This asynchronous execution is highly suited for individual restaurant scope publishing, delivering near-instant publishing speeds across Facebook Page and Instagram Business APIs concurrently.
+
+### ADR 0009: Granular Platform-Specific Publishing Retry
+To avoid duplicating posts on channels that have already been published successfully, the "Retry" action is granular and target-specific. When triggered (either manually from the dashboard or automatically by retry workers), the system identifies and re-attempts publishing exclusively for those channels (`social_post_targets`) that are in a `failed` status, leaving already-successful channels untouched.
+
+### ADR 0010: Database and Cron-Driven Recurrent Publishing
+To natively support restaurant marketing workflows (such as weekly specials, daily menu highlights, or recurring weekend promotions), the platform integrates a lightweight database and cron-driven scheduler. We introduce a recurrence configuration (e.g., `interval` field on posts supporting `none`, `daily`, `weekly`). When the Vercel cron job successfully publishes all targets of a recurrent post, it automatically handles rescheduling by creating a new `social_posts` instance (or updating the existing one's `scheduled_at`) offset by the chosen recurrence interval, maintaining 100% serverless, zero-dependency automation.
+
+
+
+
+

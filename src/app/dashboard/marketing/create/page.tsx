@@ -219,6 +219,14 @@ export default async function CreateSocialPostPage({
                   <option value="draft">حفظ كمسودة</option>
                 </Select>
               </div>
+              <div className="grid gap-2">
+                <Label htmlFor="recurrenceInterval">تكرار المنشور تلقائيًا (للمطاعم)</Label>
+                <Select id="recurrenceInterval" name="recurrenceInterval" defaultValue="none">
+                  <option value="none">بدون تكرار (مرة واحدة)</option>
+                  <option value="daily">تكرار يومي</option>
+                  <option value="weekly">تكرار أسبوعي</option>
+                </Select>
+              </div>
               <div className="grid gap-3 rounded-lg border bg-white p-4">
                 <div className="flex items-center gap-2 font-semibold">
                   <CalendarClock className="h-4 w-4 text-primary" />
