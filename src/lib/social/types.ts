@@ -1,4 +1,20 @@
-import type { SocialPlatform } from "@/types/domain";
+/**
+ * Social publishing types
+ * Independent of domain types to avoid circular dependencies
+ */
+
+// Platform type (duplicated from domain to avoid circular import)
+export type SocialPlatform = 
+  | "facebook" 
+  | "instagram" 
+  | "telegram" 
+  | "whatsapp" 
+  | "tiktok" 
+  | "x" 
+  | "google_business" 
+  | "linkedin" 
+  | "youtube_shorts" 
+  | "pinterest";
 
 export type PublishInput = {
   organizationId: string;

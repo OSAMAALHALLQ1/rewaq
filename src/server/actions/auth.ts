@@ -166,13 +166,26 @@ export async function inviteTeamMemberAction(_prevState: ActionState, formData: 
     return { ok: false, message: parsed.error.issues[0]?.message ?? "تحقق من بيانات الدعوة" };
   }
 
+  // Validate that the current user has permission to invite
+  const user = await requireAuth();
+  
+  // Only organization owners and super_admins can invite team members
+  if (user.role !== "organization_owner" && user.role !== "super_admin") {
+    return { ok: false, message: "ليس لديك صلاحية دعوة أعضاء جدد" };
+  }
+
+  // Validate organization ID from user's membership
+  if (!user.organizationId) {
+    return { ok: false, message: "لم يتم ربطك بمؤسسة. تواصل مع الدعم." };
+  }
+
   const inviteCode = Math.random().toString(36).slice(2, 10).toUpperCase();
 
   if (hasSupabaseEnv()) {
     const supabase = await createClient();
     const { error } = await supabase.from("team_invites").upsert(
       {
-        organization_id: "00000000-0000-4000-8000-000000000001",
+        organization_id: user.organizationId, // Use user's organization, not hardcoded
         email: parsed.data.email,
         role: parsed.data.role,
         branch_id: parsed.data.branchId || null,
