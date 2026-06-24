@@ -27,6 +27,16 @@ export type AuthenticatedUser = {
   branchId?: string;
 };
 
+function getApprovalStatus(user: { app_metadata?: Record<string, unknown>; user_metadata?: Record<string, unknown> }) {
+  const appStatus = user.app_metadata?.approval_status;
+  if (typeof appStatus === "string") {
+    return appStatus;
+  }
+
+  const userStatus = user.user_metadata?.approval_status;
+  return typeof userStatus === "string" ? userStatus : undefined;
+}
+
 /**
  * Require authentication. Throws if not logged in.
  * Use in Server Actions and Route Handlers where auth is mandatory.
@@ -53,11 +63,34 @@ export async function requireAuth(): Promise<AuthenticatedUser> {
     .eq("user_id", user.id)
     .maybeSingle();
 
+  const approvalStatus = getApprovalStatus(user);
+  const { data: profile } = await (supabase as any)
+    .from("profiles")
+    .select("status")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (profile?.status && String(profile.status) !== "approved") {
+    throw new ForbiddenError("حسابك بانتظار موافقة الإدارة قبل فتح النظام.");
+  }
+
+  if (!membership?.organization_id && approvalStatus && approvalStatus !== "approved") {
+    throw new ForbiddenError("حسابك بانتظار موافقة الإدارة قبل فتح النظام.");
+  }
+
+  const metadataOrganizationId =
+    typeof user.app_metadata?.organization_id === "string" ? user.app_metadata.organization_id : "";
+  const organizationId = membership?.organization_id ?? metadataOrganizationId;
+
+  if (!organizationId) {
+    throw new ForbiddenError("لم يتم ربط حسابك بمؤسسة بعد. انتظر موافقة الإدارة.");
+  }
+
   return {
     id: user.id,
     email: user.email ?? "",
-    role: (membership?.role as Role) ?? "staff",
-    organizationId: membership?.organization_id ?? "",
+    role: (membership?.role as Role) ?? ((typeof user.app_metadata?.role === "string" ? user.app_metadata.role : "staff") as Role),
+    organizationId,
     branchId: membership?.branch_id ?? undefined,
   };
 }
@@ -69,7 +102,10 @@ export async function requireAuth(): Promise<AuthenticatedUser> {
 export async function requireAuthOrRedirect(redirectTo = "/login"): Promise<AuthenticatedUser> {
   try {
     return await requireAuth();
-  } catch {
+  } catch (error) {
+    if (error instanceof ForbiddenError) {
+      redirect("/pending-approval");
+    }
     redirect(redirectTo);
   }
 }

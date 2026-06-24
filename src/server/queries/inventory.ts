@@ -2,6 +2,7 @@
  * Inventory domain queries
  * Handles stock, movements, waste, and transfers
  */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import "server-only";
 import {
   demoInventoryItems,
@@ -20,24 +21,24 @@ import {
   numberValue,
   optionalText,
   type AdminClient,
-  type AppScope,
   type OrganizationContext,
   type BranchRow,
   fallbackContext,
 } from "./_shared/utils";
 import { mapSupplier, mapInventoryItem, mapBranchStock, mapStockMovement } from "./_shared/mappers";
+import type { Branch, BranchStock, InventoryCategory, InventoryItem, StockMovement, Supplier } from "@/types/domain";
 
 // ============================================================================
 // Types
 // ============================================================================
 
 export type InventoryBundle = {
-  items: typeof demoInventoryItems;
-  categories: typeof demoCategories;
-  branchStock: typeof demoBranchStock;
-  movements: typeof demoStockMovements;
-  suppliers: typeof demoSuppliers;
-  branches: typeof demoBranches;
+  items: InventoryItem[];
+  categories: InventoryCategory[];
+  branchStock: BranchStock[];
+  movements: StockMovement[];
+  suppliers: Supplier[];
+  branches: Branch[];
 };
 
 export type StockCountSummary = {
@@ -82,7 +83,7 @@ async function loadOrganizationContext(admin: AdminClient, organizationId: strin
       city: row.city ?? "",
       address: row.address ?? "",
       manager: row.manager_name ?? "",
-      status: row.status === "inactive" || row.status === "archived" ? "inactive" : "active",
+      status: row.status === "inactive" || row.status === "archived" ? "inactive" as const : "active" as const,
     })),
   };
 }
@@ -153,7 +154,7 @@ async function loadInventoryBundle(admin: AdminClient, organizationId: string) {
       city: row.city ?? "",
       address: row.address ?? "",
       manager: row.manager_name ?? "",
-      status: row.status === "inactive" || row.status === "archived" ? "inactive" : "active",
+      status: row.status === "inactive" || row.status === "archived" ? "inactive" as const : "active" as const,
     })),
   };
 }
@@ -225,7 +226,7 @@ export async function getInventoryData(): Promise<InventoryBundle> {
     };
   }
 
-  return withAdminScope(
+  return withAdminScope<InventoryBundle>(
     {
       items: demoInventoryItems,
       categories: demoCategories,
@@ -254,7 +255,7 @@ export async function getStockCountsData(): Promise<InventoryBundle & { counts: 
     };
   }
 
-  return withAdminScope(
+  return withAdminScope<InventoryBundle & { counts: StockCountSummary[] }>(
     {
       items: demoInventoryItems,
       categories: demoCategories,

@@ -6,7 +6,7 @@ export default function CostAccountingPage() {
     <>
       <PageHeader
         title="محاسبة التكاليف"
-        description="حاسبة يومية لمعرفة تكلفة المنتج الحقيقية من المواد الخام، الأجور، المصاريف، وسعر البيع."
+        description="محرك مطاعم لحساب الريسبي، مراحل الإنتاج، الإهلاك، المستودعات، الكاشير، الانحرافات، وهندسة المنيو."
       />
       <CostAccountingCalculator />
     </>

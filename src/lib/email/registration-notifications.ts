@@ -1,6 +1,6 @@
 import "server-only";
 
-const FALLBACK_ADMIN_EMAIL = "osama.alhallq.14@gmail.com";
+const FALLBACK_ADMIN_EMAIL = "osaco221@gmail.com";
 
 type RegistrationNotificationInput = {
   ownerName: string;
@@ -19,6 +19,18 @@ type ApprovalMagicLinkInput = {
 
 export function getRegistrationAdminEmail() {
   return process.env.ADMIN_REGISTRATION_EMAIL || FALLBACK_ADMIN_EMAIL;
+}
+
+function getAppUrl() {
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
+  }
+
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+
+  return "http://localhost:3000";
 }
 
 function escapeHtml(value: string) {
@@ -60,20 +72,46 @@ async function sendEmail({ to, subject, text, html }: { to: string; subject: str
 
 export async function sendRegistrationRequestNotification(input: RegistrationNotificationInput) {
   const to = getRegistrationAdminEmail();
-  const subject = `طلب حساب جديد في رواق - ${input.organizationName}`;
+  const adminUrl = `${getAppUrl()}/admin/users`;
+  const subject = "طلب تفعيل حساب جديد";
   const text = [
-    "وصل طلب حساب جديد يحتاج مراجعة.",
+    "يوجد مستخدم جديد طلب الوصول إلى الموقع.",
     "",
     `الاسم: ${input.ownerName}`,
-    `المؤسسة: ${input.organizationName}`,
     `البريد: ${input.email}`,
-    `الهاتف: ${input.phone || "غير مضاف"}`,
+    `رقم الهاتف: ${input.phone || "غير مضاف"}`,
+    `المؤسسة: ${input.organizationName}`,
     `نوع النشاط: ${input.businessType}`,
+    `تاريخ التسجيل: ${new Date().toLocaleString("ar-PS")}`,
     "",
-    "افتح لوحة الأدمن ثم صفحة طلبات التسجيل للموافقة أو الرفض.",
+    "رابط لوحة التحكم للموافقة أو الرفض:",
+    adminUrl,
   ].join("\n");
+  const ownerName = escapeHtml(input.ownerName);
+  const organizationName = escapeHtml(input.organizationName);
+  const email = escapeHtml(input.email);
+  const phone = escapeHtml(input.phone || "غير مضاف");
+  const businessType = escapeHtml(input.businessType);
+  const escapedAdminUrl = escapeHtml(adminUrl);
+  const html = `
+    <div dir="rtl" style="font-family: Arial, sans-serif; line-height: 1.8; color: #0f172a;">
+      <h2>طلب تفعيل حساب جديد</h2>
+      <p>يوجد مستخدم جديد طلب الوصول إلى الموقع.</p>
+      <p><strong>الاسم:</strong> ${ownerName}</p>
+      <p><strong>البريد:</strong> ${email}</p>
+      <p><strong>رقم الهاتف:</strong> ${phone}</p>
+      <p><strong>المؤسسة:</strong> ${organizationName}</p>
+      <p><strong>نوع النشاط:</strong> ${businessType}</p>
+      <p><strong>تاريخ التسجيل:</strong> ${escapeHtml(new Date().toLocaleString("ar-PS"))}</p>
+      <p>
+        <a href="${escapedAdminUrl}" style="display:inline-block;background:#0f766e;color:#fff;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:700;">
+          فتح لوحة الموافقة
+        </a>
+      </p>
+    </div>
+  `;
 
-  return sendEmail({ to, subject, text });
+  return sendEmail({ to, subject, text, html });
 }
 
 export async function sendAccountApprovedMagicLink(input: ApprovalMagicLinkInput) {

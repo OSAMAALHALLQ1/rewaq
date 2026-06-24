@@ -5,7 +5,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { loginAction } from "@/server/actions/auth";
 
-export default function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ approval?: string }>;
+}) {
+  const { approval } = await searchParams;
+
   return (
     <AuthCard
       title="تسجيل الدخول"
@@ -20,6 +26,11 @@ export default function LoginPage() {
       }
     >
       <ActionForm action={loginAction} submitLabel="دخول" className="space-y-4">
+        {approval === "pending" ? (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-800">
+            حسابك مسجل، لكنه بانتظار موافقة الإدارة قبل فتح لوحة التحكم.
+          </div>
+        ) : null}
         <div className="grid gap-2">
           <Label htmlFor="email">البريد الإلكتروني</Label>
           <Input id="email" name="email" type="email" placeholder="owner@example.com" required />

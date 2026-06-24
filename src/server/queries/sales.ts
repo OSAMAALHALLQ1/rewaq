@@ -2,6 +2,7 @@
  * Sales domain queries
  * Handles customer invoices, POS, and receipts
  */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import "server-only";
 import {
   demoCustomerInvoices,
@@ -22,25 +23,36 @@ import {
   groupBy,
   numberValue,
   optionalText,
-  fallbackContext,
   type AdminClient,
 } from "./_shared/utils";
 import { mapCustomerInvoice, mapMenuItem } from "./_shared/mappers";
+import { mapRecipe, mapRecipeIngredient } from "./_shared/mappers";
+import type {
+  Branch,
+  BranchStock,
+  CatalogItem,
+  CustomerInvoice,
+  InventoryItem,
+  MenuItem,
+  Organization,
+  Recipe,
+  SalesShift,
+} from "@/types/domain";
 
 // ============================================================================
 // Types
 // ============================================================================
 
 export type CustomerInvoicesBundle = {
-  invoices: typeof demoCustomerInvoices;
-  branches: typeof demoBranches;
-  menuItems: typeof demoMenuItems;
-  catalogItems: typeof demoCatalogItems;
-  recipes: typeof demoRecipes;
-  inventoryItems: typeof demoInventoryItems;
-  branchStock: typeof demoBranchStock;
-  shift: typeof demoSalesShift;
-  organization: typeof demoOrganization;
+  invoices: CustomerInvoice[];
+  branches: Branch[];
+  menuItems: MenuItem[];
+  catalogItems: CatalogItem[];
+  recipes: Recipe[];
+  inventoryItems: InventoryItem[];
+  branchStock: BranchStock[];
+  shift: SalesShift;
+  organization: Organization;
 };
 
 // ============================================================================
@@ -72,14 +84,53 @@ async function loadCustomerInvoices(admin: AdminClient, organizationId: string, 
 }
 
 async function loadSalesBundle(admin: AdminClient, organizationId: string) {
-  const [invoices, recipes, catalog, inventory] = await Promise.all([
+  const [invoices, recipes, catalog, inventory, shiftRows] = await Promise.all([
     loadCustomerInvoices(admin, organizationId),
     loadRecipesBundle(admin, organizationId),
     loadCatalogBundle(admin, organizationId),
     loadInventoryBundle(admin, organizationId),
+    (admin as any)
+      .from("sales_shifts")
+      .select("*")
+      .eq("organization_id", organizationId)
+      .order("opened_at", { ascending: false })
+      .limit(1),
   ]);
 
   const context = await loadOrganizationContext(admin, organizationId);
+  const shiftRow = shiftRows.data?.[0];
+  const shift: SalesShift = shiftRow
+    ? {
+        id: shiftRow.id,
+        branchName: context.branches.find((branch) => branch.id === shiftRow.branch_id)?.name ?? "الفرع",
+        cashierName: shiftRow.cashier_name ?? "كاشير",
+        openedAt: shiftRow.opened_at,
+        openingCash: numberValue(shiftRow.opening_cash),
+        cashSales: numberValue(shiftRow.cash_sales),
+        cardSales: numberValue(shiftRow.card_sales),
+        expenses: numberValue(shiftRow.expenses),
+        withdrawals: numberValue(shiftRow.withdrawals),
+        deposits: numberValue(shiftRow.deposits),
+        expectedCash: numberValue(shiftRow.expected_cash),
+        actualCash: shiftRow.actual_cash === null ? undefined : numberValue(shiftRow.actual_cash),
+        difference: numberValue(shiftRow.difference),
+        status: shiftRow.status === "closed" ? "closed" : "open",
+      }
+    : {
+        id: "shift-1",
+        branchName: context.branches[0]?.name ?? "الفرع",
+        openedAt: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
+        cashierName: "أحمد",
+        openingCash: 500,
+        cashSales: 0,
+        cardSales: 0,
+        expenses: 0,
+        withdrawals: 0,
+        deposits: 0,
+        expectedCash: 500,
+        difference: 0,
+        status: "open",
+      };
 
   return {
     invoices,
@@ -89,22 +140,7 @@ async function loadSalesBundle(admin: AdminClient, organizationId: string) {
     recipes: recipes.recipes,
     inventoryItems: inventory.items,
     branchStock: inventory.branchStock,
-    shift: {
-      id: "shift-1",
-      branchId: context.branches[0]?.id ?? "",
-      branchName: context.branches[0]?.name ?? "الفرع",
-      openedAt: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
-      closedAt: null,
-      cashierName: "أحمد",
-      openingCash: 500,
-      totalSales: 0,
-      cashPayments: 0,
-      cardPayments: 0,
-      voidCount: 0,
-      voidAmount: 0,
-      customersServed: 0,
-      status: "open" as const,
-    },
+    shift,
     organization: context.organization,
   };
 }
@@ -152,29 +188,8 @@ async function loadRecipesBundle(admin: AdminClient, organizationId: string) {
 
   return {
     recipes: recipeRows.map((row) => {
-      const ingredients = (ingredientsByRecipe.get(row.id) ?? []).map((ing) => ({
-        itemId: ing.item_id,
-        itemName: itemMap.get(ing.item_id)?.name ?? "مادة غير معروفة",
-        quantity: numberValue(ing.quantity),
-        unit: unitMap.get(ing.unit_id)?.name ?? "",
-        unitCost: numberValue(ing.unit_cost),
-        cost: numberValue(ing.cost),
-      }));
-      const totalCost = ingredients.reduce((sum, ing) => sum + ing.cost, 0);
-      const yieldUnits = numberValue(row.yield_units) || 1;
-
-      return {
-        id: row.id,
-        organizationId: row.organization_id,
-        name: row.name,
-        category: row.category ?? "general",
-        description: optionalText(row.description),
-        totalCost,
-        costPerUnit: totalCost / yieldUnits,
-        yieldUnits,
-        ingredients,
-        status: row.status === "active" ? "active" as const : "inactive" as const,
-      };
+      const ingredients = (ingredientsByRecipe.get(row.id) ?? []).map((ing) => mapRecipeIngredient(ing, itemMap, unitMap));
+      return mapRecipe(row, ingredients, branchMap);
     }),
     menuItems: menuItemRows.map((row) => mapMenuItem(row, branchMap)),
   };
@@ -186,15 +201,25 @@ async function loadCatalogBundle(admin: AdminClient, organizationId: string) {
     query(admin.from("item_barcodes").select("*").eq("organization_id", organizationId), "item_barcodes"),
   ]);
 
+  const barcodesByItem = groupBy(barcodeRows, (row) => row.item_id);
+
   return {
     items: itemRows.map((row) => ({
       id: row.id,
       organizationId: row.organization_id,
+      code: row.code ?? row.sku ?? row.id.slice(0, 8),
       name: row.name,
-      barcode: row.barcode ?? "",
-      price: numberValue(row.price),
-      category: row.category ?? "general",
-      status: row.status === "active" ? "active" as const : "inactive" as const,
+      barcodes: [row.barcode, ...(barcodesByItem.get(row.id) ?? []).map((barcode) => barcode.barcode)].filter(Boolean).map(String),
+      categoryName: row.category ?? "general",
+      mainUnit: row.main_unit ?? "قطعة",
+      units: [],
+      purchasePrice: numberValue(row.purchase_price),
+      retailPrice: numberValue(row.price ?? row.retail_price),
+      wholesalePrice: numberValue(row.wholesale_price),
+      minimumQuantity: numberValue(row.minimum_quantity),
+      taxRate: numberValue(row.tax_rate),
+      isActive: row.status === "active",
+      stockQuantity: numberValue(row.stock_quantity),
     })),
   };
 }
@@ -258,7 +283,7 @@ export async function getCustomerInvoicesData(): Promise<CustomerInvoicesBundle>
     };
   }
 
-  return withAdminScope(
+  return withAdminScope<CustomerInvoicesBundle>(
     {
       invoices: demoCustomerInvoices,
       branches: demoBranches,

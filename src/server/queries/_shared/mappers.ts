@@ -2,11 +2,9 @@
  * Data mappers - convert database rows to domain types
  */
 import "server-only";
-import { mergeCategoryNames } from "@/lib/catalog/categories";
 import type { Tables } from "@/types/database";
 import type {
   InventoryItem,
-  InventoryCategory,
   Supplier,
   BranchStock,
   StockMovement,
@@ -21,23 +19,25 @@ import type {
   MenuItem,
 } from "@/types/domain";
 import {
-  indexBy,
   numberValue,
   optionalText,
   oneOf,
-  type AdminClient,
-  type BranchRow,
 } from "./utils";
+
+// Supabase tests and partial selects pass rows that intentionally omit table metadata.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type RowLike<T> = Record<string, any> & { [K in keyof T]?: any };
+type NamedLookup = { name?: unknown };
 
 // ============================================================================
 // Supplier Mapping
 // ============================================================================
 
-export function mapSupplier(row: Tables<"suppliers">, priceRisk = 0): Supplier {
+export function mapSupplier(row: RowLike<Tables<"suppliers">>, priceRisk = 0): Supplier {
   return {
-    id: row.id,
-    organizationId: row.organization_id,
-    name: row.name,
+    id: String(row.id ?? ""),
+    organizationId: String(row.organization_id ?? ""),
+    name: String(row.name ?? ""),
     phone: row.phone ?? "",
     email: row.email ?? "",
     address: row.address ?? "",
@@ -52,26 +52,30 @@ export function mapSupplier(row: Tables<"suppliers">, priceRisk = 0): Supplier {
 // ============================================================================
 
 export function mapInventoryItem(
-  row: Tables<"inventory_items">,
-  categoryMap: Map<string, Tables<"inventory_categories">>,
-  supplierMap: Map<string, Tables<"suppliers">>,
-  unitMap: Map<string, Tables<"units">>,
+  row: RowLike<Tables<"inventory_items">>,
+  categoryMap: Map<string, NamedLookup>,
+  supplierMap: Map<string, NamedLookup>,
+  unitMap: Map<string, NamedLookup>,
 ): InventoryItem {
-  const supplier = row.primary_supplier_id ? supplierMap.get(row.primary_supplier_id) : null;
+  const supplierId = optionalText(row.primary_supplier_id);
+  const categoryId = optionalText(row.category_id) ?? "";
+  const purchaseUnitId = optionalText(row.purchase_unit_id);
+  const usageUnitId = optionalText(row.usage_unit_id);
+  const supplier = supplierId ? supplierMap.get(supplierId) : null;
 
   return {
-    id: row.id,
-    organizationId: row.organization_id,
-    name: row.name,
-    categoryId: row.category_id ?? "",
-    categoryName: row.category_id ? categoryMap.get(row.category_id)?.name ?? "بدون تصنيف" : "بدون تصنيف",
-    purchaseUnit: row.purchase_unit_id ? unitMap.get(row.purchase_unit_id)?.name ?? "" : "",
-    usageUnit: row.usage_unit_id ? unitMap.get(row.usage_unit_id)?.name ?? "" : "",
+    id: String(row.id ?? ""),
+    organizationId: String(row.organization_id ?? ""),
+    name: String(row.name ?? ""),
+    categoryId,
+    categoryName: categoryId ? String(categoryMap.get(categoryId)?.name ?? "بدون تصنيف") : "بدون تصنيف",
+    purchaseUnit: purchaseUnitId ? String(unitMap.get(purchaseUnitId)?.name ?? "") : "",
+    usageUnit: usageUnitId ? String(unitMap.get(usageUnitId)?.name ?? "") : "",
     lastPurchasePrice: numberValue(row.last_purchase_price),
     averageCost: numberValue(row.average_cost),
     minimumQuantity: numberValue(row.minimum_quantity),
-    primarySupplierId: optionalText(row.primary_supplier_id),
-    primarySupplierName: supplier?.name,
+    primarySupplierId: supplierId,
+    primarySupplierName: supplier?.name ? String(supplier.name) : undefined,
     sku: optionalText(row.sku),
     notes: optionalText(row.notes),
     isActive: row.status === "active",
@@ -83,13 +87,13 @@ export function mapInventoryItem(
 // ============================================================================
 
 export function mapBranchStock(
-  row: Tables<"branch_stock">,
-  branchMap: Map<string, Tables<"branches">>,
+  row: RowLike<Tables<"branch_stock">>,
+  branchMap: Map<string, NamedLookup>,
 ): BranchStock {
   return {
-    branchId: row.branch_id,
-    branchName: branchMap.get(row.branch_id)?.name ?? "فرع غير معروف",
-    itemId: row.item_id,
+    branchId: String(row.branch_id ?? ""),
+    branchName: String(branchMap.get(String(row.branch_id ?? ""))?.name ?? "فرع غير معروف"),
+    itemId: String(row.item_id ?? ""),
     quantity: numberValue(row.quantity),
     reservedQuantity: numberValue(row.reserved_quantity),
   };
@@ -100,9 +104,9 @@ export function mapBranchStock(
 // ============================================================================
 
 export function mapStockMovement(
-  row: Tables<"stock_movements">,
-  branchMap: Map<string, Tables<"branches">>,
-  itemMap: Map<string, Tables<"inventory_items">>,
+  row: RowLike<Tables<"stock_movements">>,
+  branchMap: Map<string, NamedLookup>,
+  itemMap: Map<string, NamedLookup>,
 ): StockMovement {
   const movementType = oneOf(
     row.movement_type,
@@ -111,19 +115,19 @@ export function mapStockMovement(
   );
 
   return {
-    id: row.id,
-    organizationId: row.organization_id,
-    branchId: row.branch_id,
-    branchName: branchMap.get(row.branch_id)?.name ?? "فرع غير معروف",
-    itemId: row.item_id,
-    itemName: itemMap.get(row.item_id)?.name ?? "مادة غير معروفة",
+    id: String(row.id ?? ""),
+    organizationId: String(row.organization_id ?? ""),
+    branchId: String(row.branch_id ?? ""),
+    branchName: String(branchMap.get(String(row.branch_id ?? ""))?.name ?? "فرع غير معروف"),
+    itemId: String(row.item_id ?? ""),
+    itemName: String(itemMap.get(String(row.item_id ?? ""))?.name ?? "مادة غير معروفة"),
     movementType: movementType as StockMovementType,
     quantity: numberValue(row.quantity),
     unitCost: numberValue(row.unit_cost),
     totalCost: numberValue(row.total_cost),
     reference: optionalText(row.source_doc_type ?? row.source_doc_id ?? undefined),
     notes: optionalText(row.notes),
-    createdAt: row.created_at,
+    createdAt: String(row.created_at ?? new Date().toISOString()),
   };
 }
 
@@ -132,29 +136,29 @@ export function mapStockMovement(
 // ============================================================================
 
 export function mapPurchaseOrder(
-  row: Tables<"purchase_orders">,
-  supplierMap: Map<string, Tables<"suppliers">>,
-  branchMap: Map<string, Tables<"branches">>,
-  itemMap: Map<string, Tables<"inventory_items">>,
-  orderItems: Tables<"purchase_order_items">[],
+  row: RowLike<Tables<"purchase_orders">>,
+  supplierMap: Map<string, NamedLookup>,
+  branchMap: Map<string, NamedLookup>,
+  itemMap: Map<string, NamedLookup>,
+  orderItems: Array<RowLike<Tables<"purchase_order_items">>>,
 ): PurchaseOrder {
   const items: PurchaseOrderItem[] = orderItems.map((item) => ({
-    itemId: item.item_id,
-    itemName: itemMap.get(item.item_id)?.name ?? "مادة غير معروفة",
+    itemId: String(item.item_id),
+    itemName: String(itemMap.get(item.item_id)?.name ?? "مادة غير معروفة"),
     quantity: numberValue(item.quantity),
     expectedUnitPrice: numberValue(item.expected_unit_price),
     receivedQuantity: numberValue(item.received_quantity),
   }));
 
   return {
-    id: row.id,
-    organizationId: row.organization_id,
-    supplierId: row.supplier_id,
-    supplierName: supplierMap.get(row.supplier_id)?.name ?? "مورد غير معروف",
-    branchId: row.branch_id,
-    branchName: branchMap.get(row.branch_id)?.name ?? "فرع غير معروف",
-    status: row.status,
-    orderDate: row.order_date,
+    id: String(row.id ?? ""),
+    organizationId: String(row.organization_id ?? ""),
+    supplierId: String(row.supplier_id ?? ""),
+    supplierName: String(supplierMap.get(String(row.supplier_id ?? ""))?.name ?? "مورد غير معروف"),
+    branchId: String(row.branch_id ?? ""),
+    branchName: String(branchMap.get(String(row.branch_id ?? ""))?.name ?? "فرع غير معروف"),
+    status: oneOf(String(row.status ?? ""), ["draft", "sent", "received", "partially_received", "cancelled"] as const, "draft"),
+    orderDate: String(row.order_date ?? ""),
     expectedDate: optionalText(row.expected_date),
     total: numberValue(row.total),
     notes: optionalText(row.notes),
@@ -167,19 +171,19 @@ export function mapPurchaseOrder(
 // ============================================================================
 
 export function mapInvoice(
-  row: Tables<"invoices">,
-  supplierMap: Map<string, Tables<"suppliers">>,
-  branchMap: Map<string, Tables<"branches">>,
+  row: RowLike<Tables<"invoices">>,
+  supplierMap: Map<string, NamedLookup>,
+  branchMap: Map<string, NamedLookup>,
 ): Invoice {
   return {
-    id: row.id,
-    organizationId: row.organization_id,
-    supplierName: supplierMap.get(row.supplier_id)?.name ?? "مورد غير معروف",
-    branchName: branchMap.get(row.branch_id)?.name ?? "فرع غير معروف",
-    invoiceNumber: row.invoice_number ?? row.id.slice(0, 8),
-    status: row.status,
+    id: String(row.id ?? ""),
+    organizationId: String(row.organization_id ?? ""),
+    supplierName: String(supplierMap.get(String(row.supplier_id ?? ""))?.name ?? "مورد غير معروف"),
+    branchName: String(branchMap.get(String(row.branch_id ?? ""))?.name ?? "فرع غير معروف"),
+    invoiceNumber: String(row.invoice_number ?? row.id ?? "").slice(0, 24),
+    status: oneOf(String(row.status ?? ""), ["draft", "matched", "paid", "flagged"] as const, "draft"),
     total: numberValue(row.total),
-    issuedAt: row.issued_at,
+    issuedAt: String(row.issued_at ?? ""),
   };
 }
 
@@ -188,8 +192,8 @@ export function mapInvoice(
 // ============================================================================
 
 export function mapCustomerInvoice(
-  row: Tables<"customer_invoices">,
-  branchMap: Map<string, Tables<"branches">>,
+  row: RowLike<Tables<"customer_invoices">>,
+  branchMap: Map<string, NamedLookup>,
   invoiceItems: Tables<"customer_invoice_items">[],
 ): CustomerInvoice {
   const items: CustomerInvoiceItem[] = invoiceItems.map((item) => ({
@@ -202,17 +206,17 @@ export function mapCustomerInvoice(
   }));
 
   return {
-    id: row.id,
-    organizationId: row.organization_id,
-    branchId: row.branch_id,
-    branchName: branchMap.get(row.branch_id)?.name ?? "فرع غير معروف",
-    invoiceNumber: row.invoice_number,
-    customerName: row.customer_name,
+    id: String(row.id ?? ""),
+    organizationId: String(row.organization_id ?? ""),
+    branchId: String(row.branch_id ?? ""),
+    branchName: String(branchMap.get(String(row.branch_id ?? ""))?.name ?? "فرع غير معروف"),
+    invoiceNumber: String(row.invoice_number ?? ""),
+    customerName: String(row.customer_name ?? ""),
     customerPhone: optionalText(row.customer_phone),
     customerTaxNumber: optionalText(row.customer_tax_number),
-    status: row.status,
-    paymentMethod: row.payment_method,
-    issuedAt: row.issued_at,
+    status: oneOf(String(row.status ?? ""), ["draft", "issued", "paid", "void"] as const, "draft"),
+    paymentMethod: oneOf(String(row.payment_method ?? ""), ["cash", "card", "bank_transfer", "delivery_app"] as const, "cash"),
+    issuedAt: String(row.issued_at ?? ""),
     notes: optionalText(row.notes),
     subtotal: numberValue(row.subtotal),
     discount: numberValue(row.discount),
@@ -228,39 +232,40 @@ export function mapCustomerInvoice(
 // ============================================================================
 
 export function mapRecipeIngredient(
-  row: Tables<"recipe_ingredients">,
-  itemMap: Map<string, Tables<"inventory_items">>,
-  unitMap: Map<string, Tables<"units">>,
+  row: RowLike<Tables<"recipe_ingredients">>,
+  itemMap: Map<string, NamedLookup>,
+  unitMap: Map<string, NamedLookup>,
 ): RecipeIngredient {
   return {
-    itemId: row.item_id,
-    itemName: itemMap.get(row.item_id)?.name ?? "مادة غير معروفة",
+    itemId: String(row.item_id ?? ""),
+    itemName: String(itemMap.get(String(row.item_id ?? ""))?.name ?? "مادة غير معروفة"),
     quantity: numberValue(row.quantity),
-    unit: unitMap.get(row.unit_id)?.name ?? "",
+    unit: String(unitMap.get(String(row.unit_id ?? ""))?.name ?? ""),
     unitCost: numberValue(row.unit_cost),
-    cost: numberValue(row.cost),
+    totalCost: numberValue(row.total_cost) || numberValue(row.quantity) * numberValue(row.unit_cost),
   };
 }
 
 export function mapRecipe(
-  row: Tables<"recipes">,
+  row: RowLike<Tables<"recipes">>,
   ingredients: RecipeIngredient[],
-  branchMap: Map<string, Tables<"branches">>,
+  _branchMap: Map<string, NamedLookup>,
 ): Recipe {
-  const totalCost = ingredients.reduce((sum, ing) => sum + ing.cost, 0);
-  const yieldUnits = numberValue(row.yield_units) || 1;
+  void _branchMap;
+  const totalCost = numberValue(row.total_cost) || ingredients.reduce((sum, ing) => sum + ing.totalCost, 0);
+  const servings = numberValue(row.servings) || 1;
 
   return {
-    id: row.id,
-    organizationId: row.organization_id,
-    name: row.name,
-    category: row.category ?? "general",
-    description: optionalText(row.description),
-    totalCost,
-    costPerUnit: totalCost / yieldUnits,
-    yieldUnits,
+    id: String(row.id ?? ""),
+    organizationId: String(row.organization_id ?? ""),
+    name: String(row.name ?? ""),
+    category: String(row.category ?? "general"),
+    servings,
+    preparation: optionalText(row.preparation),
     ingredients,
-    status: row.status === "active" ? "active" : "inactive",
+    totalCost,
+    costPerServing: numberValue(row.cost_per_serving) || totalCost / servings,
+    status: row.status === "archived" ? "archived" : row.status === "active" ? "active" : "draft",
   };
 }
 
@@ -269,17 +274,27 @@ export function mapRecipe(
 // ============================================================================
 
 export function mapMenuItem(
-  row: Tables<"menu_items">,
-  branchMap: Map<string, Tables<"branches">>,
+  row: RowLike<Tables<"menu_items">>,
+  branchMap: Map<string, NamedLookup>,
 ): MenuItem {
+  const sellingPrice = numberValue(row.selling_price);
+  const recipeCost = numberValue(row.recipe_cost);
+  const grossProfit = sellingPrice - recipeCost;
+
   return {
-    id: row.id,
-    organizationId: row.organization_id,
-    name: row.name,
-    description: optionalText(row.description),
-    price: numberValue(row.price),
-    category: row.category ?? "general",
-    recipeId: optionalText(row.recipe_id),
+    id: String(row.id ?? ""),
+    organizationId: String(row.organization_id ?? ""),
+    name: String(row.name ?? ""),
+    branchId: optionalText(String(row.branch_id ?? "")),
+    branchName: row.branch_id ? String(branchMap.get(String(row.branch_id))?.name ?? "") : undefined,
+    recipeId: String(row.recipe_id ?? ""),
+    recipeName: String(row.recipe_name ?? ""),
+    sellingPrice,
+    recipeCost,
+    grossProfit,
+    foodCostPercent: sellingPrice > 0 ? (recipeCost / sellingPrice) * 100 : 0,
+    profitMarginPercent: sellingPrice > 0 ? (grossProfit / sellingPrice) * 100 : 0,
+    imagePath: optionalText(String(row.image_path ?? "")),
     status: row.status === "active" ? "active" : "inactive",
   };
 }

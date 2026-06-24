@@ -1,9 +1,14 @@
 import { BadgePercent, DoorOpen } from "lucide-react";
+import { ActionForm } from "@/components/action-form";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { formatCurrency } from "@/lib/utils";
+import { closeSalesShiftAction } from "@/server/actions/mutations";
 import { getCustomerInvoicesData } from "@/server/queries/app";
 
 export default async function ShiftsPage() {
@@ -19,6 +24,7 @@ export default async function ShiftsPage() {
     ["الفعلي في الصندوق", shift.actualCash ?? 0],
     ["فرق الصندوق", shift.difference],
   ];
+  const isOpen = shift.status === "open";
 
   return (
     <>
@@ -61,14 +67,43 @@ export default async function ShiftsPage() {
               <p className="font-bold">{shift.cashierName}</p>
             </div>
             <div className="rounded-lg bg-slate-50 p-4">
+              <p className="text-sm text-muted-foreground">وقت الفتح</p>
+              <p className="font-bold">{new Date(shift.openedAt).toLocaleString("ar")}</p>
+            </div>
+            <div className="rounded-lg bg-slate-50 p-4">
               <p className="text-sm text-muted-foreground">الفرع</p>
               <p className="font-bold">{shift.branchName}</p>
             </div>
             <div className="flex items-center justify-between rounded-lg border p-4">
               <span>الحالة</span>
-              <Badge tone="success">مفتوحة</Badge>
+              <Badge tone={isOpen ? "success" : "muted"}>{isOpen ? "مفتوحة" : "مغلقة"}</Badge>
             </div>
-            <Button className="w-full">إغلاق وردية</Button>
+            {isOpen ? (
+              <ActionForm action={closeSalesShiftAction} submitLabel="إغلاق الوردية" className="space-y-3">
+                <Input type="hidden" name="shiftId" value={shift.id} readOnly />
+                <div className="grid gap-2">
+                  <Label htmlFor="actualCash">الكاش الفعلي في الصندوق</Label>
+                  <Input
+                    id="actualCash"
+                    name="actualCash"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    defaultValue={shift.expectedCash.toFixed(2)}
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    المتوقع: {formatCurrency(shift.expectedCash)}. الفرق يحسب تلقائياً عند الإغلاق.
+                  </p>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="notes">ملاحظات الإغلاق</Label>
+                  <Textarea id="notes" name="notes" rows={3} placeholder="مثال: نقص 20 شيكل بسبب مصروف لم يسجل" />
+                </div>
+              </ActionForm>
+            ) : (
+              <Button className="w-full" disabled>الوردية مغلقة</Button>
+            )}
           </CardContent>
         </Card>
       </div>

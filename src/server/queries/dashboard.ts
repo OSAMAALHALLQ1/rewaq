@@ -2,12 +2,12 @@
  * Dashboard domain queries
  * Handles dashboard metrics, alerts, and summaries
  */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import "server-only";
 import {
   demoDashboard,
   demoNotifications,
   demoPurchaseOrders,
-  demoRecipes,
   demoInvoices,
   demoWasteLogs,
   demoStockMovements,
@@ -35,16 +35,12 @@ async function loadDashboardData(admin: AdminClient, organizationId: string) {
   const [
     inventoryItems,
     purchaseOrderRows,
-    invoiceRows,
     wasteRows,
-    movementRows,
     notificationRows,
   ] = await Promise.all([
     admin.from("inventory_items").select("*").eq("organization_id", organizationId),
     admin.from("purchase_orders").select("*").eq("organization_id", organizationId).in("status", ["draft", "sent"]),
-    admin.from("invoices").select("*").eq("organization_id", organizationId).in("status", ["draft", "matched"]),
     admin.from("waste_logs").select("*").eq("organization_id", organizationId).gte("created_at", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()),
-    admin.from("stock_movements").select("*").eq("organization_id", organizationId).gte("created_at", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()),
     admin.from("notifications").select("*").eq("organization_id", organizationId).order("created_at", { ascending: false }).limit(10),
   ]);
 
@@ -56,8 +52,6 @@ async function loadDashboardData(admin: AdminClient, organizationId: string) {
   }) ?? [];
 
   const openPurchaseOrders = purchaseOrderRows.data?.length ?? 0;
-  const openInvoices = invoiceRows.data?.filter(inv => inv.status !== 'paid').length ?? 0;
-  
   // Calculate food cost from recipes
   const recipes = await admin.from("recipes").select("*").eq("organization_id", organizationId);
   const totalRecipeCost = (recipes.data ?? []).reduce((sum: number, recipe: any) => sum + numberValue(recipe.total_cost), 0);
@@ -69,6 +63,7 @@ async function loadDashboardData(admin: AdminClient, organizationId: string) {
   // Get alerts from notifications
   const alerts = (notificationRows.data ?? []).map((notif: any) => ({
     id: notif.id,
+    organizationId: notif.organization_id ?? organizationId,
     type: notif.notification_type,
     title: notif.title,
     body: notif.body,

@@ -54,14 +54,54 @@ export async function loginAction(_prevState: ActionState, formData: FormData): 
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword(parsed.data);
+  const { data: signInData, error } = await supabase.auth.signInWithPassword(parsed.data);
   if (error) {
     return { ok: false, message: error.message };
   }
 
+  if (!signInData.user) {
+    await supabase.auth.signOut();
+    return { ok: false, message: "تعذر قراءة بيانات المستخدم." };
+  }
+
   // Check approval status for pending accounts
+  const authApprovalStatus =
+    typeof signInData.user?.app_metadata?.approval_status === "string"
+      ? signInData.user.app_metadata.approval_status
+      : typeof signInData.user?.user_metadata?.approval_status === "string"
+        ? signInData.user.user_metadata.approval_status
+        : undefined;
+
+  if (authApprovalStatus && authApprovalStatus !== "approved") {
+    await supabase.auth.signOut();
+    return {
+      ok: false,
+      message:
+        authApprovalStatus === "rejected"
+          ? "تم رفض طلب حسابك. يرجى التواصل مع الإدارة."
+          : "حسابك لا يزال بانتظار موافقة الإدارة.",
+    };
+  }
+
   if (hasSupabaseAdminEnv()) {
     const admin = createAdminClient();
+    const { data: profile } = await (admin as any)
+      .from("profiles")
+      .select("status")
+      .eq("id", signInData.user.id)
+      .maybeSingle();
+
+    if (profile && String(profile.status) !== "approved") {
+      await supabase.auth.signOut();
+      return {
+        ok: false,
+        message:
+          String(profile.status) === "rejected"
+            ? "تم رفض طلب حسابك. يرجى التواصل مع الإدارة."
+            : "حسابك لا يزال بانتظار موافقة الإدارة.",
+      };
+    }
+
     const { data: approvalRequest } = await admin
       .from("account_approval_requests")
       .select("status")
@@ -70,7 +110,7 @@ export async function loginAction(_prevState: ActionState, formData: FormData): 
 
     if (approvalRequest && String(approvalRequest.status) !== "approved") {
       await supabase.auth.signOut();
-      return { ok: false, message: "حسابك لم تتم الموافقة عليه بعد. فعّل بريدك وانتظر موافقة الإدارة." };
+      return { ok: false, message: "حسابك لا يزال بانتظار موافقة الإدارة." };
     }
   }
 
@@ -100,20 +140,42 @@ export async function registerAction(_prevState: ActionState, formData: FormData
         emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/login`,
         data: {
           name: parsed.data.name,
+          full_name: parsed.data.name,
           organization_name: parsed.data.organizationName,
           business_type: parsed.data.businessType,
           phone: parsed.data.phone,
           approval_status: "pending_owner_approval",
+          profile_role: "user",
+          profile_status: "pending",
         },
       },
     });
     if (error) {
       return { ok: false, message: error.message };
     }
+
+    await supabase.auth.signOut();
   }
 
   if (hasSupabaseAdminEnv()) {
     const admin = createAdminClient();
+    const authUsers = await admin.auth.admin.listUsers();
+    const authUser = authUsers.data.users.find((user) => user.email?.toLowerCase() === parsed.data.email.toLowerCase());
+
+    if (authUser) {
+      await (admin as any).from("profiles").upsert(
+        {
+          id: authUser.id,
+          full_name: parsed.data.name,
+          email: parsed.data.email.toLowerCase(),
+          phone: parsed.data.phone || null,
+          role: "user",
+          status: "pending",
+        },
+        { onConflict: "id" },
+      );
+    }
+
     await admin.from("account_approval_requests").upsert(
       {
         email: parsed.data.email.toLowerCase(),
@@ -149,10 +211,7 @@ export async function registerAction(_prevState: ActionState, formData: FormData
     };
   }
 
-  return {
-    ok: true,
-    message: "تم إرسال طلب الحساب. فعّل بريدك الإلكتروني أولًا، ثم يتم اعتماد الحساب من الإدارة قبل فتح لوحة التحكم.",
-  };
+  redirect("/pending-approval");
 }
 
 export async function inviteTeamMemberAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
@@ -241,6 +300,12 @@ export async function approveAccountRequestAction(_prevState: ActionState, formD
       {
         id: authUser.id,
         full_name: request.owner_name,
+        email: normalizedEmail,
+        phone: request.phone || null,
+        role: "user",
+        status: "approved",
+        approved_at: new Date().toISOString(),
+        approved_by: null,
       },
       { onConflict: "id" },
     );
@@ -310,6 +375,16 @@ export async function approveAccountRequestAction(_prevState: ActionState, formD
       },
     });
 
+    await (admin as any)
+      .from("profiles")
+      .update({
+        status: "approved",
+        approved_at: new Date().toISOString(),
+        approved_by: null,
+        role: "user",
+      })
+      .eq("id", authUser.id);
+
     const metadata = typeof request.metadata === "object" && request.metadata !== null && !Array.isArray(request.metadata)
       ? request.metadata
       : {};
@@ -364,6 +439,7 @@ export async function approveAccountRequestAction(_prevState: ActionState, formD
   }
 
   revalidatePath("/admin/account-requests");
+  revalidatePath("/admin/users");
   return { ok: true, message: "تمت الموافقة على الحساب وإرسال رابط دخول مباشر لصاحب الحساب." };
 }
 
@@ -376,7 +452,6 @@ export async function rejectAccountRequestAction(_prevState: ActionState, formDa
   }
 
   if (hasSupabaseAdminEnv()) {
-    const currentAdmin = await requireAdminSession();
     const admin = createAdminClient();
     const { data: request } = await admin
       .from("account_approval_requests")
@@ -395,6 +470,11 @@ export async function rejectAccountRequestAction(_prevState: ActionState, formDa
             approval_status: "rejected",
           },
         });
+
+        await (admin as any)
+          .from("profiles")
+          .update({ status: "rejected" })
+          .eq("id", authUser.id);
       }
     }
 
@@ -412,6 +492,7 @@ export async function rejectAccountRequestAction(_prevState: ActionState, formDa
   }
 
   revalidatePath("/admin/account-requests");
+  revalidatePath("/admin/users");
   return { ok: true, message: "تم رفض الطلب وحفظ السبب." };
 }
 

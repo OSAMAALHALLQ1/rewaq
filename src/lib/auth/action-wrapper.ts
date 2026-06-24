@@ -21,7 +21,7 @@ import "server-only";
 import { requireAuth, type AuthenticatedUser } from "@/lib/auth/require-auth";
 import {
   requireOrganizationAccess,
-  requireRoleAccess,
+  validateOrganizationAccess,
   type OrganizationAccess,
 } from "@/lib/auth/organization-access";
 
@@ -139,12 +139,11 @@ export function withBranchAuth<
       // For branch-specific actions, we need to verify the user has branch access
       // The handler receives the branchId as first argument
       const branchId = args[0] as string | undefined;
+      const access = await requireOrganizationAccess(user.organizationId);
       
       if (branchId && user.branchId && user.branchId !== branchId && !access.isOwner) {
         return { ok: false, message: "ليس لديك صلاحية على هذا الفرع" } as Result;
       }
-
-      const access = await requireOrganizationAccess(user.organizationId);
 
       if (options.requiredRole && !access.isOwner && access.role !== options.requiredRole) {
         return { 

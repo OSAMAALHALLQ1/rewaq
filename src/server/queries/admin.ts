@@ -2,13 +2,30 @@
  * Admin domain queries
  * Handles organization management, users, plans, and system-level data
  */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import "server-only";
 import {
   demoOrganization,
   demoBranches,
   demoSystemLogs,
   demoSmartSavingsFeatures,
+  demoDigitalReceiptShares,
   demoPermissionSettings,
+  demoPayableBills,
+  demoBillPaymentBatches,
+  demoDirectDebitMandates,
+  demoDirectDebitRuns,
+  demoCostTracking,
+  demoRestaurantTables,
+  demoFinancialCalendar,
+  demoWasteLogs,
+  demoTransfers,
+  demoInventoryItems,
+  demoCatalogItems,
+  demoCategories,
+  demoStockMovements,
+  demoPurchaseOrders,
+  demoSuppliers,
 } from "@/lib/demo-data";
 import {
   isDemoMode,
@@ -16,11 +33,34 @@ import {
   query,
   indexBy,
   numberValue,
-  optionalText,
+  oneOf,
   type AdminClient,
 } from "./_shared/utils";
 
-import type { Role } from "@/types/domain";
+import type {
+  BillPaymentBatch,
+  CostTrackingData,
+  DigitalReceiptShare,
+  DirectDebitMandate,
+  DirectDebitRun,
+  CatalogItem,
+  InventoryItem,
+  InventoryCategory,
+  FinancialCalendarDay,
+  PermissionSetting,
+  PayableBill,
+  PurchaseOrder,
+  RestaurantTable,
+  Role,
+  SmartSavingsFeature,
+  StockMovement,
+  Supplier,
+  Transfer,
+  WasteLog,
+} from "@/types/domain";
+
+type LooseRow = Record<string, any>;
+const systemLogs = demoSystemLogs as SystemLog[];
 
 // ============================================================================
 // Types
@@ -28,6 +68,7 @@ import type { Role } from "@/types/domain";
 
 export type AdminBundle = {
   metrics: AdminMetric[];
+  organizations: Array<typeof demoOrganization>;
   organization: typeof demoOrganization;
   branches: typeof demoBranches;
   users: AdminUser[];
@@ -101,16 +142,16 @@ export type AccountApprovalRequest = {
 // ============================================================================
 
 async function loadAdminBundle(admin: AdminClient) {
-  const [organizationRows, membershipRows, profileRows, planRows, flagRows, logRows, ticketRows, approvalRows]: [any, any, any, any, any, any, any, any] =
+  const [organizationRows, membershipRows, profileRows, planRows, flagRows, logRows, ticketRows, approvalRows] =
     await Promise.all([
-      query(admin.from("organizations").select("*").order("created_at", { ascending: false }).limit(100), "organizations"),
-      query(admin.from("organization_memberships").select("*").order("created_at", { ascending: false }).limit(500), "organization_memberships"),
-      query(admin.from("profiles").select("*").limit(500), "profiles"),
-      query(admin.from("plans").select("*").order("monthly_price", { ascending: true }), "plans"),
-      query((admin as any).from("feature_flags").select("*").order("key"), "feature_flags"),
-      query((admin as any).from("system_logs").select("*").order("created_at", { ascending: false }).limit(100), "system_logs"),
-      query((admin as any).from("support_tickets").select("*").order("created_at", { ascending: false }).limit(100), "support_tickets"),
-      query(admin.from("account_approval_requests").select("*").limit(200), "account_approval_requests"),
+      query<LooseRow[]>(admin.from("organizations").select("*").order("created_at", { ascending: false }).limit(100), "organizations"),
+      query<LooseRow[]>(admin.from("organization_memberships").select("*").order("created_at", { ascending: false }).limit(500), "organization_memberships"),
+      query<LooseRow[]>(admin.from("profiles").select("*").limit(500), "profiles"),
+      query<LooseRow[]>(admin.from("plans").select("*").order("monthly_price", { ascending: true }), "plans"),
+      query<LooseRow[]>((admin as any).from("feature_flags").select("*").order("key"), "feature_flags"),
+      query<LooseRow[]>((admin as any).from("system_logs").select("*").order("created_at", { ascending: false }).limit(100), "system_logs"),
+      query<LooseRow[]>((admin as any).from("support_tickets").select("*").order("created_at", { ascending: false }).limit(100), "support_tickets"),
+      query<LooseRow[]>(admin.from("account_approval_requests").select("*").limit(200), "account_approval_requests"),
     ]);
 
   const profileMap = indexBy(profileRows, (row) => row.id);
@@ -129,6 +170,13 @@ async function loadAdminBundle(admin: AdminClient) {
 
   return {
     metrics,
+    organizations: organizationRows.map((organization: any) => ({
+      id: organization.id,
+      name: organization.name,
+      slug: organization.slug,
+      plan: organization.plan,
+      status: organization.status,
+    })),
     organization: demoOrganization,
     branches: demoBranches,
     users: membershipRows.map((membership: any) => {
@@ -153,7 +201,7 @@ async function loadAdminBundle(admin: AdminClient) {
     })),
     logs: logRows.map((log: any) => ({
       id: log.id,
-      level: log.level,
+      level: oneOf(log.level, ["info", "warning", "error"] as const, "info"),
       message: log.message,
       createdAt: log.created_at,
     })),
@@ -183,6 +231,7 @@ export async function getAdminData(): Promise<AdminBundle> {
         { label: "طلبات دعم", value: "7", delta: "2 عالية الأولوية", tone: "warning" },
         { label: "وظائف نشر فاشلة", value: "5", delta: "آخر 24 ساعة", tone: "danger" },
       ],
+      organizations: [demoOrganization],
       organization: demoOrganization,
       branches: demoBranches,
       users: [
@@ -201,7 +250,7 @@ export async function getAdminData(): Promise<AdminBundle> {
         { key: "قراءة_الفواتير_آليًا", enabled: false, description: "قراءة الفواتير آليًا" },
         { key: "استيراد_نقاط_البيع", enabled: false, description: "استيراد مبيعات نقاط البيع" },
       ],
-      logs: demoSystemLogs,
+      logs: systemLogs,
       tickets: [
         { id: "SUP-91", organization: "مطعم إيوان", subject: "ربط إنستغرام", status: "open", priority: "high" },
         { id: "SUP-92", organization: "كافيه تجريبي", subject: "سؤال عن الفاتورة", status: "pending", priority: "normal" },
@@ -217,6 +266,7 @@ export async function getAdminData(): Promise<AdminBundle> {
         { label: "طلبات دعم", value: "7", delta: "2 عالية الأولوية", tone: "warning" },
         { label: "وظائف نشر فاشلة", value: "5", delta: "آخر 24 ساعة", tone: "danger" },
       ],
+      organizations: [demoOrganization],
       organization: demoOrganization,
       branches: demoBranches,
       users: [
@@ -233,7 +283,7 @@ export async function getAdminData(): Promise<AdminBundle> {
         { key: "قراءة_الفواتير_آليًا", enabled: false, description: "قراءة الفواتير آليًا" },
         { key: "استيراد_نقاط_البيع", enabled: false, description: "استيراد مبيعات نقاط البيع" },
       ],
-      logs: demoSystemLogs,
+      logs: systemLogs,
       tickets: [
         { id: "SUP-91", organization: "مطعم إيوان", subject: "ربط إنستغرام", status: "open", priority: "high" },
       ],
@@ -341,10 +391,10 @@ export async function getAccountApprovalRequests(): Promise<AccountApprovalReque
  */
 export async function getSystemLogs(limit = 100) {
   if (isDemoMode()) {
-    return demoSystemLogs;
+    return systemLogs;
   }
 
-  return withAdminScope(demoSystemLogs, async (admin) => {
+  return withAdminScope<SystemLog[]>(systemLogs, async (admin) => {
     const { data } = await (admin as any)
       .from("system_logs")
       .select("*")
@@ -353,7 +403,7 @@ export async function getSystemLogs(limit = 100) {
 
     return (data ?? []).map((row: any) => ({
       id: row.id,
-      level: row.level,
+      level: oneOf(row.level, ["info", "warning", "error"] as const, "info"),
       message: row.message,
       createdAt: row.created_at,
     }));
@@ -402,8 +452,11 @@ export async function getSupportTickets(status?: "open" | "pending" | "closed") 
 /**
  * Get smart savings features
  */
-export async function getSmartSavingsData() {
-  return demoSmartSavingsFeatures;
+export async function getSmartSavingsData(): Promise<SmartSavingsBundle> {
+  return {
+    features: demoSmartSavingsFeatures,
+    receipts: demoDigitalReceiptShares,
+  };
 }
 
 /**
@@ -425,66 +478,54 @@ type BillPaymentsBundle = {
   runs: DirectDebitRun[];
 };
 
-type PayableBill = {
-  id: string;
-  supplierName: string;
-  branchName: string;
-  invoiceNumber: string;
-  amount: number;
-  dueDate: string;
-  status: string;
+type SmartSavingsBundle = {
+  features: SmartSavingsFeature[];
+  receipts: DigitalReceiptShare[];
 };
 
-type BillPaymentBatch = {
-  id: string;
-  name: string;
-  totalAmount: number;
-  billsCount: number;
-  scheduledAt: string;
-  status: string;
+type TablesBundle = {
+  tables: RestaurantTable[];
+  branches: typeof demoBranches;
 };
 
-type DirectDebitMandate = {
-  id: string;
-  supplierName: string;
-  bankAccount: string;
-  status: string;
-  createdAt: string;
+type OperationsBundle = {
+  wasteLogs: WasteLog[];
+  transfers: Transfer[];
+  branches: typeof demoBranches;
+  items: InventoryItem[];
 };
 
-type DirectDebitRun = {
-  id: string;
-  batchId: string;
-  totalAmount: number;
-  billsCount: number;
-  executedAt: string;
-  status: string;
+type FinancialCalendarBundle = {
+  days: FinancialCalendarDay[];
+  branches: typeof demoBranches;
+};
+
+type CatalogBundle = {
+  items: CatalogItem[];
+  categories: InventoryCategory[];
+  permissions: PermissionSetting[];
+  units: Array<{ id: string; organizationId: string; name: string; type: string }>;
+};
+
+type ReportsBundle = {
+  dashboard: { purchaseCost30Days: Array<{ label: string; value: number }> };
+  movements: StockMovement[];
+  purchaseOrders: PurchaseOrder[];
+  wasteLogs: WasteLog[];
+  suppliers: Supplier[];
+  branches: typeof demoBranches;
+  wasteSummary: {
+    totalCost: number;
+    byCategory: Array<{ category: string; value: number }>;
+    byBranch: Array<{ branch: string; value: number }>;
+  };
+  stockAlerts: InventoryItem[];
+  expiryAlerts: InventoryItem[];
 };
 
 type AmwaliData = {
-  summary: {
-    totalSales: number;
-    totalCost: number;
-    grossProfit: number;
-    foodCostPercent: number;
-    netProfit: number;
-  };
-  branches: Array<{
-    name: string;
-    sales: number;
-    cost: number;
-    profit: number;
-  }>;
-  topItems: Array<{
-    name: string;
-    quantity: number;
-    revenue: number;
-  }>;
-  insights: Array<{
-    type: "success" | "warning" | "danger";
-    title: string;
-    description: string;
-  }>;
+  costTracking: CostTrackingData;
+  branches: typeof demoBranches;
 };
 
 /**
@@ -493,24 +534,19 @@ type AmwaliData = {
 export async function getBillPaymentsData(): Promise<BillPaymentsBundle> {
   if (isDemoMode()) {
     return {
-      bills: [
-        { id: "bill-1", supplierName: "مورد الدجاج", branchName: "الفرع الرئيسي", invoiceNumber: "INV-001", amount: 2500, dueDate: "2026-06-15", status: "pending" },
-        { id: "bill-2", supplierName: "مورد الخضار", branchName: "فرع الرمال", invoiceNumber: "INV-002", amount: 1800, dueDate: "2026-06-20", status: "pending" },
-      ],
-      batches: [],
-      mandates: [],
-      runs: [],
+      bills: demoPayableBills,
+      batches: demoBillPaymentBatches,
+      mandates: demoDirectDebitMandates,
+      runs: demoDirectDebitRuns,
     };
   }
 
-  return withAdminScope(
+  return withAdminScope<BillPaymentsBundle>(
     {
-      bills: [
-        { id: "bill-1", supplierName: "مورد الدجاج", branchName: "الفرع الرئيسي", invoiceNumber: "INV-001", amount: 2500, dueDate: "2026-06-15", status: "pending" },
-      ],
-      batches: [],
-      mandates: [],
-      runs: [],
+      bills: demoPayableBills,
+      batches: demoBillPaymentBatches,
+      mandates: demoDirectDebitMandates,
+      runs: demoDirectDebitRuns,
     },
     async (admin, scope) => {
       const [billRows, batchRows, mandateRows, runRows] = await Promise.all([
@@ -523,35 +559,50 @@ export async function getBillPaymentsData(): Promise<BillPaymentsBundle> {
       return {
         bills: (billRows.data ?? []).map((row: any) => ({
           id: row.id,
-          supplierName: row.supplier_name ?? "",
-          branchName: row.branch_name ?? "",
-          invoiceNumber: row.invoice_number ?? "",
+          organizationId: row.organization_id ?? scope.organizationId,
+          billerName: row.biller_name ?? row.supplier_name ?? "مفوتر",
+          category: row.category ?? "مورد",
+          billNumber: row.bill_number ?? row.invoice_number ?? row.id.slice(0, 8),
+          referenceNumber: row.reference_number ?? row.invoice_number ?? row.id.slice(0, 8),
+          paidAmount: numberValue(row.paid_amount),
+          remainingAmount: numberValue(row.remaining_amount) || numberValue(row.amount) - numberValue(row.paid_amount),
           amount: numberValue(row.amount),
           dueDate: row.due_date,
-          status: row.status,
+          status: row.status === "paid" || row.status === "partial" || row.status === "scheduled" || row.status === "overdue" ? row.status : "due",
+          canPartialPay: Boolean(row.can_partial_pay ?? true),
+          lastInquiryAt: row.last_inquiry_at ?? row.updated_at ?? new Date().toISOString(),
         })),
         batches: (batchRows.data ?? []).map((row: any) => ({
           id: row.id,
-          name: row.name ?? "",
+          organizationId: row.organization_id ?? scope.organizationId,
+          referenceNumber: row.reference_number ?? row.name ?? row.id.slice(0, 8),
+          billIds: Array.isArray(row.bill_ids) ? row.bill_ids : [],
           totalAmount: numberValue(row.total_amount),
-          billsCount: row.bills_count ?? 0,
-          scheduledAt: row.scheduled_at,
-          status: row.status,
+          scheduledFor: row.scheduled_for ?? row.scheduled_at ?? undefined,
+          status: row.status === "paid" || row.status === "scheduled" ? row.status : "ready",
         })),
         mandates: (mandateRows.data ?? []).map((row: any) => ({
           id: row.id,
-          supplierName: row.supplier_name ?? "",
-          bankAccount: row.bank_account ?? "",
-          status: row.status,
-          createdAt: row.created_at,
+          organizationId: row.organization_id ?? scope.organizationId,
+          customerName: row.customer_name ?? "عميل",
+          billerName: row.biller_name ?? row.supplier_name ?? "مفوتر",
+          accountHint: row.account_hint ?? row.bank_account ?? "",
+          amountLimit: numberValue(row.amount_limit),
+          nextDueDate: row.next_due_date ?? row.created_at?.slice(0, 10) ?? "",
+          status: row.status === "active" || row.status === "paused" || row.status === "cancelled" ? row.status : "pending",
+          activatedAt: row.activated_at ?? undefined,
+          lastPaymentAt: row.last_payment_at ?? undefined,
+          channel: row.channel ?? "تطبيق",
         })),
         runs: (runRows.data ?? []).map((row: any) => ({
           id: row.id,
-          batchId: row.batch_id,
-          totalAmount: numberValue(row.total_amount),
-          billsCount: row.bills_count ?? 0,
-          executedAt: row.executed_at,
-          status: row.status,
+          mandateId: row.mandate_id ?? row.batch_id ?? "",
+          billerName: row.biller_name ?? "مفوتر",
+          customerName: row.customer_name ?? "عميل",
+          dueDate: row.due_date ?? row.executed_at?.slice(0, 10) ?? "",
+          amount: numberValue(row.amount ?? row.total_amount),
+          status: row.status === "processing" || row.status === "paid" || row.status === "failed" ? row.status : "scheduled",
+          message: row.message ?? "",
         })),
       };
     },
@@ -564,48 +615,15 @@ export async function getBillPaymentsData(): Promise<BillPaymentsBundle> {
 export async function getAmwaliData(): Promise<AmwaliData> {
   if (isDemoMode()) {
     return {
-      summary: {
-        totalSales: 45000,
-        totalCost: 13500,
-        grossProfit: 31500,
-        foodCostPercent: 30,
-        netProfit: 28000,
-      },
-      branches: [
-        { name: "الفرع الرئيسي", sales: 28000, cost: 8400, profit: 19600 },
-        { name: "فرع الرمال", sales: 17000, cost: 5100, profit: 11900 },
-      ],
-      topItems: [
-        { name: "ساندويتش دجاج", quantity: 450, revenue: 11250 },
-        { name: "برجر لحم", quantity: 320, revenue: 9600 },
-        { name: "سلطة سيزر", quantity: 280, revenue: 5600 },
-      ],
-      insights: [
-        { type: "success", title: "هامش ربح جيد", description: "نسبة ربح 70% أعلى من المتوسط" },
-        { type: "warning", title: "تكلفة طعام مرتفعة", description: "وصلت 30% الأسبوع الماضي" },
-        { type: "danger", title: "مشكلة في فرع الرمال", description: "انخفاض المبيعات بنسبة 15%" },
-      ],
+      costTracking: demoCostTracking,
+      branches: demoBranches,
     };
   }
 
-  return withAdminScope(
+  return withAdminScope<AmwaliData>(
     {
-      summary: {
-        totalSales: 45000,
-        totalCost: 13500,
-        grossProfit: 31500,
-        foodCostPercent: 30,
-        netProfit: 28000,
-      },
-      branches: [
-        { name: "الفرع الرئيسي", sales: 28000, cost: 8400, profit: 19600 },
-      ],
-      topItems: [
-        { name: "ساندويتش دجاج", quantity: 450, revenue: 11250 },
-      ],
-      insights: [
-        { type: "success", title: "هامش ربح جيد", description: "نسبة ربح 70% أعلى من المتوسط" },
-      ],
+      costTracking: demoCostTracking,
+      branches: demoBranches,
     },
     async (admin, scope) => {
       // Fetch real financial data
@@ -618,25 +636,33 @@ export async function getAmwaliData(): Promise<AmwaliData> {
       const totalSales = (salesRows.data ?? []).reduce((sum: number, row: any) => sum + numberValue(row.total_sales), 0);
       const totalCost = (costRows.data ?? []).reduce((sum: number, row: any) => sum + numberValue(row.total_cost), 0);
       const foodCostPercent = totalSales > 0 ? (totalCost / totalSales) * 100 : 0;
+      const netProfit = Math.round((totalSales - totalCost) * 0.85);
 
       return {
-        summary: {
-          totalSales,
-          totalCost,
-          grossProfit: totalSales - totalCost,
-          foodCostPercent: Math.round(foodCostPercent * 10) / 10,
-          netProfit: Math.round((totalSales - totalCost) * 0.85),
+        costTracking: {
+          ...demoCostTracking,
+          salesTotal: totalSales,
+          expensesTotal: totalCost,
+          netProfit,
+          profitMarginPercent: totalSales > 0 ? (netProfit / totalSales) * 100 : 0,
+          smartInsights: [
+            {
+              title: "بيانات محدثة",
+              value: `${Math.round(foodCostPercent * 10) / 10}%`,
+              notes: "تم تحميل البيانات من النظام",
+              tone: "success",
+            },
+          ],
         },
         branches: (branchRows.data ?? []).map((row: any) => ({
+          id: row.id,
+          organizationId: row.organization_id,
           name: row.name,
-          sales: 0,
-          cost: 0,
-          profit: 0,
+          city: row.city ?? "",
+          address: row.address ?? "",
+          manager: row.manager_name ?? "",
+          status: row.status === "inactive" ? "inactive" : "active",
         })),
-        topItems: [],
-        insights: [
-          { type: "success", title: "بيانات محدثة", description: "تم تحميل البيانات من النظام" },
-        ],
       };
     },
   );
@@ -645,69 +671,103 @@ export async function getAmwaliData(): Promise<AmwaliData> {
 /**
  * Get tables data (backward compatibility)
  */
-export async function getTablesData() {
+export async function getTablesData(): Promise<TablesBundle> {
   if (isDemoMode()) {
-    return demoRestaurantTables;
+    return { tables: demoRestaurantTables, branches: demoBranches };
   }
 
-  return withAdminScope(demoRestaurantTables, async (admin, scope) => {
+  return withAdminScope<TablesBundle>({ tables: demoRestaurantTables, branches: demoBranches }, async (admin, scope) => {
     const { data } = await admin
       .from("restaurant_tables")
       .select("*")
       .eq("organization_id", scope.organizationId)
       .order("name");
 
-    return (data ?? []).map((row: any) => ({
-      id: row.id,
-      organizationId: row.organization_id,
-      branchId: row.branch_id,
-      name: row.name ?? "",
-      capacity: row.capacity ?? 4,
-      status: row.status ?? "available",
-    }));
+    return {
+      branches: demoBranches,
+      tables: (data ?? []).map((row: any) => ({
+        id: row.id,
+        organizationId: row.organization_id,
+        branchId: row.branch_id,
+        branchName: demoBranches.find((branch) => branch.id === row.branch_id)?.name ?? "",
+        number: Number(row.number ?? row.name ?? 0),
+        zone: row.zone ?? "الصالة",
+        seats: row.seats ?? row.capacity ?? 4,
+        status: row.status ?? "available",
+        openedAt: row.opened_at ?? undefined,
+        waiterName: row.waiter_name ?? undefined,
+        guests: row.guests ?? undefined,
+        currentTotal: numberValue(row.current_total),
+        orderItems: [],
+      })),
+    };
   });
 }
 
 /**
  * Get financial calendar data (backward compatibility)
  */
-export async function getFinancialCalendarData() {
+export async function getFinancialCalendarData(): Promise<FinancialCalendarBundle> {
   if (isDemoMode()) {
-    return demoFinancialCalendar;
+    return { days: demoFinancialCalendar, branches: demoBranches };
   }
 
-  return withAdminScope(demoFinancialCalendar, async (admin, scope) => {
+  return withAdminScope<FinancialCalendarBundle>({ days: demoFinancialCalendar, branches: demoBranches }, async (admin, scope) => {
     const [calendarRows, saleRows, expenseRows] = await Promise.all([
       (admin as any).from("financial_calendar_days").select("*").eq("organization_id", scope.organizationId).order("date", { ascending: false }).limit(60),
       (admin as any).from("financial_calendar_sales").select("*").eq("organization_id", scope.organizationId),
       (admin as any).from("financial_calendar_expenses").select("*").eq("organization_id", scope.organizationId),
     ]);
 
-    return (calendarRows.data ?? []).map((row: any) => ({
-      date: row.date,
-      dayName: row.day_name ?? "",
-      isWeekend: row.is_weekend ?? false,
-      sales: saleRows.data?.find((s: any) => s.date === row.date),
-      expenses: expenseRows.data?.find((e: any) => e.date === row.date),
-    }));
+    return {
+      branches: demoBranches,
+      days: (calendarRows.data ?? []).map((row: any) => ({
+        date: row.date,
+        branchName: demoBranches.find((branch) => branch.id === row.branch_id)?.name ?? "",
+        salesTotal: numberValue(row.sales_total),
+        expensesTotal: numberValue(row.expenses_total),
+        netProfit: numberValue(row.net_profit),
+        cashSales: numberValue(row.cash_sales),
+        cardSales: numberValue(row.card_sales),
+        sales: (saleRows.data ?? [])
+          .filter((sale: any) => sale.date === row.date)
+          .map((sale: any) => ({
+            itemName: sale.item_name ?? "",
+            quantity: numberValue(sale.quantity),
+            revenue: numberValue(sale.revenue),
+          })),
+        expenses: (expenseRows.data ?? [])
+          .filter((expense: any) => expense.date === row.date)
+          .map((expense: any) => ({
+            category: expense.category ?? "مصروفات أخرى",
+            amount: numberValue(expense.amount),
+            notes: expense.notes ?? undefined,
+          })),
+        status: numberValue(row.net_profit) > 0 ? "profit" : numberValue(row.net_profit) < 0 ? "loss" : "balanced",
+      })),
+    };
   });
 }
 
 /**
  * Get operations data (backward compatibility)
  */
-export async function getOperationsData() {
+export async function getOperationsData(): Promise<OperationsBundle> {
   if (isDemoMode()) {
     return {
       wasteLogs: demoWasteLogs,
       transfers: demoTransfers,
+      branches: demoBranches,
+      items: demoInventoryItems,
     };
   }
 
-  return withAdminScope(
+  return withAdminScope<OperationsBundle>(
     {
       wasteLogs: demoWasteLogs,
       transfers: demoTransfers,
+      branches: demoBranches,
+      items: demoInventoryItems,
     },
     async (admin, scope) => {
       const [wasteRows, transferRows] = await Promise.all([
@@ -719,28 +779,25 @@ export async function getOperationsData() {
         wasteLogs: (wasteRows.data ?? []).map((row: any) => ({
           id: row.id,
           organizationId: row.organization_id,
-          branchId: row.branch_id,
-          branchName: "",
-          itemId: row.item_id,
-          itemName: "",
+          branchName: demoBranches.find((branch) => branch.id === row.branch_id)?.name ?? "",
+          itemName: demoInventoryItems.find((item) => item.id === row.item_id)?.name ?? "",
           quantity: numberValue(row.quantity),
-          unitCost: numberValue(row.unit_cost),
-          totalCost: numberValue(row.total_cost),
           reason: row.reason ?? "",
+          cost: numberValue(row.total_cost ?? row.cost),
+          loggedAt: row.created_at ?? row.logged_at,
           notes: row.notes,
-          createdAt: row.created_at,
         })),
         transfers: (transferRows.data ?? []).map((row: any) => ({
           id: row.id,
           organizationId: row.organization_id,
-          fromBranchId: row.from_branch_id,
-          toBranchId: row.to_branch_id,
-          fromBranchName: "",
-          toBranchName: "",
+          fromBranchName: demoBranches.find((branch) => branch.id === row.from_branch_id)?.name ?? "",
+          toBranchName: demoBranches.find((branch) => branch.id === row.to_branch_id)?.name ?? "",
           status: row.status,
           createdAt: row.created_at,
-          items: [],
+          totalItems: row.total_items ?? 0,
         })),
+        branches: demoBranches,
+        items: demoInventoryItems,
       };
     },
   );
@@ -749,9 +806,15 @@ export async function getOperationsData() {
 /**
  * Get reports data (backward compatibility)
  */
-export async function getReportsData() {
+export async function getReportsData(): Promise<ReportsBundle> {
   if (isDemoMode()) {
     return {
+      dashboard: { purchaseCost30Days: demoStockMovements.slice(0, 6).map((movement) => ({ label: movement.createdAt.slice(0, 10), value: movement.totalCost })) },
+      movements: demoStockMovements,
+      purchaseOrders: demoPurchaseOrders,
+      wasteLogs: demoWasteLogs,
+      suppliers: demoSuppliers,
+      branches: demoBranches,
       wasteSummary: {
         totalCost: 670,
         byCategory: [
@@ -769,7 +832,7 @@ export async function getReportsData() {
     };
   }
 
-  return withAdminScope(
+  return withAdminScope<ReportsBundle>(
     {
       wasteSummary: {
         totalCost: 670,
@@ -781,6 +844,12 @@ export async function getReportsData() {
           { branch: "الفرع الرئيسي", value: 410 },
         ],
       },
+      dashboard: { purchaseCost30Days: [] },
+      movements: demoStockMovements,
+      purchaseOrders: demoPurchaseOrders,
+      wasteLogs: demoWasteLogs,
+      suppliers: demoSuppliers,
+      branches: demoBranches,
       stockAlerts: [],
       expiryAlerts: [],
     },
@@ -798,6 +867,17 @@ export async function getReportsData() {
           byCategory: [],
           byBranch: [],
         },
+        dashboard: {
+          purchaseCost30Days: (wasteRows.data ?? []).slice(0, 6).map((row: any) => ({
+            label: String(row.created_at ?? "").slice(0, 10),
+            value: numberValue(row.total_cost),
+          })),
+        },
+        movements: demoStockMovements,
+        purchaseOrders: demoPurchaseOrders,
+        wasteLogs: demoWasteLogs,
+        suppliers: demoSuppliers,
+        branches: demoBranches,
         stockAlerts: (itemRows.data ?? []).filter((item: any) => numberValue(item.average_cost) < numberValue(item.minimum_quantity)),
         expiryAlerts: [],
       };
@@ -808,17 +888,21 @@ export async function getReportsData() {
 /**
  * Get catalog data (backward compatibility)
  */
-export async function getCatalogData() {
+export async function getCatalogData(): Promise<CatalogBundle> {
   if (isDemoMode()) {
     return {
       items: demoCatalogItems,
+      categories: demoCategories,
+      permissions: demoPermissionSettings,
       units: [],
     };
   }
 
-  return withAdminScope(
+  return withAdminScope<CatalogBundle>(
     {
       items: demoCatalogItems,
+      categories: demoCategories,
+      permissions: demoPermissionSettings,
       units: [],
     },
     async (admin, scope) => {
@@ -831,12 +915,22 @@ export async function getCatalogData() {
         items: (itemRows.data ?? []).map((row: any) => ({
           id: row.id,
           organizationId: row.organization_id,
+          code: row.code ?? row.sku ?? row.id.slice(0, 8),
           name: row.name ?? "",
-          barcode: row.barcode ?? "",
-          price: numberValue(row.price),
-          category: row.category ?? "general",
-          status: row.status === "active" ? "active" as const : "inactive" as const,
+          barcodes: row.barcode ? [row.barcode] : [],
+          categoryName: row.category ?? "عام",
+          mainUnit: row.main_unit ?? "قطعة",
+          units: [],
+          purchasePrice: numberValue(row.purchase_price),
+          retailPrice: numberValue(row.price ?? row.retail_price),
+          wholesalePrice: numberValue(row.wholesale_price),
+          minimumQuantity: numberValue(row.minimum_quantity),
+          taxRate: numberValue(row.tax_rate),
+          isActive: row.status === "active",
+          stockQuantity: numberValue(row.stock_quantity),
         })),
+        categories: demoCategories,
+        permissions: demoPermissionSettings,
         units: (unitRows.data ?? []).map((row: any) => ({
           id: row.id,
           organizationId: row.organization_id,

@@ -4,9 +4,13 @@ import {
   Bell,
   Boxes,
   Building2,
+  Calculator,
+  ChefHat,
   ClipboardCheck,
   FileText,
+  Factory,
   Gauge,
+  MonitorSmartphone,
   PackageMinus,
   ReceiptText,
   RotateCcw,
@@ -19,14 +23,29 @@ import {
   WalletCards,
   Tablet,
   MessageSquare,
+  Warehouse,
+  Scale,
 } from "lucide-react";
 
 export const appNav = [
+  {
+    title: "نظام المطاعم",
+    items: [
+      { title: "محاسبة التكاليف والريسبي", href: "/dashboard/cost-accounting", icon: Calculator },
+      { title: "تحليل تكلفة الطعام", href: "/dashboard/food-cost", icon: BarChart3 },
+      { title: "دفتر الأستاذ والقيود", href: "/dashboard/accounting/ledger", icon: Scale },
+      { title: "الوصفات وكروت الإنتاج", href: "/dashboard/recipes", icon: ChefHat },
+      { title: "أوامر الإنتاج وصرف المطبخ", href: "/dashboard/production", icon: Factory },
+      { title: "شاشة الكاشير POS", href: "/d/pos", icon: MonitorSmartphone },
+    ],
+  },
   {
     title: "إدارة المخزن",
     items: [
       { title: "لوحة المخزن", href: "/dashboard", icon: Gauge },
       { title: "مخطط المخزن (المخزون)", href: "/dashboard/inventory", icon: Boxes },
+      { title: "المستودع العام", href: "/dashboard/inventory?warehouse=general", icon: Warehouse },
+      { title: "مستودع المطبخ", href: "/dashboard/inventory?warehouse=kitchen", icon: ChefHat },
       { title: "حركات المخزن (الصادر والوارد)", href: "/dashboard/stock-movements", icon: FileText },
       { title: "الأصناف / المواد", href: "/dashboard/items", icon: Barcode },
       { title: "الموردون", href: "/dashboard/suppliers", icon: Store },

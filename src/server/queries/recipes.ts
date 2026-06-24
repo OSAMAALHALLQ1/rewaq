@@ -19,17 +19,18 @@ import {
   optionalText,
   type AdminClient,
 } from "./_shared/utils";
-import { mapRecipeIngredient, mapMenuItem } from "./_shared/mappers";
+import { mapRecipe, mapRecipeIngredient, mapMenuItem } from "./_shared/mappers";
+import type { Branch, InventoryItem, MenuItem, Recipe } from "@/types/domain";
 
 // ============================================================================
 // Types
 // ============================================================================
 
 export type RecipesBundle = {
-  recipes: typeof demoRecipes;
-  menuItems: typeof demoMenuItems;
-  inventoryItems: typeof demoInventoryItems;
-  branches: typeof demoBranches;
+  recipes: Recipe[];
+  menuItems: MenuItem[];
+  inventoryItems: InventoryItem[];
+  branches: Branch[];
 };
 
 // ============================================================================
@@ -54,21 +55,7 @@ async function loadRecipesBundle(admin: AdminClient, organizationId: string) {
   return {
     recipes: recipeRows.map((row) => {
       const ingredients = (ingredientsByRecipe.get(row.id) ?? []).map((ing) => mapRecipeIngredient(ing, itemMap, unitMap));
-      const totalCost = ingredients.reduce((sum, ing) => sum + ing.cost, 0);
-      const yieldUnits = numberValue(row.yield_units) || 1;
-
-      return {
-        id: row.id,
-        organizationId: row.organization_id,
-        name: row.name,
-        category: row.category ?? "general",
-        description: optionalText(row.description),
-        totalCost,
-        costPerUnit: totalCost / yieldUnits,
-        yieldUnits,
-        ingredients,
-        status: row.status === "active" ? "active" as const : "inactive" as const,
-      };
+      return mapRecipe(row, ingredients, branchMap);
     }),
     menuItems: menuItemRows.map((row) => mapMenuItem(row, branchMap)),
     inventoryItems: itemRows.map((row) => ({
@@ -117,7 +104,7 @@ export async function getRecipesData(): Promise<RecipesBundle> {
     };
   }
 
-  return withAdminScope(
+  return withAdminScope<RecipesBundle>(
     {
       recipes: demoRecipes,
       menuItems: demoMenuItems,
@@ -138,6 +125,7 @@ export async function getRecipe(id: string) {
       ? {
           recipe,
           ingredients: recipe.ingredients,
+          menuItems: demoMenuItems.filter((item) => item.recipeId === recipe.id),
           branches: demoBranches,
         }
       : null;
@@ -150,6 +138,7 @@ export async function getRecipe(id: string) {
         ? {
             recipe,
             ingredients: recipe.ingredients,
+            menuItems: demoMenuItems.filter((item) => item.recipeId === recipe.id),
             branches: demoBranches,
           }
         : null;
@@ -159,9 +148,10 @@ export async function getRecipe(id: string) {
       const recipe = bundle.recipes.find((candidate) => candidate.id === id);
       return recipe
         ? {
-            recipe,
-            ingredients: recipe.ingredients,
-            branches: bundle.branches,
+          recipe,
+          ingredients: recipe.ingredients,
+          menuItems: bundle.menuItems.filter((item) => item.recipeId === recipe.id),
+          branches: bundle.branches,
           }
         : null;
     },
@@ -176,28 +166,11 @@ export async function getMenuItem(id: string) {
     return demoMenuItems.find((candidate) => candidate.id === id) ?? null;
   }
 
-  return withAdminScope(
+  return withAdminScope<MenuItem | null>(
     demoMenuItems.find((candidate) => candidate.id === id) ?? null,
     async (admin, scope) => {
-      const { data } = await admin
-        .from("menu_items")
-        .select("*")
-        .eq("id", id)
-        .eq("organization_id", scope.organizationId)
-        .single();
-
-      if (!data) return null;
-
-      return {
-        id: data.id,
-        organizationId: data.organization_id,
-        name: data.name,
-        description: optionalText(data.description),
-        price: numberValue(data.price),
-        category: data.category ?? "general",
-        recipeId: optionalText(data.recipe_id),
-        status: data.status === "active" ? "active" as const : "inactive" as const,
-      };
+      const bundle = await loadRecipesBundle(admin, scope.organizationId);
+      return bundle.menuItems.find((candidate) => candidate.id === id) ?? null;
     },
   );
 }
@@ -210,7 +183,7 @@ export async function calculateRecipeCost(recipeId: string) {
   if (!recipe) return null;
 
   const materialCost = recipe.recipe.totalCost;
-  const costPerUnit = recipe.recipe.costPerUnit;
+  const costPerUnit = recipe.recipe.costPerServing;
   const suggestedPrice = costPerUnit / 0.65; // Assuming 65% margin target
 
   return {
@@ -231,6 +204,6 @@ export async function getHighCostRecipes(thresholdPercent = 35) {
   return bundle.recipes.filter((recipe) => {
     // This would need actual selling price to calculate percentage
     // For now, flag recipes with high absolute cost
-    return recipe.costPerUnit > 15;
+    return recipe.costPerServing > thresholdPercent / 2;
   });
 }

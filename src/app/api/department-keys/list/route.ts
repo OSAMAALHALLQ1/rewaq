@@ -55,7 +55,7 @@ export async function GET(request: Request) {
     }
 
     const branchIds: any[] = [...new Set(keys.filter((k: any) => k.branch_id).map((k: any) => k.branch_id!))];
-    let branchMap: Record<string, string> = {};
+    const branchMap: Record<string, string> = {};
     if (branchIds.length > 0) {
       const { data: branches } = await (admin as any)
         .from("branches")

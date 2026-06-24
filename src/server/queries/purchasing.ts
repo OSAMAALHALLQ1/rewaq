@@ -18,20 +18,22 @@ import {
   groupBy,
   numberValue,
   optionalText,
+  oneOf,
   type AdminClient,
 } from "./_shared/utils";
 import { mapSupplier, mapPurchaseOrder, mapInvoice } from "./_shared/mappers";
+import type { Branch, InventoryItem, Invoice, PurchaseOrder, Supplier } from "@/types/domain";
 
 // ============================================================================
 // Types
 // ============================================================================
 
 export type PurchasingBundle = {
-  suppliers: typeof demoSuppliers;
-  purchaseOrders: typeof demoPurchaseOrders;
-  invoices: typeof demoInvoices;
-  branches: typeof demoBranches;
-  items: typeof demoInventoryItems;
+  suppliers: Supplier[];
+  purchaseOrders: PurchaseOrder[];
+  invoices: Invoice[];
+  branches: Branch[];
+  items: InventoryItem[];
 };
 
 // ============================================================================
@@ -87,7 +89,7 @@ async function loadPurchasingBundle(admin: AdminClient, organizationId: string) 
       city: row.city ?? "",
       address: row.address ?? "",
       manager: row.manager_name ?? "",
-      status: row.status === "inactive" || row.status === "archived" ? "inactive" : "active",
+      status: row.status === "inactive" || row.status === "archived" ? "inactive" as const : "active" as const,
     })),
     items: itemRows.map((row) => ({
       id: row.id,
@@ -127,7 +129,7 @@ export async function getPurchasingData(): Promise<PurchasingBundle> {
     };
   }
 
-  return withAdminScope(
+  return withAdminScope<PurchasingBundle>(
     {
       suppliers: demoSuppliers,
       purchaseOrders: demoPurchaseOrders,
@@ -189,7 +191,7 @@ export async function getSupplier(id: string) {
       ]);
 
       return {
-        supplier: mapSupplier(supplierRows),
+        supplier: mapSupplier(supplierRows ?? {}),
         orders: orderRows.map((row) => ({
           id: row.id,
           organizationId: row.organization_id,
@@ -197,7 +199,7 @@ export async function getSupplier(id: string) {
           supplierName: "",
           branchId: row.branch_id,
           branchName: "",
-          status: row.status,
+          status: oneOf(row.status, ["draft", "sent", "received", "partially_received", "cancelled"] as const, "draft"),
           orderDate: row.order_date,
           expectedDate: optionalText(row.expected_date),
           total: numberValue(row.total),
@@ -210,7 +212,7 @@ export async function getSupplier(id: string) {
           supplierName: "",
           branchName: "",
           invoiceNumber: row.invoice_number ?? row.id.slice(0, 8),
-          status: row.status,
+          status: oneOf(row.status, ["draft", "matched", "paid", "flagged"] as const, "draft"),
           total: numberValue(row.total),
           issuedAt: row.issued_at,
         })),

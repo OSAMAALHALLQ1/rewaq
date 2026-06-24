@@ -4,44 +4,53 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { 
   Receipt, ShoppingCart, MessageSquare, LogOut, Search, Plus, Minus, Trash2, 
-  CreditCard, Banknote, ShieldAlert, BadgeCent, Sparkles 
+  CreditCard, Banknote, BadgeCent
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { InternalChatDrawer } from "@/components/layout/internal-chat-drawer";
-import { createClient } from "@/lib/supabase/client";
-import { hasSupabaseEnv } from "@/lib/supabase/env";
 
 type CartItem = {
   id: string;
+  catalogItemId: string;
   name: string;
   price: number;
+  taxRate: number;
   qty: number;
+};
+
+type DeviceSession = {
+  token: string;
+  name: string;
+  orgId: string;
+  branchId: string;
+  role: string;
+};
+
+type PosCatalogItem = {
+  id: string;
+  code: string;
+  name: string;
+  category: string;
+  unit: string;
+  price: number;
+  taxRate: number;
+  barcodes: string[];
 };
 
 export default function CashierPOSWorkspace() {
   const router = useRouter();
-  const [device, setDevice] = useState<any>({ name: "", orgId: "", branchId: "", role: "" });
+  const [device, setDevice] = useState<DeviceSession>({ token: "", name: "", orgId: "", branchId: "", role: "" });
   const [authorized, setAuthorized] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeShift, setActiveShift] = useState("الوردية الصباحية - نشطة");
-  
-  const hasEnv = hasSupabaseEnv();
-  const supabase = hasEnv ? createClient() as any : null;
-
-  // Menu items list matching seed data
-  const menuItems = [
-    { id: "item_1", name: "برجر كلاسيك سينجل", price: 18.00, category: "برجر" },
-    { id: "item_2", name: "برجر دبل لحم خاص", price: 26.00, category: "برجر" },
-    { id: "item_3", name: "بطاطس مقرمشة متبلة", price: 8.00, category: "مقبلات" },
-    { id: "item_4", name: "حلقات بصل مقرمشة", price: 9.00, category: "مقبلات" },
-    { id: "item_5", name: "كوكا كولا زيرو منعش", price: 5.00, category: "مشروبات" },
-    { id: "item_6", name: "عصير برتقال طبيعي طازج", price: 12.00, category: "مشروبات" },
-  ];
+  const [menuItems, setMenuItems] = useState<PosCatalogItem[]>([]);
+  const [statusMessage, setStatusMessage] = useState("تحميل أصناف الكاشير...");
+  const [checkoutBusy, setCheckoutBusy] = useState(false);
+  const activeShift = "الوردية الصباحية - نشطة";
 
   useEffect(() => {
     // 1. Session verification
@@ -54,23 +63,42 @@ export default function CashierPOSWorkspace() {
       return;
     }
 
-    setDevice({
+    const nextDevice = {
       token,
-      role,
-      orgId: localStorage.getItem("rwq_dept_org_id"),
-      branchId: localStorage.getItem("rwq_dept_branch_id"),
-      name: localStorage.getItem("rwq_dept_device"),
-    });
+      role: role ?? "",
+      orgId: localStorage.getItem("rwq_dept_org_id") ?? "",
+      branchId: localStorage.getItem("rwq_dept_branch_id") ?? "",
+      name: localStorage.getItem("rwq_dept_device") ?? "جهاز كاشير",
+    };
+
+    setDevice(nextDevice);
     setAuthorized(true);
+
+    fetch("/api/department/pos/catalog", {
+      headers: {
+        "x-department-key": token,
+      },
+    })
+      .then(async (response) => {
+        const payload = await response.json();
+        if (!response.ok || !payload.success) {
+          throw new Error(payload.error || "تعذر تحميل أصناف الكاشير.");
+        }
+        setMenuItems(payload.items ?? []);
+        setStatusMessage(payload.items?.length ? "متصل بكتالوج Supabase" : "لا توجد أصناف فعالة في الكتالوج.");
+      })
+      .catch((error) => {
+        setStatusMessage(error instanceof Error ? error.message : "تعذر تحميل أصناف الكاشير.");
+      });
   }, [router]);
 
-  const handleAddToCart = (item: any) => {
+  const handleAddToCart = (item: PosCatalogItem) => {
     setCart((prev) => {
       const existing = prev.find((i) => i.id === item.id);
       if (existing) {
         return prev.map((i) => (i.id === item.id ? { ...i, qty: i.qty + 1 } : i));
       }
-      return [...prev, { id: item.id, name: item.name, price: item.price, qty: 1 }];
+      return [...prev, { id: item.id, catalogItemId: item.id, name: item.name, price: item.price, taxRate: item.taxRate, qty: 1 }];
     });
   };
 
@@ -88,28 +116,38 @@ export default function CashierPOSWorkspace() {
     if (cart.length === 0) return;
 
     try {
-      // Simulate POS rapid customer invoice insertion matching Supabase structure
-      const invoiceData = {
-        organization_id: device.orgId,
-        branch_id: device.branchId,
-        invoice_number: `INV-POS-${Math.floor(1000 + Math.random() * 9000)}`,
-        customer_name: "عميل سفري سريع",
-        status: "paid",
-        payment_method: method,
-        subtotal: subtotal,
-        discount: 0,
-        tax_rate: 0.15,
-        tax_total: tax,
-        total: total,
-      };
+      setCheckoutBusy(true);
+      const response = await fetch("/api/department/pos/checkout", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-department-key": device.token,
+        },
+        body: JSON.stringify({
+          paymentMethod: method,
+          customerName: "عميل سفري سريع",
+          items: cart.map((item) => ({
+            catalogItemId: item.catalogItemId,
+            quantity: item.qty,
+          })),
+        }),
+      });
+      const payload = await response.json();
 
-      // In custom database setup, POS quick insertion can be recorded
-      alert(`🎉 تم إصدار الفاتورة ${invoiceData.invoice_number} بنجاح!\nالمجموع: ${total.toFixed(2)} ر.س\nطريقة الدفع: ${method === "cash" ? "نقدي" : "شبكة"}`);
+      if (!response.ok || !payload.success) {
+        throw new Error(payload.error || "تعذر إصدار الفاتورة.");
+      }
+
+      setStatusMessage(`تم حفظ الفاتورة ${payload.invoiceNumber} في Supabase`);
+      alert(`تم إصدار الفاتورة ${payload.invoiceNumber} بنجاح.\nالمجموع: ${Number(payload.total).toFixed(2)} ر.س\nطريقة الدفع: ${method === "cash" ? "نقدي" : "شبكة"}`);
       
-      // Reset POS cart
       setCart([]);
     } catch (err) {
-      alert("خطأ في إصدار الفاتورة");
+      const message = err instanceof Error ? err.message : "خطأ في إصدار الفاتورة";
+      setStatusMessage(message);
+      alert(message);
+    } finally {
+      setCheckoutBusy(false);
     }
   };
 
@@ -126,10 +164,10 @@ export default function CashierPOSWorkspace() {
     router.push("/d/gate");
   };
 
-  const filteredItems = menuItems.filter(i => i.name.includes(searchQuery));
+  const filteredItems = menuItems.filter((item) => item.name.includes(searchQuery) || item.code.includes(searchQuery));
 
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
-  const tax = subtotal * 0.15; // 15% VAT
+  const tax = cart.reduce((sum, item) => sum + item.price * item.qty * (item.taxRate / 100), 0);
   const total = subtotal + tax;
 
   if (!authorized) return null;
@@ -145,7 +183,7 @@ export default function CashierPOSWorkspace() {
           </span>
           <div>
             <h1 className="font-bold text-sm tracking-wide">شاشة البيع السريع والكاشير (POS)</h1>
-            <p className="text-[10px] text-slate-400 mt-0.5">{activeShift} | جهاز: {device.name}</p>
+            <p className="text-[10px] text-slate-400 mt-0.5">{activeShift} | جهاز: {device.name} | {statusMessage}</p>
           </div>
         </div>
 
@@ -237,7 +275,7 @@ export default function CashierPOSWorkspace() {
             <div className="grid grid-cols-2 gap-2.5 pt-1">
               <Button 
                 onClick={() => handleCheckout("cash")}
-                disabled={cart.length === 0}
+                disabled={cart.length === 0 || checkoutBusy}
                 className="bg-amber-600 hover:bg-amber-700 text-white h-11 text-xs font-bold flex items-center justify-center gap-1.5"
               >
                 <Banknote className="h-4.5 w-4.5" />
@@ -246,7 +284,7 @@ export default function CashierPOSWorkspace() {
               
               <Button 
                 onClick={() => handleCheckout("card")}
-                disabled={cart.length === 0}
+                disabled={cart.length === 0 || checkoutBusy}
                 className="bg-teal-600 hover:bg-teal-700 text-white h-11 text-xs font-bold flex items-center justify-center gap-1.5"
               >
                 <CreditCard className="h-4.5 w-4.5" />
@@ -261,7 +299,7 @@ export default function CashierPOSWorkspace() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-900 pb-3 shrink-0">
             <h2 className="text-base font-bold text-slate-100 flex items-center gap-2">
               <BadgeCent className="h-5 w-5 text-teal-400" />
-              قائمة أصناف المعرض السريع
+              قائمة أصناف Supabase
             </h2>
             <div className="relative w-full max-w-xs">
               <Search className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />

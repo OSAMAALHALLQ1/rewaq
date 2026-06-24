@@ -18,6 +18,16 @@ export type AppSession = {
   role: Role;
 };
 
+function getApprovalStatus(user: { app_metadata?: Record<string, unknown>; user_metadata?: Record<string, unknown> }) {
+  const appStatus = user.app_metadata?.approval_status;
+  if (typeof appStatus === "string") {
+    return appStatus;
+  }
+
+  const userStatus = user.user_metadata?.approval_status;
+  return typeof userStatus === "string" ? userStatus : undefined;
+}
+
 /**
  * Get the current authenticated session. Redirects to /login if not authenticated.
  * Use in Server Components where the page requires authentication.
@@ -45,9 +55,28 @@ export async function getCurrentSession(): Promise<AppSession> {
     .eq("user_id", user.id)
     .maybeSingle();
 
+  const approvalStatus = getApprovalStatus(user);
+  const { data: profile } = await (supabase as any)
+    .from("profiles")
+    .select("status")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (profile?.status && String(profile.status) !== "approved") {
+    redirect("/pending-approval");
+  }
+
+  if (!membership?.organization_id && approvalStatus && approvalStatus !== "approved") {
+    redirect("/pending-approval");
+  }
+
   const metadataOrganizationId =
     typeof user.app_metadata?.organization_id === "string" ? user.app_metadata.organization_id : "";
   const organizationId = membership?.organization_id ?? metadataOrganizationId;
+
+  if (!organizationId) {
+    redirect("/pending-approval");
+  }
 
   const { data: org } = membership?.organization_id
     ? await (supabase as any)

@@ -354,7 +354,7 @@ export function DevicesClient({ orgId, branches, currentRole, currentName }: Dev
                 </div>
                 <p className="text-sm font-black text-slate-800">لا توجد أجهزة لوحية مسجلة</p>
                 <p className="text-xs text-muted-foreground max-w-xs leading-relaxed">
-                  لم تقم بربط أي شاشات بالقسم بعد. اضغط على علامة التبويب "ربط جهاز جديد" بالأعلى لتهيئة أول جهاز.
+                  لم تقم بربط أي شاشات بالقسم بعد. اضغط على علامة التبويب &quot;ربط جهاز جديد&quot; بالأعلى لتهيئة أول جهاز.
                 </p>
                 <Button 
                   onClick={() => setActiveTab("create")} 

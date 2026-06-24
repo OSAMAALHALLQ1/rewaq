@@ -16,6 +16,8 @@ import { createClient } from "@/lib/supabase/server";
 import { hasSupabaseEnv } from "@/lib/supabase/env";
 import { createAdminClient, createAdminClientWithContext, hasSupabaseAdminEnv } from "@/lib/supabase/admin";
 import { requireAuth } from "@/lib/auth/require-auth";
+import { postCashVarianceJournal, postCustomerInvoiceJournal } from "@/lib/accounting/posting";
+import { addCashDrawerEntry } from "@/lib/sales/shift-posting";
 import type { Tables } from "@/types/database";
 import type { ActionState } from "./auth";
 
@@ -64,6 +66,22 @@ const wasteLogSchema = z.object({
 
 const stockCountSchema = z.object({
   branchId: z.string().uuid("اختر الفرع"),
+  notes: z.string().optional(),
+});
+
+const closeShiftSchema = z.object({
+  shiftId: z.string().uuid("وردية غير صحيحة"),
+  actualCash: z.coerce.number().nonnegative("الكاش الفعلي يجب أن يكون صفر أو أكثر"),
+  notes: z.string().optional(),
+});
+
+const productionOrderSchema = z.object({
+  recipeId: z.string().uuid("اختر الوصفة"),
+  branchId: z.string().uuid("اختر مستودع/فرع الإنتاج"),
+  sourceBranchId: z.string().uuid("اختر مستودع صرف المواد"),
+  plannedQuantity: z.coerce.number().positive("الكمية المخططة يجب أن تكون أكبر من صفر"),
+  completedQuantity: z.coerce.number().positive("الكمية المنتجة يجب أن تكون أكبر من صفر"),
+  allowNegativeStock: z.boolean().default(false),
   notes: z.string().optional(),
 });
 
@@ -338,6 +356,21 @@ async function nextDocumentNumber(
   if (error) throw new Error(error.message);
 
   return `${prefix}-${compactDate}-${String((count ?? 0) + 1).padStart(4, "0")}`;
+}
+
+async function nextProductionOrderNumber(admin: ReturnType<typeof createAdminClient>, organizationId: string) {
+  const today = new Date().toISOString().slice(0, 10);
+  const compactDate = today.replaceAll("-", "");
+  const { count, error } = await (admin as any)
+    .from("production_orders")
+    .select("id", { count: "exact", head: true })
+    .eq("organization_id", organizationId)
+    .gte("created_at", `${today}T00:00:00.000Z`)
+    .lt("created_at", `${today}T23:59:59.999Z`);
+
+  if (error) throw new Error(error.message);
+
+  return `PROD-${compactDate}-${String((count ?? 0) + 1).padStart(4, "0")}`;
 }
 
 async function updateSalesSummary(
@@ -650,6 +683,19 @@ export async function issueCustomerInvoiceAction(input: unknown) {
     });
 
     if (paymentError) return invalid(paymentError.message);
+
+    await postCustomerInvoiceJournal(admin, {
+      organizationId,
+      branchId: parsed.data.branchId,
+      invoiceId: invoice.id,
+      invoiceNumber,
+      paymentMethod: parsed.data.paymentMethod,
+      subtotal: total - taxTotal,
+      taxTotal,
+      total,
+      costTotal,
+      createdBy: userId,
+    });
 
     await updateSalesSummary(admin, organizationId, parsed.data.branchId, parsed.data.channel, total, costTotal);
   } catch (error) {
@@ -1193,6 +1239,213 @@ export async function saveMenuItemAction(_prevState: ActionState, formData: Form
   revalidatePath("/dashboard/menu-items");
   revalidatePath("/dashboard/customer-invoices/new");
   return ok("تم حفظ الطبق في Supabase وربطه بالكتالوج.");
+}
+
+export async function saveProductionOrderAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
+  const parsed = productionOrderSchema.safeParse({
+    recipeId: formData.get("recipeId"),
+    branchId: formData.get("branchId"),
+    sourceBranchId: formData.get("sourceBranchId"),
+    plannedQuantity: formData.get("plannedQuantity"),
+    completedQuantity: formData.get("completedQuantity"),
+    allowNegativeStock: formData.get("allowNegativeStock") === "true",
+    notes: formData.get("notes") || undefined,
+  });
+
+  if (!parsed.success) return invalid(parsed.error.issues[0]?.message ?? "بيانات أمر الإنتاج غير صحيحة");
+
+  if (!hasSupabaseAdminEnv()) {
+    return invalid("مفتاح Supabase الإداري غير موجود. لا يمكن حفظ أمر الإنتاج.");
+  }
+
+  try {
+    const { admin, organizationId, userId } = await resolveMutationScope();
+    const db = admin as any;
+
+    const [recipeResult, branchResult, sourceBranchResult, ingredientResult] = await Promise.all([
+      db
+        .from("recipes")
+        .select("id,name,servings")
+        .eq("id", parsed.data.recipeId)
+        .eq("organization_id", organizationId)
+        .maybeSingle(),
+      db
+        .from("branches")
+        .select("id,name")
+        .eq("id", parsed.data.branchId)
+        .eq("organization_id", organizationId)
+        .maybeSingle(),
+      db
+        .from("branches")
+        .select("id,name")
+        .eq("id", parsed.data.sourceBranchId)
+        .eq("organization_id", organizationId)
+        .maybeSingle(),
+      db
+        .from("recipe_ingredients")
+        .select("id,item_id,quantity,unit_cost,yield_percent")
+        .eq("recipe_id", parsed.data.recipeId)
+        .eq("organization_id", organizationId),
+    ]);
+
+    if (recipeResult.error) return invalid(recipeResult.error.message);
+    if (branchResult.error) return invalid(branchResult.error.message);
+    if (sourceBranchResult.error) return invalid(sourceBranchResult.error.message);
+    if (ingredientResult.error) return invalid(ingredientResult.error.message);
+    if (!recipeResult.data?.id) return invalid("الوصفة المختارة غير موجودة.");
+    if (!branchResult.data?.id) return invalid("فرع الإنتاج غير موجود.");
+    if (!sourceBranchResult.data?.id) return invalid("مستودع صرف المواد غير موجود.");
+
+    type RecipeIngredientRow = {
+      item_id: string;
+      quantity: number | string | null;
+      unit_cost: number | string | null;
+      yield_percent: number | string | null;
+    };
+    type InventoryItemRow = {
+      id: string;
+      name: string;
+      average_cost: number | string | null;
+    };
+    type BranchStockRow = {
+      item_id: string;
+      quantity: number | string | null;
+    };
+    type MaterialLine = {
+      itemId: string;
+      itemName: string;
+      plannedQuantity: number;
+      issuedQuantity: number;
+      unitCost: number;
+      yieldPercent: number;
+      availableQuantity: number;
+    };
+
+    const ingredients = (ingredientResult.data ?? []) as RecipeIngredientRow[];
+    if (ingredients.length === 0) {
+      return invalid("الوصفة لا تحتوي على مواد خام. أضف مكونات الوصفة قبل إنشاء أمر إنتاج.");
+    }
+
+    const itemIds = ingredients.map((ingredient) => ingredient.item_id);
+    const [{ data: itemRows, error: itemError }, { data: stockRows, error: stockError }] = await Promise.all([
+      db.from("inventory_items").select("id,name,average_cost").eq("organization_id", organizationId).in("id", itemIds),
+      db
+        .from("branch_stock")
+        .select("item_id,quantity")
+        .eq("organization_id", organizationId)
+        .eq("branch_id", parsed.data.sourceBranchId)
+        .in("item_id", itemIds),
+    ]);
+
+    if (itemError) return invalid(itemError.message);
+    if (stockError) return invalid(stockError.message);
+
+    const typedItemRows = (itemRows ?? []) as InventoryItemRow[];
+    const typedStockRows = (stockRows ?? []) as BranchStockRow[];
+    const itemMap = new Map<string, InventoryItemRow>(typedItemRows.map((item) => [item.id, item]));
+    const stockMap = new Map<string, number>(typedStockRows.map((stock) => [stock.item_id, Number(stock.quantity ?? 0)]));
+    const servings = Math.max(Number(recipeResult.data.servings ?? 1), 1);
+    const plannedMultiplier = parsed.data.plannedQuantity / servings;
+    const completedMultiplier = parsed.data.completedQuantity / servings;
+
+    const materialLines: MaterialLine[] = ingredients.map((ingredient) => {
+      const item = itemMap.get(ingredient.item_id);
+      const unitCost = Number(ingredient.unit_cost ?? item?.average_cost ?? 0);
+      const yieldPercent = Math.max(Number(ingredient.yield_percent ?? 100), 1);
+      const plannedQuantity = Number(ingredient.quantity ?? 0) * plannedMultiplier / (yieldPercent / 100);
+      const issuedQuantity = Number(ingredient.quantity ?? 0) * completedMultiplier / (yieldPercent / 100);
+      const availableQuantity = stockMap.get(ingredient.item_id) ?? 0;
+
+      return {
+        itemId: ingredient.item_id,
+        itemName: item?.name ?? "مادة غير معروفة",
+        plannedQuantity,
+        issuedQuantity,
+        unitCost,
+        yieldPercent,
+        availableQuantity,
+      };
+    });
+
+    const shortage = materialLines.find(
+      (line) => !parsed.data.allowNegativeStock && line.availableQuantity < line.issuedQuantity,
+    );
+    if (shortage) {
+      return invalid(
+        `رصيد ${shortage.itemName} لا يكفي في مستودع الصرف. الرصيد الحالي: ${shortage.availableQuantity.toFixed(3)}`,
+      );
+    }
+
+    const materialCost = materialLines.reduce((sum: number, line) => sum + line.issuedQuantity * line.unitCost, 0);
+    const orderNumber = await nextProductionOrderNumber(admin, organizationId);
+    const now = new Date().toISOString();
+
+    const { data: order, error: orderError } = await db
+      .from("production_orders")
+      .insert({
+        organization_id: organizationId,
+        branch_id: parsed.data.branchId,
+        recipe_id: parsed.data.recipeId,
+        order_number: orderNumber,
+        status: "completed",
+        planned_quantity: parsed.data.plannedQuantity,
+        completed_quantity: parsed.data.completedQuantity,
+        material_cost: materialCost,
+        started_at: now,
+        completed_at: now,
+        notes: parsed.data.notes || null,
+        created_by: userId,
+      })
+      .select("id")
+      .single();
+
+    if (orderError || !order) return invalid(orderError?.message ?? "تعذر إنشاء أمر الإنتاج.");
+
+    const { error: materialsError } = await db.from("production_order_materials").insert(
+      materialLines.map((line) => ({
+        organization_id: organizationId,
+        production_order_id: order.id,
+        source_branch_id: parsed.data.sourceBranchId,
+        item_id: line.itemId,
+        planned_quantity: line.plannedQuantity,
+        issued_quantity: line.issuedQuantity,
+        unit_cost: line.unitCost,
+        yield_percent: line.yieldPercent,
+        created_by: userId,
+      })),
+    );
+
+    if (materialsError) return invalid(materialsError.message);
+
+    for (const line of materialLines) {
+      await addToBranchStock(admin, organizationId, parsed.data.sourceBranchId, line.itemId, -line.issuedQuantity, userId);
+
+      const { error: movementError } = await db.from("stock_movements").insert({
+        organization_id: organizationId,
+        branch_id: parsed.data.sourceBranchId,
+        item_id: line.itemId,
+        movement_type: "sale_usage",
+        quantity: -line.issuedQuantity,
+        unit_cost: line.unitCost,
+        source_doc_type: "production_order",
+        source_doc_id: order.id,
+        idempotency_key: `${order.id}:${line.itemId}:production`,
+        notes: `صرف مواد لأمر إنتاج ${orderNumber}`,
+        created_by: userId,
+      });
+
+      if (movementError && !movementError.message.includes("duplicate key")) return invalid(movementError.message);
+    }
+  } catch (error) {
+    return invalid(error instanceof Error ? error.message : "تعذر حفظ أمر الإنتاج.");
+  }
+
+  revalidatePath("/dashboard/production");
+  revalidatePath("/dashboard/inventory");
+  revalidatePath("/dashboard/stock-movements");
+  revalidatePath("/dashboard/cost-accounting");
+
+  return ok("تم إنشاء أمر الإنتاج وخصم مواد الوصفة من المخزون.");
 }
 
 export async function saveWasteLogAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
@@ -1832,4 +2085,85 @@ export async function saveBranchAction(_prevState: ActionState, formData: FormDa
   revalidatePath("/dashboard/sales-returns");
   revalidatePath("/dashboard/reports");
   return ok("تم حفظ القسم بنجاح.");
+}
+
+export async function closeSalesShiftAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
+  const parsed = closeShiftSchema.safeParse({
+    shiftId: formData.get("shiftId"),
+    actualCash: formData.get("actualCash"),
+    notes: formData.get("notes"),
+  });
+
+  if (!parsed.success) {
+    return invalid(parsed.error.issues[0]?.message ?? "بيانات إغلاق الوردية غير صحيحة");
+  }
+
+  if (!hasSupabaseAdminEnv()) {
+    return invalid("مفتاح Supabase الإداري غير موجود.");
+  }
+
+  try {
+    const { admin, organizationId, userId } = await resolveMutationScope();
+    const { data: shift, error: shiftError } = await (admin as any)
+      .from("sales_shifts")
+      .select("*")
+      .eq("id", parsed.data.shiftId)
+      .eq("organization_id", organizationId)
+      .single();
+
+    if (shiftError || !shift) {
+      return invalid(shiftError?.message ?? "لم يتم العثور على الوردية.");
+    }
+
+    if (shift.status === "closed") {
+      return invalid("هذه الوردية مغلقة مسبقاً.");
+    }
+
+    const expectedCash = Number(shift.expected_cash ?? 0);
+    const actualCash = parsed.data.actualCash;
+    const difference = actualCash - expectedCash;
+
+    const { error: updateError } = await (admin as any)
+      .from("sales_shifts")
+      .update({
+        actual_cash: actualCash,
+        difference,
+        status: "closed",
+        closed_at: new Date().toISOString(),
+        closed_by: userId,
+        notes: parsed.data.notes || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", shift.id)
+      .eq("organization_id", organizationId);
+
+    if (updateError) {
+      return invalid(updateError.message);
+    }
+
+    await addCashDrawerEntry(admin, {
+      organizationId,
+      branchId: shift.branch_id,
+      shiftId: shift.id,
+      entryType: "closing_adjustment",
+      amount: difference,
+      memo: parsed.data.notes || "إغلاق وردية الكاشير",
+      createdBy: userId,
+    });
+
+    await postCashVarianceJournal(admin, {
+      organizationId,
+      branchId: shift.branch_id,
+      shiftId: shift.id,
+      shiftLabel: shift.cashier_name ?? shift.id,
+      difference,
+      createdBy: userId,
+    });
+  } catch (error) {
+    return invalid(error instanceof Error ? error.message : "تعذر إغلاق الوردية.");
+  }
+
+  revalidatePath("/dashboard/shifts");
+  revalidatePath("/dashboard/accounting/ledger");
+  return ok("تم إغلاق الوردية وتسجيل فرق الصندوق محاسبياً.");
 }

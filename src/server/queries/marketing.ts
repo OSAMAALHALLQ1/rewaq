@@ -2,30 +2,33 @@
  * Marketing domain queries
  * Handles social accounts, posts, and templates
  */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import "server-only";
 import {
   demoSocialAccounts,
   demoSocialPosts,
   demoSocialTemplates,
-  demoOrganization,
+  demoMenuItems,
 } from "@/lib/demo-data";
 import {
   isDemoMode,
   withAdminScope,
   query,
-  numberValue,
   optionalText,
+  oneOf,
   type AdminClient,
 } from "./_shared/utils";
+import type { MenuItem, SocialAccount, SocialPost, SocialTemplate } from "@/types/domain";
 
 // ============================================================================
 // Types
 // ============================================================================
 
 export type MarketingBundle = {
-  accounts: typeof demoSocialAccounts;
-  posts: typeof demoSocialPosts;
-  templates: typeof demoSocialTemplates;
+  accounts: SocialAccount[];
+  posts: SocialPost[];
+  templates: SocialTemplate[];
+  menuItems: MenuItem[];
 };
 
 // ============================================================================
@@ -67,16 +70,14 @@ async function loadMarketingBundle(admin: AdminClient, organizationId: string) {
       organizationId: row.organization_id,
       platform: row.platform as any,
       accountName: row.account_name ?? "",
-      accountId: optionalText(row.account_id),
-      status: row.status as "connected" | "disconnected" | "pending",
-      lastPublishedAt: row.last_published_at,
+      status: oneOf(row.status, ["connected", "expired", "disabled"] as const, "disabled"),
+      lastPublishedAt: optionalText(row.last_published_at),
     })),
     posts: postRows.map((row) => {
       const targets = (targetsByPost.get(row.id) ?? []).map((target) => ({
         platform: target.platform as any,
         accountName: target.account_name ?? "",
         status: target.status as "pending" | "publishing" | "published" | "failed",
-        publishedAt: target.published_at,
         error: optionalText(target.error_message),
       }));
 
@@ -85,9 +86,8 @@ async function loadMarketingBundle(admin: AdminClient, organizationId: string) {
         organizationId: row.organization_id,
         title: row.title ?? "",
         body: row.body ?? "",
-        status: row.status as "draft" | "scheduled" | "published" | "failed",
-        scheduledAt: row.scheduled_at,
-        publishedAt: row.published_at,
+        status: oneOf(row.status, ["draft", "scheduled", "publishing", "published", "failed"] as const, "draft"),
+        scheduledAt: optionalText(row.scheduled_at),
         targets,
         createdAt: row.created_at,
       };
@@ -99,6 +99,7 @@ async function loadMarketingBundle(admin: AdminClient, organizationId: string) {
       category: row.category ?? "general",
       body: row.body ?? "",
     })),
+    menuItems: demoMenuItems,
   };
 }
 
@@ -115,14 +116,16 @@ export async function getMarketingData(): Promise<MarketingBundle> {
       accounts: demoSocialAccounts,
       posts: demoSocialPosts,
       templates: demoSocialTemplates,
+      menuItems: demoMenuItems,
     };
   }
 
-  return withAdminScope(
+  return withAdminScope<MarketingBundle>(
     {
       accounts: demoSocialAccounts,
       posts: demoSocialPosts,
       templates: demoSocialTemplates,
+      menuItems: demoMenuItems,
     },
     (admin, scope) => loadMarketingBundle(admin, scope.organizationId),
   );
@@ -136,7 +139,7 @@ export async function getSocialAccounts() {
     return demoSocialAccounts;
   }
 
-  return withAdminScope(demoSocialAccounts, async (admin, scope) => {
+  return withAdminScope<SocialAccount[]>(demoSocialAccounts, async (admin, scope) => {
     const { data } = await admin
       .from("social_accounts")
       .select("*")
@@ -148,9 +151,8 @@ export async function getSocialAccounts() {
       organizationId: row.organization_id,
       platform: row.platform,
       accountName: row.account_name ?? "",
-      accountId: optionalText(row.account_id),
-      status: row.status === "connected" ? "connected" as const : "disconnected" as const,
-      lastPublishedAt: row.last_published_at,
+      status: oneOf(row.status, ["connected", "expired", "disabled"] as const, "disabled"),
+      lastPublishedAt: optionalText(row.last_published_at),
     }));
   });
 }
@@ -163,7 +165,7 @@ export async function getSocialPosts(limit = 50) {
     return demoSocialPosts;
   }
 
-  return withAdminScope(demoSocialPosts, async (admin, scope) => {
+  return withAdminScope<SocialPost[]>(demoSocialPosts, async (admin, scope) => {
     const { data } = await admin
       .from("social_posts")
       .select("*")
@@ -176,9 +178,8 @@ export async function getSocialPosts(limit = 50) {
       organizationId: row.organization_id,
       title: row.title ?? "",
       body: row.body ?? "",
-      status: row.status,
-      scheduledAt: row.scheduled_at,
-      publishedAt: row.published_at,
+      status: oneOf(row.status, ["draft", "scheduled", "publishing", "published", "failed"] as const, "draft"),
+      scheduledAt: optionalText(row.scheduled_at),
       targets: [],
       createdAt: row.created_at,
     }));
@@ -208,14 +209,12 @@ export async function getSocialPost(id: string) {
         organizationId: postRow.data.organization_id,
         title: postRow.data.title ?? "",
         body: postRow.data.body ?? "",
-        status: postRow.data.status,
-        scheduledAt: postRow.data.scheduled_at,
-        publishedAt: postRow.data.published_at,
+        status: oneOf(postRow.data.status, ["draft", "scheduled", "publishing", "published", "failed"] as const, "draft"),
+        scheduledAt: optionalText(postRow.data.scheduled_at),
         targets: (targetRows.data ?? []).map((target: any) => ({
           platform: target.platform,
           accountName: target.account_name ?? "",
           status: target.status,
-          publishedAt: target.published_at,
           error: optionalText(target.error_message),
         })),
         createdAt: postRow.data.created_at,

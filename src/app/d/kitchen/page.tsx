@@ -4,19 +4,25 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { 
   ChefHat, CookingPot, MessageSquare, LogOut, Clock, CheckCircle2, 
-  Search, ShieldAlert, Sparkles, BookOpen, AlertTriangle, Scale 
+  Search, BookOpen, AlertTriangle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { InternalChatDrawer } from "@/components/layout/internal-chat-drawer";
-import { createClient } from "@/lib/supabase/client";
-import { hasSupabaseEnv } from "@/lib/supabase/env";
 
 type OrderItem = {
   name: string;
   qty: number;
+};
+
+type DeviceSession = {
+  token: string;
+  name: string;
+  orgId: string;
+  branchId: string;
+  role: string;
 };
 
 type Order = {
@@ -30,16 +36,66 @@ type Order = {
   notes?: string;
 };
 
+type KitchenTicketApiItem = {
+  id: string;
+  name: string;
+  quantity: string | number;
+  notes: string | null;
+  status: string;
+};
+
+type KitchenTicketApiRow = {
+  id: string;
+  ticket_number: string;
+  customer_name: string | null;
+  table_number: string | null;
+  channel: string | null;
+  status: "pending" | "preparing" | "ready";
+  notes: string | null;
+  opened_at: string;
+  kitchen_ticket_items: KitchenTicketApiItem[];
+};
+
+function parseAllowedModules() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem("rwq_dept_allowed") || "[]");
+    return Array.isArray(parsed) ? parsed.map(String) : [];
+  } catch {
+    return [];
+  }
+}
+
+function minutesSince(isoDate: string) {
+  const timestamp = new Date(isoDate).getTime();
+  if (!Number.isFinite(timestamp)) return 0;
+  return Math.max(0, Math.floor((Date.now() - timestamp) / 60000));
+}
+
+function mapTicketToOrder(ticket: KitchenTicketApiRow): Order {
+  return {
+    id: ticket.id,
+    invoice_number: ticket.ticket_number,
+    customer_name: ticket.customer_name || "عميل",
+    table_number: ticket.table_number || (ticket.channel === "delivery" ? "طلب توصيل" : "طلب سفري"),
+    items: (ticket.kitchen_ticket_items ?? []).map((item) => ({
+      name: item.name,
+      qty: Number(item.quantity ?? 0),
+    })),
+    status: ticket.status,
+    minutes: minutesSince(ticket.opened_at),
+    notes: ticket.notes ?? undefined,
+  };
+}
+
 export default function KitchenKDSWorkspace() {
   const router = useRouter();
-  const [device, setDevice] = useState<any>({ name: "", orgId: "", branchId: "", role: "" });
+  const [device, setDevice] = useState<DeviceSession>({ token: "", name: "", orgId: "", branchId: "", role: "" });
   const [authorized, setAuthorized] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [loadingOrders, setLoadingOrders] = useState(true);
+  const [ordersError, setOrdersError] = useState<string | null>(null);
   const [searchRecipe, setSearchRecipe] = useState("");
-  
-  const hasEnv = hasSupabaseEnv();
-  const supabase = hasEnv ? createClient() as any : null;
 
   // Mock recipe database matching seed structure
   const recipes = [
@@ -50,63 +106,89 @@ export default function KitchenKDSWorkspace() {
   ];
 
   useEffect(() => {
-    // 1. Check local session enrollment
+    let cancelled = false;
     const token = localStorage.getItem("rwq_dept_key");
     const role = localStorage.getItem("rwq_dept_role");
-    const allowed = JSON.parse(localStorage.getItem("rwq_dept_allowed") || "[]");
+    const allowed = parseAllowedModules();
 
     if (!token || !allowed.includes("recipes")) {
-      // Redirect to gate if session is missing or unauthorized
       router.push("/d/gate");
       return;
     }
 
-    setDevice({
-      token,
-      role,
-      orgId: localStorage.getItem("rwq_dept_org_id"),
-      branchId: localStorage.getItem("rwq_dept_branch_id"),
-      name: localStorage.getItem("rwq_dept_device"),
-    });
-    setAuthorized(true);
+    const deviceToken = token;
+    const session = {
+      token: deviceToken,
+      role: role ?? "chef",
+      orgId: localStorage.getItem("rwq_dept_org_id") ?? "",
+      branchId: localStorage.getItem("rwq_dept_branch_id") ?? "",
+      name: localStorage.getItem("rwq_dept_device") ?? "جهاز المطبخ",
+    };
 
-    // Seed mock active orders queue
-    setOrders([
-      {
-        id: "ord_1",
-        invoice_number: "INV-1090",
-        customer_name: "عبد الله المالكي",
-        table_number: "طاولة 4",
-        items: [{ name: "برجر كلاسيك", qty: 2 }, { name: "بطاطا مقلية عائلية", qty: 1 }],
-        status: "pending",
-        minutes: 3,
-        notes: "بدون مايونيز في البرجر الأول",
-      },
-      {
-        id: "ord_2",
-        invoice_number: "INV-1091",
-        customer_name: "سارة الغامدي",
-        table_number: "طلب خارجي (دليفري)",
-        items: [{ name: "برجر حار دبل", qty: 1 }, { name: "بطاطا مقلية عائلية", qty: 1 }],
-        status: "preparing",
-        minutes: 8,
-      },
-      {
-        id: "ord_3",
-        invoice_number: "INV-1092",
-        customer_name: "خالد الحربي",
-        table_number: "طاولة 9",
-        items: [{ name: "أرز بخاري لحم", qty: 1 }],
-        status: "pending",
-        minutes: 1,
+    setDevice(session);
+    setAuthorized(true);
+    setLoadingOrders(true);
+
+    async function loadTickets() {
+      const response = await fetch("/api/department/kitchen/tickets", {
+        headers: { "x-department-key": deviceToken },
+      });
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok || !payload.success) {
+        throw new Error(payload.error ?? "تعذر تحميل طلبات المطبخ.");
       }
-    ]);
+
+      if (!cancelled) {
+        setOrders((payload.tickets ?? []).map(mapTicketToOrder));
+        setOrdersError(null);
+      }
+    }
+
+    loadTickets()
+      .catch((error: Error) => {
+        if (!cancelled) {
+          setOrders([]);
+          setOrdersError(error.message);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingOrders(false);
+      });
+
+    const intervalId = window.setInterval(() => {
+      loadTickets().catch((error: Error) => {
+        if (!cancelled) setOrdersError(error.message);
+      });
+    }, 15000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
   }, [router]);
 
-  const updateOrderStatus = (id: string, nextStatus: "preparing" | "ready") => {
-    setOrders((prev) =>
-      prev.map((ord) => (ord.id === id ? { ...ord, status: nextStatus } : ord))
-    );
+  const updateOrderStatus = async (id: string, nextStatus: "preparing" | "ready") => {
+    const previousOrders = orders;
+    setOrders((prev) => prev.map((ord) => (ord.id === id ? { ...ord, status: nextStatus } : ord)));
+
+    const response = await fetch(`/api/department/kitchen/tickets/${id}`, {
+      method: "PATCH",
+      headers: {
+        "content-type": "application/json",
+        "x-department-key": device.token,
+      },
+      body: JSON.stringify({ status: nextStatus }),
+    });
+    const payload = await response.json().catch(() => ({}));
+
+    if (!response.ok || !payload.success) {
+      setOrders(previousOrders);
+      setOrdersError(payload.error ?? "تعذر تحديث حالة الطلب.");
+      return;
+    }
+
+    setOrdersError(null);
   };
 
   const handleLogout = () => {
@@ -182,6 +264,24 @@ export default function KitchenKDSWorkspace() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {loadingOrders && (
+              <div className="col-span-full rounded-xl border border-slate-800 bg-slate-900/70 p-5 text-center text-xs text-slate-400">
+                جاري تحميل طلبات المطبخ...
+              </div>
+            )}
+
+            {ordersError && (
+              <div className="col-span-full rounded-xl border border-rose-900/60 bg-rose-950/30 p-5 text-center text-xs text-rose-200">
+                {ordersError}
+              </div>
+            )}
+
+            {!loadingOrders && !ordersError && orders.filter(o => o.status !== "ready").length === 0 && (
+              <div className="col-span-full rounded-xl border border-slate-800 bg-slate-900/70 p-8 text-center text-xs text-slate-400">
+                لا توجد طلبات مطبخ قيد التحضير الآن.
+              </div>
+            )}
+
             {orders.filter(o => o.status !== "ready").map((order) => (
               <Card 
                 key={order.id} 
