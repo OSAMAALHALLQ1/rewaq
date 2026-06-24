@@ -28,11 +28,40 @@ type CashVariancePostingInput = {
   createdBy?: string | null;
 };
 
+type SupplierInvoicePostingInput = {
+  organizationId: string;
+  branchId: string;
+  invoiceId: string;
+  invoiceNumber: string;
+  total: number;
+  createdBy?: string | null;
+};
+
+type InventoryWriteOffPostingInput = {
+  organizationId: string;
+  branchId: string;
+  sourceDocType: "waste_log" | "inventory_adjustment";
+  sourceDocId: string;
+  label: string;
+  totalCost: number;
+  createdBy?: string | null;
+};
+
 type JournalLineDraft = {
   systemKey: string;
   debit?: number;
   credit?: number;
   memo: string;
+};
+
+type BalancedJournalInput = {
+  organizationId: string;
+  branchId: string;
+  sourceDocType: string;
+  sourceDocId: string;
+  memo: string;
+  createdBy?: string | null;
+  lines: JournalLineDraft[];
 };
 
 function roundMoney(value: number) {
@@ -85,18 +114,72 @@ async function loadPostingAccounts(admin: AdminClient, organizationId: string, s
   return accounts;
 }
 
-export async function postCustomerInvoiceJournal(admin: AdminClient, input: CustomerInvoicePostingInput) {
+async function postBalancedJournal(admin: AdminClient, input: BalancedJournalInput) {
   const { data: existing, error: existingError } = await (admin as any)
     .from("journal_entries")
     .select("id")
     .eq("organization_id", input.organizationId)
-    .eq("source_doc_type", "customer_invoice")
-    .eq("source_doc_id", input.invoiceId)
+    .eq("source_doc_type", input.sourceDocType)
+    .eq("source_doc_id", input.sourceDocId)
     .maybeSingle();
 
   if (existingError) throw new Error(existingError.message);
   if (existing?.id) return existing.id as string;
 
+  const debitTotal = roundMoney(input.lines.reduce((sum, line) => sum + (line.debit ?? 0), 0));
+  const creditTotal = roundMoney(input.lines.reduce((sum, line) => sum + (line.credit ?? 0), 0));
+
+  if (debitTotal <= 0 || creditTotal <= 0) {
+    throw new Error("لا يمكن إنشاء قيد محاسبي بقيمة صفرية.");
+  }
+
+  if (debitTotal !== creditTotal) {
+    throw new Error(`القيد غير متوازن: مدين ${debitTotal} / دائن ${creditTotal}`);
+  }
+
+  const accounts = await loadPostingAccounts(
+    admin,
+    input.organizationId,
+    Array.from(new Set(input.lines.map((line) => line.systemKey))),
+  );
+  const entryNumber = await nextJournalNumber(admin, input.organizationId);
+
+  const { data: entry, error: entryError } = await (admin as any)
+    .from("journal_entries")
+    .insert({
+      organization_id: input.organizationId,
+      branch_id: input.branchId,
+      entry_number: entryNumber,
+      entry_date: new Date().toISOString().slice(0, 10),
+      source_doc_type: input.sourceDocType,
+      source_doc_id: input.sourceDocId,
+      memo: input.memo,
+      status: "posted",
+      created_by: input.createdBy ?? null,
+    })
+    .select("id")
+    .single();
+
+  if (entryError || !entry) throw new Error(entryError?.message ?? "تعذر إنشاء القيد المحاسبي.");
+
+  const { error: lineError } = await (admin as any).from("journal_lines").insert(
+    input.lines.map((line) => ({
+      organization_id: input.organizationId,
+      journal_entry_id: entry.id,
+      account_id: accounts.get(line.systemKey),
+      branch_id: input.branchId,
+      debit: roundMoney(line.debit ?? 0),
+      credit: roundMoney(line.credit ?? 0),
+      memo: line.memo,
+    })),
+  );
+
+  if (lineError) throw new Error(lineError.message);
+
+  return entry.id as string;
+}
+
+export async function postCustomerInvoiceJournal(admin: AdminClient, input: CustomerInvoicePostingInput) {
   const lines: JournalLineDraft[] = [
     {
       systemKey: cashAccountKey(input.paymentMethod),
@@ -133,53 +216,15 @@ export async function postCustomerInvoiceJournal(admin: AdminClient, input: Cust
     );
   }
 
-  const debitTotal = roundMoney(lines.reduce((sum, line) => sum + (line.debit ?? 0), 0));
-  const creditTotal = roundMoney(lines.reduce((sum, line) => sum + (line.credit ?? 0), 0));
-
-  if (debitTotal !== creditTotal) {
-    throw new Error(`القيد غير متوازن: مدين ${debitTotal} / دائن ${creditTotal}`);
-  }
-
-  const accounts = await loadPostingAccounts(
-    admin,
-    input.organizationId,
-    Array.from(new Set(lines.map((line) => line.systemKey))),
-  );
-  const entryNumber = await nextJournalNumber(admin, input.organizationId);
-
-  const { data: entry, error: entryError } = await (admin as any)
-    .from("journal_entries")
-    .insert({
-      organization_id: input.organizationId,
-      branch_id: input.branchId,
-      entry_number: entryNumber,
-      entry_date: new Date().toISOString().slice(0, 10),
-      source_doc_type: "customer_invoice",
-      source_doc_id: input.invoiceId,
-      memo: `قيد تلقائي لفاتورة كاشير ${input.invoiceNumber}`,
-      status: "posted",
-      created_by: input.createdBy ?? null,
-    })
-    .select("id")
-    .single();
-
-  if (entryError || !entry) throw new Error(entryError?.message ?? "تعذر إنشاء القيد المحاسبي.");
-
-  const { error: lineError } = await (admin as any).from("journal_lines").insert(
-    lines.map((line) => ({
-      organization_id: input.organizationId,
-      journal_entry_id: entry.id,
-      account_id: accounts.get(line.systemKey),
-      branch_id: input.branchId,
-      debit: roundMoney(line.debit ?? 0),
-      credit: roundMoney(line.credit ?? 0),
-      memo: line.memo,
-    })),
-  );
-
-  if (lineError) throw new Error(lineError.message);
-
-  return entry.id as string;
+  return postBalancedJournal(admin, {
+    organizationId: input.organizationId,
+    branchId: input.branchId,
+    sourceDocType: "customer_invoice",
+    sourceDocId: input.invoiceId,
+    memo: `قيد تلقائي لفاتورة كاشير ${input.invoiceNumber}`,
+    createdBy: input.createdBy,
+    lines,
+  });
 }
 
 export async function postCashVarianceJournal(admin: AdminClient, input: CashVariancePostingInput) {
@@ -225,40 +270,65 @@ export async function postCashVarianceJournal(admin: AdminClient, input: CashVar
           },
         ];
 
-  const accounts = await loadPostingAccounts(admin, input.organizationId, ["cash", "cash_over_short"]);
-  const entryNumber = await nextJournalNumber(admin, input.organizationId);
+  return postBalancedJournal(admin, {
+    organizationId: input.organizationId,
+    branchId: input.branchId,
+    sourceDocType: "sales_shift",
+    sourceDocId: input.shiftId,
+    memo: `قيد فرق صندوق وردية ${input.shiftLabel}`,
+    createdBy: input.createdBy,
+    lines,
+  });
+}
 
-  const { data: entry, error: entryError } = await (admin as any)
-    .from("journal_entries")
-    .insert({
-      organization_id: input.organizationId,
-      branch_id: input.branchId,
-      entry_number: entryNumber,
-      entry_date: new Date().toISOString().slice(0, 10),
-      source_doc_type: "sales_shift",
-      source_doc_id: input.shiftId,
-      memo: `قيد فرق صندوق وردية ${input.shiftLabel}`,
-      status: "posted",
-      created_by: input.createdBy ?? null,
-    })
-    .select("id")
-    .single();
+export async function postSupplierInvoiceJournal(admin: AdminClient, input: SupplierInvoicePostingInput) {
+  const total = roundMoney(input.total);
+  if (total <= 0) return null;
 
-  if (entryError || !entry) throw new Error(entryError?.message ?? "تعذر إنشاء قيد فرق الصندوق.");
+  return postBalancedJournal(admin, {
+    organizationId: input.organizationId,
+    branchId: input.branchId,
+    sourceDocType: "supplier_invoice",
+    sourceDocId: input.invoiceId,
+    memo: `قيد تلقائي لفاتورة مورد ${input.invoiceNumber}`,
+    createdBy: input.createdBy,
+    lines: [
+      {
+        systemKey: "inventory",
+        debit: total,
+        memo: `إدخال مخزون فاتورة مورد ${input.invoiceNumber}`,
+      },
+      {
+        systemKey: "accounts_payable",
+        credit: total,
+        memo: `ذمم موردين فاتورة ${input.invoiceNumber}`,
+      },
+    ],
+  });
+}
 
-  const { error: lineError } = await (admin as any).from("journal_lines").insert(
-    lines.map((line) => ({
-      organization_id: input.organizationId,
-      journal_entry_id: entry.id,
-      account_id: accounts.get(line.systemKey),
-      branch_id: input.branchId,
-      debit: roundMoney(line.debit ?? 0),
-      credit: roundMoney(line.credit ?? 0),
-      memo: line.memo,
-    })),
-  );
+export async function postInventoryWriteOffJournal(admin: AdminClient, input: InventoryWriteOffPostingInput) {
+  const totalCost = roundMoney(input.totalCost);
+  if (totalCost <= 0) return null;
 
-  if (lineError) throw new Error(lineError.message);
-
-  return entry.id as string;
+  return postBalancedJournal(admin, {
+    organizationId: input.organizationId,
+    branchId: input.branchId,
+    sourceDocType: input.sourceDocType,
+    sourceDocId: input.sourceDocId,
+    memo: `قيد ${input.label}`,
+    createdBy: input.createdBy,
+    lines: [
+      {
+        systemKey: "operating_expense",
+        debit: totalCost,
+        memo: input.label,
+      },
+      {
+        systemKey: "inventory",
+        credit: totalCost,
+        memo: `خفض مخزون - ${input.label}`,
+      },
+    ],
+  });
 }

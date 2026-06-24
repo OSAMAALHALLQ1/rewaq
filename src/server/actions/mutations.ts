@@ -16,7 +16,12 @@ import { createClient } from "@/lib/supabase/server";
 import { hasSupabaseEnv } from "@/lib/supabase/env";
 import { createAdminClient, createAdminClientWithContext, hasSupabaseAdminEnv } from "@/lib/supabase/admin";
 import { requireAuth } from "@/lib/auth/require-auth";
-import { postCashVarianceJournal, postCustomerInvoiceJournal } from "@/lib/accounting/posting";
+import {
+  postCashVarianceJournal,
+  postCustomerInvoiceJournal,
+  postInventoryWriteOffJournal,
+  postSupplierInvoiceJournal,
+} from "@/lib/accounting/posting";
 import { addCashDrawerEntry } from "@/lib/sales/shift-posting";
 import type { Tables } from "@/types/database";
 import type { ActionState } from "./auth";
@@ -1510,6 +1515,16 @@ export async function saveWasteLogAction(_prevState: ActionState, formData: Form
     });
 
     if (movementError) return invalid(movementError.message);
+
+    await postInventoryWriteOffJournal(admin, {
+      organizationId,
+      branchId: parsed.data.branchId,
+      sourceDocType: "waste_log",
+      sourceDocId: wasteLog.id,
+      label: `هدر ${item.name ?? parsed.data.itemId} - ${parsed.data.reason}`,
+      totalCost: cost,
+      createdBy: userId,
+    });
   } catch (error) {
     return invalid(error instanceof Error ? error.message : "تعذر حفظ الهدر في Supabase.");
   }
@@ -1518,6 +1533,7 @@ export async function saveWasteLogAction(_prevState: ActionState, formData: Form
   revalidatePath("/dashboard/inventory");
   revalidatePath("/dashboard/reports");
   revalidatePath("/dashboard/stock-movements");
+  revalidatePath("/dashboard/accounting/ledger");
   return ok("تم حفظ الهدر وتحديث المخزون.");
 }
 
@@ -1853,6 +1869,14 @@ export async function saveInvoiceAction(_prevState: ActionState, formData: FormD
       })
       .eq("id", parsed.data.itemId);
 
+    await postSupplierInvoiceJournal(admin, {
+      organizationId,
+      branchId: parsed.data.branchId,
+      invoiceId: invoice.id,
+      invoiceNumber: parsed.data.invoiceNumber,
+      total,
+      createdBy: userId,
+    });
   } catch (error) {
     return invalid(error instanceof Error ? error.message : "تعذر حفظ الفاتورة في Supabase.");
   }
@@ -1860,6 +1884,7 @@ export async function saveInvoiceAction(_prevState: ActionState, formData: FormD
   revalidatePath("/dashboard/invoices");
   revalidatePath("/dashboard/inventory");
   revalidatePath("/dashboard/stock-movements");
+  revalidatePath("/dashboard/accounting/ledger");
   revalidatePath("/dashboard/reports");
   return ok("تم حفظ فاتورة التوريد وتحديث كميات وأسعار المخزون بنجاح.");
 }
