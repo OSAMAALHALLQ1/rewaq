@@ -37,6 +37,15 @@ type SupplierInvoicePostingInput = {
   createdBy?: string | null;
 };
 
+type PurchaseReceiptPostingInput = {
+  organizationId: string;
+  branchId: string;
+  purchaseOrderId: string;
+  orderLabel: string;
+  total: number;
+  createdBy?: string | null;
+};
+
 type InventoryWriteOffPostingInput = {
   organizationId: string;
   branchId: string;
@@ -302,6 +311,32 @@ export async function postSupplierInvoiceJournal(admin: AdminClient, input: Supp
         systemKey: "accounts_payable",
         credit: total,
         memo: `ذمم موردين فاتورة ${input.invoiceNumber}`,
+      },
+    ],
+  });
+}
+
+export async function postPurchaseReceiptJournal(admin: AdminClient, input: PurchaseReceiptPostingInput) {
+  const total = roundMoney(input.total);
+  if (total <= 0) return null;
+
+  return postBalancedJournal(admin, {
+    organizationId: input.organizationId,
+    branchId: input.branchId,
+    sourceDocType: "purchase_receipt",
+    sourceDocId: input.purchaseOrderId,
+    memo: `قيد استلام طلب شراء ${input.orderLabel}`,
+    createdBy: input.createdBy,
+    lines: [
+      {
+        systemKey: "inventory",
+        debit: total,
+        memo: `استلام مخزون طلب شراء ${input.orderLabel}`,
+      },
+      {
+        systemKey: "goods_received_not_invoiced",
+        credit: total,
+        memo: `بضاعة مستلمة غير مفوترة ${input.orderLabel}`,
       },
     ],
   });

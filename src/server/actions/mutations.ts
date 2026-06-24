@@ -20,6 +20,7 @@ import {
   postCashVarianceJournal,
   postCustomerInvoiceJournal,
   postInventoryWriteOffJournal,
+  postPurchaseReceiptJournal,
   postSupplierInvoiceJournal,
 } from "@/lib/accounting/posting";
 import { addCashDrawerEntry } from "@/lib/sales/shift-posting";
@@ -1060,19 +1061,23 @@ export async function receivePurchaseOrderAction(_prevState: ActionState, formDa
 
     if (itemsError) return invalid(itemsError.message);
 
+    let receiptTotal = 0;
+
     for (const item of orderItems ?? []) {
       const quantity = Number(item.quantity ?? 0);
+      const alreadyReceived = Number(item.received_quantity ?? 0);
+      const quantityToReceive = Math.max(0, quantity - alreadyReceived);
       const unitCost = Number(item.expected_unit_price ?? 0);
-      if (quantity <= 0) continue;
+      if (quantityToReceive <= 0) continue;
 
-      await addToBranchStock(admin, organizationId, order.branch_id, item.item_id, quantity, userId);
+      await addToBranchStock(admin, organizationId, order.branch_id, item.item_id, quantityToReceive, userId);
 
       const { error: movementError } = await admin.from("stock_movements").insert({
         organization_id: organizationId,
         branch_id: order.branch_id,
         item_id: item.item_id,
         movement_type: "purchase",
-        quantity,
+        quantity: quantityToReceive,
         unit_cost: unitCost,
         source_doc_type: "purchase_order",
         source_doc_id: purchaseOrderId,
@@ -1087,7 +1092,7 @@ export async function receivePurchaseOrderAction(_prevState: ActionState, formDa
 
       await admin
         .from("purchase_order_items")
-        .update({ received_quantity: quantity })
+        .update({ received_quantity: alreadyReceived + quantityToReceive })
         .eq("id", item.id);
 
       await admin.from("supplier_price_history").insert({
@@ -1099,6 +1104,12 @@ export async function receivePurchaseOrderAction(_prevState: ActionState, formDa
         source_doc_id: purchaseOrderId,
         created_by: userId,
       });
+
+      receiptTotal += quantityToReceive * unitCost;
+    }
+
+    if (receiptTotal <= 0) {
+      return invalid("لا توجد كميات جديدة لاستلامها في هذا الطلب.");
     }
 
     const { error: updateError } = await admin
@@ -1110,6 +1121,15 @@ export async function receivePurchaseOrderAction(_prevState: ActionState, formDa
       .eq("organization_id", organizationId);
 
     if (updateError) return invalid(updateError.message);
+
+    await postPurchaseReceiptJournal(admin, {
+      organizationId,
+      branchId: order.branch_id,
+      purchaseOrderId,
+      orderLabel: `PO-${purchaseOrderId.slice(0, 8)}`,
+      total: receiptTotal,
+      createdBy: userId,
+    });
   } catch (error) {
     return invalid(error instanceof Error ? error.message : "تعذر استلام طلب الشراء في Supabase.");
   }
@@ -1117,6 +1137,7 @@ export async function receivePurchaseOrderAction(_prevState: ActionState, formDa
   revalidatePath("/dashboard/purchase-orders");
   revalidatePath("/dashboard/inventory");
   revalidatePath("/dashboard/stock-movements");
+  revalidatePath("/dashboard/accounting/ledger");
   return ok("تم استلام طلب الشراء وتحديث المخزون.");
 }
 

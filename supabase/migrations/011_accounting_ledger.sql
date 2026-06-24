@@ -99,6 +99,7 @@ begin
     (target_org_id, '1300', 'المخزون', 'asset', 'debit', 'inventory'),
     (target_org_id, '2100', 'ضريبة مبيعات مستحقة', 'liability', 'credit', 'sales_tax_payable'),
     (target_org_id, '2200', 'ذمم الموردين', 'liability', 'credit', 'accounts_payable'),
+    (target_org_id, '2250', 'بضاعة مستلمة غير مفوترة', 'liability', 'credit', 'goods_received_not_invoiced'),
     (target_org_id, '3000', 'رأس المال', 'equity', 'credit', 'owner_equity'),
     (target_org_id, '4100', 'مبيعات المطعم', 'revenue', 'credit', 'sales_revenue'),
     (target_org_id, '5100', 'تكلفة البضاعة المباعة', 'cogs', 'debit', 'cogs'),
