@@ -19,6 +19,13 @@ export async function GET(request: Request) {
       );
     }
 
+    if (session.role !== "organization_owner" && session.role !== "super_admin") {
+      return NextResponse.json(
+        { success: false, error: "فقط مدير المطعم يمكنه عرض مفاتيح الأجهزة." },
+        { status: 403 }
+      );
+    }
+
     const url = new URL(request.url);
     const includeInactive = url.searchParams.get("includeInactive") === "true";
 

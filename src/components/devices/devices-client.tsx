@@ -56,6 +56,13 @@ const roleColors: Record<string, { text: string; bg: string; border: string; lab
   staff: { text: "text-slate-700", bg: "bg-slate-50", border: "border-slate-100", label: "موظف عام" },
 };
 
+const roleDefaultModules: Record<string, string[]> = {
+  chef: ["recipes", "inventory", "waste"],
+  cashier: ["pos"],
+  inventory_manager: ["inventory", "purchasing", "waste", "reports"],
+  staff: ["inventory"],
+};
+
 export function DevicesClient({ orgId, branches, currentRole, currentName }: DevicesClientProps) {
   const [activeTab, setActiveTab] = useState<"list" | "create" | "chat">("list");
   const [devices, setDevices] = useState<DeviceKey[]>([]);
@@ -71,45 +78,21 @@ export function DevicesClient({ orgId, branches, currentRole, currentName }: Dev
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-
-  const isDemo = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
+  const [devicesError, setDevicesError] = useState("");
+  const [chatError, setChatError] = useState("");
 
   useEffect(() => {
     loadDevices();
     loadAuditChats();
   }, [orgId]);
 
-  const loadDevices = async () => {
-    if (isDemo) {
-      // Mock devices in Demo Mode
-      setDevices([
-        { 
-          id: "dev_1", 
-          device_name: "تابلت المطبخ الرئيسي", 
-          role: "chef", 
-          branch_id: branches[0]?.id || "br_1",
-          branch_name: branches[0]?.name || "فرع شارع عبد القادر الحسيني",
-          allowed_modules: ["recipes", "waste"], 
-          is_active: true, 
-          created_at: new Date(Date.now() - 86400000 * 5).toISOString(), 
-          last_used_at: new Date().toISOString() 
-        },
-        { 
-          id: "dev_2", 
-          device_name: "كاشير الصالة", 
-          role: "cashier", 
-          branch_id: branches[0]?.id || "br_1",
-          branch_name: branches[0]?.name || "فرع شارع عبد القادر الحسيني",
-          allowed_modules: ["pos"], 
-          is_active: true, 
-          created_at: new Date(Date.now() - 86400000 * 2).toISOString(), 
-          last_used_at: new Date(Date.now() - 3600000).toISOString() 
-        },
-      ]);
-      return;
-    }
+  useEffect(() => {
+    setSelectedModules(roleDefaultModules[selectedRole] ?? ["inventory"]);
+  }, [selectedRole]);
 
+  const loadDevices = async () => {
     setRefreshing(true);
+    setDevicesError("");
     try {
       const res = await fetch(`/api/department-keys/list?orgId=${encodeURIComponent(orgId)}`);
       const result = await res.json();
@@ -125,31 +108,29 @@ export function DevicesClient({ orgId, branches, currentRole, currentName }: Dev
           created_at: d.created_at,
           last_used_at: d.last_used_at,
         })));
+      } else {
+        setDevicesError(result.error || "تعذر تحميل أجهزة الأقسام.");
       }
     } catch (err) {
       console.error("Error loading devices:", err);
+      setDevicesError("تعذر تحميل أجهزة الأقسام بسبب مشكلة في الاتصال.");
     }
     setRefreshing(false);
   };
 
   const loadAuditChats = async () => {
-    if (isDemo) {
-      setAuditChats([
-        { id: "chat_1", sender_name: "أبو أحمد", sender_role: "chef", recipient_role: null, content: "مرحباً بالجميع! أهلاً بكم في دردشة المطعم الفورية لجهاز المطبخ.", created_at: new Date(Date.now() - 60000 * 30).toISOString() },
-        { id: "chat_2", sender_name: "مروان", sender_role: "cashier", recipient_role: "chef", content: "شيف، تم إرسال طلب طاولة رقم 4، هل أرز البخاري دبل جاهز؟", created_at: new Date(Date.now() - 60000 * 15).toISOString() },
-        { id: "chat_3", sender_name: "أبو أحمد", sender_role: "chef", recipient_role: "cashier", content: "نعم مروان، ثواني ويكون جاهز للتسليم في الصالة.", created_at: new Date(Date.now() - 60000 * 10).toISOString() }
-      ]);
-      return;
-    }
-
+    setChatError("");
     try {
       const res = await fetch(`/api/internal-messages/list?orgId=${encodeURIComponent(orgId)}&limit=15`);
       const result = await res.json();
       if (result.success && result.messages) {
         setAuditChats(result.messages);
+      } else {
+        setChatError(result.error || "تعذر تحميل سجل المراسلات.");
       }
     } catch (err) {
       console.error("Error loading messages:", err);
+      setChatError("تعذر تحميل سجل المراسلات بسبب مشكلة في الاتصال.");
     }
   };
 
@@ -161,101 +142,67 @@ export function DevicesClient({ orgId, branches, currentRole, currentName }: Dev
     );
   };
 
-  // Cryptographically generate a random 10-character uppercase alphanumeric key
-  const generateRaw10SymbolKey = () => {
-    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-    let key = "RWQ_";
-    for (let i = 0; i < 6; i++) {
-      key += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return key;
-  };
-
   const handleCreateDevice = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!deviceName.trim()) {
       alert("يرجى إدخال اسم الجهاز اللوحي أولاً.");
       return;
     }
+    if (selectedModules.length === 0) {
+      alert("اختر صلاحية واحدة على الأقل للجهاز.");
+      return;
+    }
 
     setLoading(true);
 
-    if (!isDemo) {
-      try {
-        const res = await fetch("/api/department-keys/create", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            deviceName: deviceName.trim(),
-            branchId: selectedBranch || null,
-            role: selectedRole,
-            allowedModules: selectedModules,
-          }),
-        });
-        const result = await res.json();
+    try {
+      const res = await fetch("/api/department-keys/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          deviceName: deviceName.trim(),
+          branchId: selectedBranch || null,
+          role: selectedRole,
+          allowedModules: selectedModules,
+        }),
+      });
+      const result = await res.json();
 
-        if (result.success) {
-          setGeneratedKey(result.key);
-          const origin = typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
-          setGeneratedLink(`${origin}/d/gate?key=${result.key}`);
-          setDeviceName("");
-          setSelectedModules(["recipes"]);
-          loadDevices();
-        } else {
-          console.error("Error creating device key:", result.error);
-          alert(`خطأ في إنشاء الجهاز اللوحي: ${result.error || "عطل في قاعدة البيانات"}`);
-        }
-      } catch (err) {
-        console.error("Error creating device key:", err);
-        alert("خطأ في إنشاء الجهاز اللوحي بسبب مشكلة في الاتصال.");
+      if (result.success) {
+        setGeneratedKey(result.key);
+        const origin = typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
+        setGeneratedLink(`${origin}/d/gate?key=${result.key}`);
+        setDeviceName("");
+        await loadDevices();
+      } else {
+        console.error("Error creating device key:", result.error);
+        alert(`خطأ في إنشاء الجهاز اللوحي: ${result.error || "عطل في قاعدة البيانات"}`);
       }
-    } else {
-      // Local fallback for Demo Mode
-      const rawKey = generateRaw10SymbolKey();
-      setGeneratedKey(rawKey);
-      const origin = typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
-      setGeneratedLink(`${origin}/d/gate?key=${rawKey}`);
-      
-      const newDev: DeviceKey = {
-        id: Math.random().toString(),
-        device_name: deviceName.trim(),
-        role: selectedRole,
-        branch_id: selectedBranch,
-        branch_name: branches.find(b => b.id === selectedBranch)?.name || "فرع افتراضي",
-        allowed_modules: selectedModules,
-        is_active: true,
-        created_at: new Date().toISOString(),
-        last_used_at: null
-      };
-      
-      setDevices(prev => [newDev, ...prev]);
-      setDeviceName("");
-      setSelectedModules(["recipes"]);
+    } catch (err) {
+      console.error("Error creating device key:", err);
+      alert("خطأ في إنشاء الجهاز اللوحي بسبب مشكلة في الاتصال.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleRevokeDevice = async (id: string) => {
     if (!confirm("هل أنت متأكد من رغبتك في إلغاء تنشيط وصول هذا الجهاز اللوحي فوراً؟")) return;
 
-    if (!isDemo) {
-      try {
-        const res = await fetch("/api/department-keys/revoke", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ keyId: id }),
-        });
-        const result = await res.json();
-        if (result.success) {
-          loadDevices();
-        } else {
-          alert(result.error || "فشل إلغاء تنشيط الجهاز.");
-        }
-      } catch (err) {
-        alert("فشل إلغاء تنشيط الجهاز بسبب مشكلة في الاتصال.");
+    try {
+      const res = await fetch("/api/department-keys/revoke", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ keyId: id }),
+      });
+      const result = await res.json();
+      if (result.success) {
+        loadDevices();
+      } else {
+        alert(result.error || "فشل إلغاء تنشيط الجهاز.");
       }
-    } else {
-      setDevices(prev => prev.map(d => d.id === id ? { ...d, is_active: false } : d));
+    } catch (err) {
+      alert("فشل إلغاء تنشيط الجهاز بسبب مشكلة في الاتصال.");
     }
   };
 
@@ -345,6 +292,13 @@ export function DevicesClient({ orgId, branches, currentRole, currentName }: Dev
               تحديث القائمة
             </Button>
           </div>
+
+          {devicesError && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-bold text-amber-800 flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              <span>{devicesError}</span>
+            </div>
+          )}
 
           {devices.length === 0 ? (
             <Card className="border-dashed border-slate-200 bg-slate-50/50 py-12">
@@ -680,6 +634,12 @@ export function DevicesClient({ orgId, branches, currentRole, currentName }: Dev
               </div>
 
               <div className="space-y-3.5 max-h-[450px] overflow-y-auto p-1">
+                {chatError && (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-bold text-amber-800 flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    <span>{chatError}</span>
+                  </div>
+                )}
                 {auditChats.length === 0 ? (
                   <div className="text-center py-10 text-slate-400 space-y-2">
                     <MessageSquare className="h-8 w-8 mx-auto stroke-[1.5]" />

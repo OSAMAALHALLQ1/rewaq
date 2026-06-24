@@ -3,6 +3,15 @@ import { createHash, randomBytes } from "crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOptionalSession } from "@/lib/auth/session";
 
+const allowedRoles = new Set(["chef", "cashier", "inventory_manager", "staff"]);
+const allowedModuleKeys = new Set(["inventory", "recipes", "purchasing", "waste", "pos", "reports"]);
+const roleModuleAllowlist: Record<string, Set<string>> = {
+  chef: new Set(["recipes", "inventory", "waste"]),
+  cashier: new Set(["pos"]),
+  inventory_manager: new Set(["inventory", "purchasing", "waste", "reports"]),
+  staff: new Set(["inventory", "recipes", "waste", "pos"]),
+};
+
 function generateRawKey(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   const bytes = randomBytes(6);
@@ -39,6 +48,14 @@ export async function POST(request: Request) {
 
     const body = await request.json();
     const { deviceName, branchId, role, allowedModules } = body;
+    const normalizedRole = typeof role === "string" && allowedRoles.has(role) ? role : "staff";
+    const requestedModules = Array.isArray(allowedModules)
+      ? [...new Set(allowedModules.filter((module): module is string => typeof module === "string"))]
+      : [];
+    const permittedForRole = roleModuleAllowlist[normalizedRole] ?? roleModuleAllowlist.staff;
+    const normalizedModules = requestedModules.filter(
+      (module) => allowedModuleKeys.has(module) && permittedForRole.has(module),
+    );
 
     if (!deviceName || typeof deviceName !== "string") {
       return NextResponse.json(
@@ -47,10 +64,40 @@ export async function POST(request: Request) {
       );
     }
 
+    if (normalizedModules.length === 0) {
+      return NextResponse.json(
+        { success: false, error: "يجب اختيار صلاحية واحدة على الأقل مناسبة لدور الجهاز." },
+        { status: 400 }
+      );
+    }
+
+    const admin = createAdminClient();
+    if (branchId) {
+      const { data: branch, error: branchError } = await (admin as any)
+        .from("branches")
+        .select("id")
+        .eq("id", branchId)
+        .eq("organization_id", session.organizationId)
+        .maybeSingle();
+
+      if (branchError) {
+        return NextResponse.json(
+          { success: false, error: "تعذر التحقق من الفرع." },
+          { status: 500 }
+        );
+      }
+
+      if (!branch) {
+        return NextResponse.json(
+          { success: false, error: "الفرع المحدد غير موجود داخل مؤسستك." },
+          { status: 400 }
+        );
+      }
+    }
+
     const rawKey = generateRawKey();
     const keyHash = createHash("sha256").update(rawKey).digest("hex");
 
-    const admin = createAdminClient();
     const { data, error } = await (admin as any)
       .from("department_api_keys")
       .insert({
@@ -58,8 +105,8 @@ export async function POST(request: Request) {
         branch_id: branchId || null,
         device_name: deviceName,
         key_hash: keyHash,
-        role: role || "staff",
-        allowed_modules: allowedModules || [],
+        role: normalizedRole,
+        allowed_modules: normalizedModules,
         created_by: session.user.id,
       })
       .select("id, device_name, role, allowed_modules, is_active, created_at")
