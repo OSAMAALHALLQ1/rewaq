@@ -390,6 +390,7 @@ export default function KitchenKDSWorkspace() {
         branchId={device.branchId} 
         currentRole={device.role} 
         currentName="شيف المطبخ" 
+        departmentKey={device.token}
       />
     </div>
   );

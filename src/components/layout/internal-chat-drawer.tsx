@@ -4,8 +4,6 @@ import { useEffect, useState, useRef } from "react";
 import { MessageSquare, Send, X, Users, MessageCircleCode, Eye, CheckCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { createClient } from "@/lib/supabase/client";
-import { hasSupabaseEnv } from "@/lib/supabase/env";
 
 type Message = {
   id: string;
@@ -23,6 +21,7 @@ type ChatDrawerProps = {
   branchId?: string;
   currentRole: string;
   currentName: string;
+  departmentKey?: string;
 };
 
 // Map roles to Arabic names
@@ -42,14 +41,13 @@ export function InternalChatDrawer({
   branchId,
   currentRole,
   currentName,
+  departmentKey,
 }: ChatDrawerProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [activeTab, setActiveTab] = useState<"general" | "kitchen" | "pos" | "warehouse">("general");
   const [inputText, setInputText] = useState("");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  
-  const hasEnv = hasSupabaseEnv();
-  const supabase = hasEnv ? createClient() as any : null;
 
   const isManager = currentRole === "organization_owner" || currentRole === "branch_manager";
 
@@ -65,65 +63,40 @@ export function InternalChatDrawer({
   }, [messages, isOpen, activeTab]);
 
   useEffect(() => {
-    if (!orgId) return;
-    if (!supabase) {
-      // Seed a couple of mock chats in Demo Mode
-      setMessages([
-        { id: "mock_1", sender_name: "أبو أحمد", sender_role: "chef", recipient_role: null, content: "مرحباً بالجميع! أهلاً بكم في دردشة المطعم.", created_at: new Date(Date.now() - 60000 * 10).toISOString() },
-        { id: "mock_2", sender_name: "مروان", sender_role: "cashier", recipient_role: "chef", content: "شيف، هل أرز البخاري دبل جاهز؟", created_at: new Date(Date.now() - 60000 * 5).toISOString() }
-      ]);
-      return;
+    if (!isOpen || !orgId) return;
+    let cancelled = false;
+
+    async function fetchHistory() {
+      const response = await fetch("/api/internal-messages/list?limit=80", {
+        headers: departmentKey ? { "x-department-key": departmentKey } : undefined,
+      });
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok || !payload.success) {
+        throw new Error(payload.error ?? "تعذر تحميل رسائل الأقسام.");
+      }
+
+      if (!cancelled) {
+        setMessages(payload.messages ?? []);
+        setErrorMessage(null);
+      }
     }
 
-    // 1. Fetch initial message history
-    const fetchHistory = async () => {
-      let query = supabase
-        .from("internal_messages")
-        .select("id, sender_name, sender_role, recipient_role, content, created_at")
-        .eq("organization_id", orgId)
-        .order("created_at", { ascending: true });
+    fetchHistory().catch((error: Error) => {
+      if (!cancelled) setErrorMessage(error.message);
+    });
 
-      // If branchId is specified, lock to branch
-      if (branchId) {
-        query = query.eq("branch_id", branchId);
-      }
-
-      const { data, error } = await query;
-      if (data && !error) {
-        setMessages(data as Message[]);
-      }
-    };
-
-    fetchHistory();
-
-    // 2. Subscribe to new PG inserts in Realtime
-    const channel = supabase
-      .channel("internal-messages-live-" + Math.random().toString(36).substring(2, 9))
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "internal_messages",
-          filter: `organization_id=eq.${orgId}`,
-        },
-        (payload: any) => {
-          const newMsg = payload.new as Message;
-          
-          // Verify if message belongs to this branch
-          if (branchId && (payload.new as any).branch_id !== branchId) {
-            return;
-          }
-
-          setMessages((prev) => [...prev, newMsg]);
-        }
-      )
-      .subscribe();
+    const intervalId = window.setInterval(() => {
+      fetchHistory().catch((error: Error) => {
+        if (!cancelled) setErrorMessage(error.message);
+      });
+    }, 10000);
 
     return () => {
-      supabase.removeChannel(channel);
+      cancelled = true;
+      window.clearInterval(intervalId);
     };
-  }, [orgId, branchId, supabase]);
+  }, [orgId, departmentKey, isOpen]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -134,32 +107,29 @@ export function InternalChatDrawer({
                      activeTab === "pos" ? "cashier" : 
                      "inventory_manager";
 
-    const newMessageData = {
-      organization_id: orgId,
-      branch_id: branchId || null,
-      sender_name: currentName,
-      sender_role: currentRole,
-      recipient_role: recipient,
-      content: inputText.trim(),
-    };
-
-    if (supabase) {
-      const { error } = await supabase.from("internal_messages").insert(newMessageData);
-      if (!error) {
-        setInputText("");
-      }
-    } else {
-      // Local fallback for Demo Mode
-      const mockMsg: Message = {
-        id: Math.random().toString(),
-        sender_name: currentName,
-        sender_role: currentRole,
-        recipient_role: recipient,
+    const response = await fetch("/api/internal-messages/send", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        ...(departmentKey ? { "x-department-key": departmentKey } : {}),
+      },
+      body: JSON.stringify({
+        branchId: branchId || null,
+        recipientRole: recipient,
         content: inputText.trim(),
-        created_at: new Date().toISOString(),
-      };
-      setMessages((prev) => [...prev, mockMsg]);
+      }),
+    });
+    const payload = await response.json().catch(() => ({}));
+
+    if (!response.ok || !payload.success) {
+      setErrorMessage(payload.error ?? "تعذر إرسال الرسالة.");
+      return;
+    }
+
+    if (payload.message) {
+      setMessages((prev) => [...prev, payload.message]);
       setInputText("");
+      setErrorMessage(null);
     }
   };
 
@@ -274,6 +244,11 @@ export function InternalChatDrawer({
 
       {/* Message History list */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-900/50">
+        {errorMessage ? (
+          <div className="rounded-lg border border-rose-900/60 bg-rose-950/30 p-3 text-center text-xs text-rose-200">
+            {errorMessage}
+          </div>
+        ) : null}
         {filteredMessages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-slate-500 py-12 text-center">
             <MessageSquare className="h-10 w-10 text-slate-700 stroke-[1.5] mb-2" />

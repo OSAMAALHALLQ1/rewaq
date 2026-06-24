@@ -349,6 +349,7 @@ export default function CashierPOSWorkspace() {
         branchId={device.branchId} 
         currentRole={device.role} 
         currentName="مسؤول الكاشير" 
+        departmentKey={device.token}
       />
     </div>
   );

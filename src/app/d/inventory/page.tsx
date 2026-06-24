@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { InternalChatDrawer } from "@/components/layout/internal-chat-drawer";
 
 type DeviceSession = {
+  token: string;
   name: string;
   orgId: string;
   branchId: string;
@@ -43,7 +44,7 @@ const stockItems: StockItem[] = [
 
 export default function DepartmentInventoryPage() {
   const router = useRouter();
-  const [device, setDevice] = useState<DeviceSession>({ name: "", orgId: "", branchId: "", role: "" });
+  const [device, setDevice] = useState<DeviceSession>({ token: "", name: "", orgId: "", branchId: "", role: "" });
   const [authorized, setAuthorized] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -58,6 +59,7 @@ export default function DepartmentInventoryPage() {
     }
 
     setDevice({
+      token,
       name: localStorage.getItem("rwq_dept_device") ?? "",
       orgId: localStorage.getItem("rwq_dept_org_id") ?? "",
       branchId: localStorage.getItem("rwq_dept_branch_id") ?? "",
@@ -195,6 +197,7 @@ export default function DepartmentInventoryPage() {
         branchId={device.branchId}
         currentRole={device.role}
         currentName={device.name}
+        departmentKey={device.token}
       />
     </div>
   );
