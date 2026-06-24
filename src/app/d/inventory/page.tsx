@@ -6,6 +6,7 @@ import {
   Boxes,
   CheckCircle2,
   ClipboardList,
+  Loader2,
   LogOut,
   MessageSquare,
   PackageCheck,
@@ -29,18 +30,36 @@ type DeviceSession = {
 type StockItem = {
   id: string;
   name: string;
+  sku: string | null;
+  category: string;
   unit: string;
   quantity: number;
+  reservedQuantity: number;
+  availableQuantity: number;
   minimum: number;
+  averageCost: number;
+  value: number;
   status: "ok" | "low";
 };
 
-const stockItems: StockItem[] = [
-  { id: "stock_1", name: "لحم برجر مبرد", unit: "كجم", quantity: 18, minimum: 12, status: "ok" },
-  { id: "stock_2", name: "بطاطس مجمدة", unit: "كجم", quantity: 7, minimum: 10, status: "low" },
-  { id: "stock_3", name: "خبز برجر", unit: "حبة", quantity: 96, minimum: 50, status: "ok" },
-  { id: "stock_4", name: "صلصة خاصة", unit: "لتر", quantity: 4, minimum: 6, status: "low" },
-];
+type StockResponse = {
+  success: boolean;
+  error?: string;
+  items?: StockItem[];
+  totals?: {
+    itemsCount: number;
+    lowStockCount: number;
+    totalValue: number;
+  };
+};
+
+function formatQuantity(value: number) {
+  return new Intl.NumberFormat("ar", { maximumFractionDigits: 2 }).format(value);
+}
+
+function formatMoney(value: number) {
+  return new Intl.NumberFormat("ar", { maximumFractionDigits: 0 }).format(value);
+}
 
 export default function DepartmentInventoryPage() {
   const router = useRouter();
@@ -48,6 +67,9 @@ export default function DepartmentInventoryPage() {
   const [authorized, setAuthorized] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [stockItems, setStockItems] = useState<StockItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
     const token = localStorage.getItem("rwq_dept_key");
@@ -68,9 +90,59 @@ export default function DepartmentInventoryPage() {
     setAuthorized(true);
   }, [router]);
 
+  useEffect(() => {
+    if (!authorized || !device.token) return;
+
+    let cancelled = false;
+
+    async function loadStock() {
+      setLoading(true);
+      setErrorMessage("");
+
+      try {
+        const response = await fetch("/api/department/inventory/stock", {
+          headers: { "x-department-key": device.token },
+          cache: "no-store",
+        });
+        const payload = (await response.json()) as StockResponse;
+
+        if (!response.ok || !payload.success) {
+          throw new Error(payload.error || "تعذر تحميل المخزون.");
+        }
+
+        if (!cancelled) {
+          setStockItems(payload.items ?? []);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setErrorMessage(error instanceof Error ? error.message : "تعذر تحميل المخزون.");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void loadStock();
+    const interval = window.setInterval(loadStock, 30000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [authorized, device.token]);
+
   const filteredItems = useMemo(
-    () => stockItems.filter((item) => item.name.includes(searchQuery.trim())),
-    [searchQuery],
+    () => {
+      const query = searchQuery.trim();
+      if (!query) return stockItems;
+
+      return stockItems.filter((item) =>
+        [item.name, item.sku, item.category].some((field) => field?.includes(query)),
+      );
+    },
+    [searchQuery, stockItems],
   );
 
   const handleLogout = () => {
@@ -87,6 +159,7 @@ export default function DepartmentInventoryPage() {
   if (!authorized) return null;
 
   const lowStockCount = stockItems.filter((item) => item.status === "low").length;
+  const totalValue = stockItems.reduce((sum, item) => sum + item.value, 0);
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-slate-950">
@@ -153,6 +226,18 @@ export default function DepartmentInventoryPage() {
         </div>
 
         <Card className="bg-slate-900 border-slate-800 text-slate-100">
+          <CardContent className="p-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-[10px] text-slate-400 font-bold">قيمة المخزون الحالية</p>
+              <p className="text-xl font-black mt-1">{formatMoney(totalValue)}</p>
+            </div>
+            <Badge className="w-fit bg-slate-800 text-slate-200">
+              تحديث تلقائي كل 30 ثانية
+            </Badge>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-slate-900 border-slate-800 text-slate-100">
           <CardHeader className="border-b border-slate-800 flex flex-row items-center justify-between gap-4">
             <CardTitle className="text-sm font-black flex items-center gap-2">
               <ClipboardList className="h-5 w-5 text-teal-400" />
@@ -169,15 +254,39 @@ export default function DepartmentInventoryPage() {
             </div>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="divide-y divide-slate-800">
+            {loading ? (
+              <div className="min-h-[220px] flex items-center justify-center text-slate-400 text-sm gap-2">
+                <Loader2 className="h-4 w-4 animate-spin text-teal-400" />
+                جاري تحميل المخزون
+              </div>
+            ) : errorMessage ? (
+              <div className="min-h-[220px] flex items-center justify-center p-6 text-center">
+                <div>
+                  <ShieldAlert className="h-8 w-8 text-amber-400 mx-auto mb-3" />
+                  <p className="text-sm font-bold text-slate-100">{errorMessage}</p>
+                  <p className="text-xs text-slate-400 mt-2">تأكد من تفعيل مفتاح الجهاز وصلاحية شاشة المستودع.</p>
+                </div>
+              </div>
+            ) : filteredItems.length === 0 ? (
+              <div className="min-h-[220px] flex items-center justify-center text-slate-400 text-sm">
+                لا توجد مواد مطابقة للبحث
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-800">
               {filteredItems.map((item) => (
                 <div key={item.id} className="p-4 flex items-center justify-between gap-4">
                   <div>
                     <p className="text-sm font-bold">{item.name}</p>
-                    <p className="text-[10px] text-slate-400 mt-1">الحد الأدنى: {item.minimum} {item.unit}</p>
+                    <p className="text-[10px] text-slate-400 mt-1">
+                      {item.category} {item.sku ? `| SKU: ${item.sku}` : ""}
+                    </p>
+                    <p className="text-[10px] text-slate-400 mt-1">
+                      الحد الأدنى: {formatQuantity(item.minimum)} {item.unit}
+                      {item.reservedQuantity > 0 ? ` | محجوز: ${formatQuantity(item.reservedQuantity)} ${item.unit}` : ""}
+                    </p>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="font-mono text-lg font-black">{item.quantity}</span>
+                    <span className="font-mono text-lg font-black">{formatQuantity(item.availableQuantity)}</span>
                     <span className="text-xs text-slate-400">{item.unit}</span>
                     <Badge className={item.status === "low" ? "bg-amber-500 text-slate-950" : "bg-teal-500 text-slate-950"}>
                       {item.status === "low" ? "يحتاج طلب" : "مستقر"}
@@ -185,7 +294,8 @@ export default function DepartmentInventoryPage() {
                   </div>
                 </div>
               ))}
-            </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </main>
