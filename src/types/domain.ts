@@ -69,6 +69,7 @@ export type InventoryItem = {
   sku?: string;
   notes?: string;
   isActive: boolean;
+  warehouse?: "general" | "kitchen";
 };
 
 export type BranchStock = {

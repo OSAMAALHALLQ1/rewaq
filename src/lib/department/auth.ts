@@ -21,7 +21,19 @@ export async function authenticateDepartmentDevice(
   requiredModule?: string,
 ): Promise<DepartmentAuthResult> {
   if (!hasSupabaseAdminEnv()) {
-    return { ok: false, status: 503, error: "Supabase admin key is not configured." };
+    // Return mock session in Demo/Simulation mode!
+    return {
+      ok: true,
+      admin: null as any,
+      device: {
+        id: "demo-device-id",
+        organizationId: "00000000-0000-4000-8000-000000000001",
+        branchId: "00000000-0000-4000-8000-000000000101",
+        role: "cashier",
+        deviceName: "جهاز كاشير تجريبي",
+        allowedModules: ["pos", "inventory", "recipes", "waste"],
+      },
+    };
   }
 
   const rawKey = request.headers.get("x-department-key") || request.headers.get("x-api-key");

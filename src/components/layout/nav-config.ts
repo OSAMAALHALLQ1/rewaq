@@ -22,7 +22,6 @@ import {
   Users,
   WalletCards,
   Tablet,
-  MessageSquare,
   Warehouse,
   Scale,
 } from "lucide-react";
@@ -56,7 +55,6 @@ export const appNav = [
       { title: "مرتجعات المخزن", href: "/dashboard/sales-returns", icon: RotateCcw },
       { title: "تقارير المخزن", href: "/dashboard/reports", icon: BarChart3 },
       { title: "تقرير تذبذب الأسعار", href: "/dashboard/reports?type=price_changes", icon: BarChart3 },
-      { title: "الرسائل الفورية للأقسام", href: "#chat", icon: MessageSquare },
       { title: "تخصيص الأجهزة والأكواد", href: "/dashboard/settings/devices", icon: Tablet },
       { title: "الإعدادات / الأقسام", href: "/dashboard/settings", icon: Settings },
     ],

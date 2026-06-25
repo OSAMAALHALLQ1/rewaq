@@ -91,21 +91,7 @@ export default async function CreateSocialPostPage({
                   </Badge>
                 </div>
               </div>
-              <div className="grid gap-3 rounded-lg border bg-white p-4">
-                <Label>تخصيص المحتوى لكل منصة</Label>
-                <div className="grid gap-3 md:grid-cols-2">
-                  {SOCIAL_PLATFORM_IDS.map((platform) => (
-                    <div key={platform} className="grid gap-2">
-                      <Label htmlFor={`body_${platform}`}>{socialPlatformMeta[platform].label}</Label>
-                      <Textarea
-                        id={`body_${platform}`}
-                        name={`body_${platform}`}
-                        placeholder={platform === "x" ? "نسخة قصيرة لـ X..." : `نسخة ${socialPlatformMeta[platform].label}...`}
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
+              {/* Media input (main layout) */}
               <div className="grid gap-2">
                 <Label>الوسائط</Label>
                 <div className="grid gap-3 rounded-lg border border-dashed bg-slate-50 p-4">
@@ -133,28 +119,10 @@ export default async function CreateSocialPostPage({
                   </div>
                 </div>
               </div>
-              <div className="grid gap-3">
-                <Label>حسابات النشر</Label>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <label className="flex min-h-14 items-center gap-3 rounded-lg border bg-teal-50 p-3 text-sm">
-                    <input type="radio" name="accountMode" value="default" defaultChecked />
-                    <span>
-                      <span className="block font-semibold">استخدم الحسابات الدائمة</span>
-                      <span className="block text-xs text-muted-foreground">تتغير من مركز التسويق</span>
-                    </span>
-                  </label>
-                  <label className="flex min-h-14 items-center gap-3 rounded-lg border bg-white p-3 text-sm">
-                    <input type="radio" name="accountMode" value="one_time" />
-                    <span>
-                      <span className="block font-semibold">نشر لمرة واحدة</span>
-                      <span className="block text-xs text-muted-foreground">لا يغير الحسابات الدائمة</span>
-                    </span>
-                  </label>
-                </div>
-              </div>
 
+              {/* Direct Platform selection checkboxes (main layout) */}
               <div className="grid gap-2">
-                <Label>الحسابات الدائمة المختارة</Label>
+                <Label>الحسابات وقنوات النشر المحددة</Label>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {SOCIAL_PLATFORM_IDS.map((platform) => {
                     const meta = socialPlatformMeta[platform];
@@ -163,13 +131,19 @@ export default async function CreateSocialPostPage({
                     return (
                       <label
                         key={platform}
-                        className="flex min-h-16 items-center gap-3 rounded-lg border bg-white p-3 text-sm transition hover:border-primary/40 hover:bg-teal-50/40"
+                        className={`flex min-h-16 items-center gap-3 rounded-lg border p-3 text-sm transition cursor-pointer ${
+                          account 
+                            ? "bg-white hover:border-primary/40 hover:bg-teal-50/40" 
+                            : "bg-slate-50/50 opacity-60 pointer-events-none"
+                        }`}
                       >
                         <input
                           type="checkbox"
+                          name="platforms"
                           value={platform}
-                          defaultChecked={account ? defaultAccountIds.has(account.id) : false}
-                          disabled
+                          defaultChecked={!!account}
+                          disabled={!account}
+                          className="h-4 w-4 rounded border-slate-350 text-primary focus:ring-primary"
                         />
                         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-slate-100 text-xs font-bold text-slate-700">
                           {meta.shortLabel}
@@ -184,82 +158,134 @@ export default async function CreateSocialPostPage({
                     );
                   })}
                 </div>
-                <p className="text-xs leading-5 text-muted-foreground">
-                  لتغيير هذه الحسابات ارجع إلى مركز التسويق واحفظ حسابات النشر الدائمة.
-                </p>
               </div>
 
-              <div className="grid gap-3 rounded-lg border bg-slate-50 p-4">
-                <div className="flex items-center gap-2 font-semibold">
-                  <Repeat className="h-4 w-4 text-primary" />
-                  إعداد النشر لمرة واحدة
-                </div>
-                <div className="grid gap-3 md:grid-cols-2">
-                  <div className="grid gap-2">
-                    <Label htmlFor="oneTimePlatform">القناة</Label>
-                    <Select id="oneTimePlatform" name="oneTimePlatform" defaultValue="facebook">
+              {/* Collapsed Advanced Settings */}
+              <details className="group border border-slate-200 rounded-xl bg-slate-50/50 overflow-hidden">
+                <summary className="flex items-center justify-between p-4 font-bold text-xs text-slate-700 cursor-pointer select-none hover:bg-slate-100/50">
+                  <span>⚙️ خيارات متقدمة وجدولة المنشور</span>
+                  <span className="text-xs text-muted-foreground group-open:rotate-180 transition-transform">▼</span>
+                </summary>
+                <div className="p-4 border-t border-slate-200 space-y-4 text-right" dir="rtl">
+                  
+                  {/* Tweak per platform override */}
+                  <div className="grid gap-3 rounded-lg border bg-white p-4">
+                    <Label>تخصيص المحتوى لكل منصة (اختياري)</Label>
+                    <div className="grid gap-3 md:grid-cols-2">
                       {SOCIAL_PLATFORM_IDS.map((platform) => (
-                        <option key={platform} value={platform}>
-                          {socialPlatformMeta[platform].label}
-                        </option>
+                        <div key={platform} className="grid gap-2">
+                          <Label htmlFor={`body_${platform}`}>{socialPlatformMeta[platform].label}</Label>
+                          <Textarea
+                            id={`body_${platform}`}
+                            name={`body_${platform}`}
+                            placeholder={platform === "x" ? "نسخة قصيرة لـ X..." : `نسخة ${socialPlatformMeta[platform].label}...`}
+                          />
+                        </div>
                       ))}
+                    </div>
+                  </div>
+
+                  {/* Account mode selection */}
+                  <div className="grid gap-3">
+                    <Label>نمط الحسابات</Label>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <label className="flex min-h-14 items-center gap-3 rounded-lg border bg-teal-50 p-3 text-sm">
+                        <input type="radio" name="accountMode" value="default" defaultChecked />
+                        <span>
+                          <span className="block font-semibold">استخدم الحسابات المحددة بالأعلى</span>
+                          <span className="block text-xs text-muted-foreground">التحديد الحالي</span>
+                        </span>
+                      </label>
+                      <label className="flex min-h-14 items-center gap-3 rounded-lg border bg-white p-3 text-sm">
+                        <input type="radio" name="accountMode" value="one_time" />
+                        <span>
+                          <span className="block font-semibold">نشر لمرة واحدة حساب مخصص</span>
+                          <span className="block text-xs text-muted-foreground">لا يغير الحسابات الدائمة</span>
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* One-time account config */}
+                  <div className="grid gap-3 rounded-lg border bg-white p-4">
+                    <div className="flex items-center gap-2 font-semibold">
+                      <Repeat className="h-4 w-4 text-primary" />
+                      إعداد النشر لمرة واحدة
+                    </div>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <div className="grid gap-2">
+                        <Label htmlFor="oneTimePlatform">القناة</Label>
+                        <Select id="oneTimePlatform" name="oneTimePlatform" defaultValue="facebook">
+                          {SOCIAL_PLATFORM_IDS.map((platform) => (
+                            <option key={platform} value={platform}>
+                              {socialPlatformMeta[platform].label}
+                            </option>
+                          ))}
+                        </Select>
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="oneTimeAccountName">الحساب أو المعرف</Label>
+                        <Input id="oneTimeAccountName" name="oneTimeAccountName" placeholder="@restaurant أو اسم الصفحة" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Publish mode & schedule options */}
+                  <div className="grid gap-2">
+                    <Label htmlFor="publishMode">طريقة النشر</Label>
+                    <Select id="publishMode" name="publishMode" defaultValue="now">
+                      <option value="now">نشر الآن</option>
+                      <option value="schedule">جدولة</option>
+                      <option value="draft">حفظ كمسودة</option>
                     </Select>
                   </div>
+
                   <div className="grid gap-2">
-                    <Label htmlFor="oneTimeAccountName">الحساب أو المعرف</Label>
-                    <Input id="oneTimeAccountName" name="oneTimeAccountName" placeholder="@restaurant أو اسم الصفحة" />
+                    <Label htmlFor="scheduledAt">وقت الجدولة</Label>
+                    <Input id="scheduledAt" name="scheduledAt" type="datetime-local" />
+                  </div>
+
+                  <div className="grid gap-2">
+                    <Label htmlFor="recurrenceInterval">تكرار المنشور تلقائيًا (للمطاعم)</Label>
+                    <Select id="recurrenceInterval" name="recurrenceInterval" defaultValue="none">
+                      <option value="none">بدون تكرار (مرة واحدة)</option>
+                      <option value="daily">تكرار يومي</option>
+                      <option value="weekly">تكرار أسبوعي</option>
+                    </Select>
+                  </div>
+
+                  {/* Smart schedule */}
+                  <div className="grid gap-3 rounded-lg border bg-white p-4">
+                    <div className="flex items-center gap-2 font-semibold">
+                      <CalendarClock className="h-4 w-4 text-primary" />
+                      جدولة ذكية وأتمتة النشر
+                    </div>
+                    <Select name="scheduleKind" defaultValue="manual">
+                      <option value="manual">حسب التاريخ المحدد</option>
+                      <option value="hourly">كل ساعة</option>
+                      <option value="daily">يوميًا</option>
+                      <option value="content_calendar">حسب تقويم المحتوى</option>
+                      <option value="google_sheets_row">عند إضافة صف في Google Sheets</option>
+                      <option value="google_drive_upload">عند رفع صورة في Google Drive</option>
+                      <option value="rss_new_article">عند إضافة مقال RSS</option>
+                      <option value="dashboard_button">عند ضغط زر من لوحة التحكم</option>
+                    </Select>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <label className="flex items-center gap-2 rounded-lg border p-3 text-sm">
+                        <input type="checkbox" name="approvalRequired" />
+                        موافقة قبل النشر
+                      </label>
+                      <Select name="errorPolicy" defaultValue="retry_failed_only">
+                        <option value="retry_failed_only">أعد المنصات الفاشلة فقط</option>
+                        <option value="auto_shorten_x">اختصر X إذا كان النص طويلًا</option>
+                        <option value="resize_media">صغّر الصورة إذا كان حجمها كبيرًا</option>
+                        <option value="rate_limit_wait">انتظر عند Rate Limit ثم أعد المحاولة</option>
+                        <option value="notify_only">تنبيه فقط عند الفشل</option>
+                      </Select>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="publishMode">طريقة النشر</Label>
-                <Select id="publishMode" name="publishMode" defaultValue="now">
-                  <option value="now">نشر الآن</option>
-                  <option value="schedule">جدولة</option>
-                  <option value="draft">حفظ كمسودة</option>
-                </Select>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="recurrenceInterval">تكرار المنشور تلقائيًا (للمطاعم)</Label>
-                <Select id="recurrenceInterval" name="recurrenceInterval" defaultValue="none">
-                  <option value="none">بدون تكرار (مرة واحدة)</option>
-                  <option value="daily">تكرار يومي</option>
-                  <option value="weekly">تكرار أسبوعي</option>
-                </Select>
-              </div>
-              <div className="grid gap-3 rounded-lg border bg-white p-4">
-                <div className="flex items-center gap-2 font-semibold">
-                  <CalendarClock className="h-4 w-4 text-primary" />
-                  جدولة ذكية
-                </div>
-                <Select name="scheduleKind" defaultValue="manual">
-                  <option value="manual">حسب التاريخ المحدد</option>
-                  <option value="hourly">كل ساعة</option>
-                  <option value="daily">يوميًا</option>
-                  <option value="content_calendar">حسب تقويم المحتوى</option>
-                  <option value="google_sheets_row">عند إضافة صف في Google Sheets</option>
-                  <option value="google_drive_upload">عند رفع صورة في Google Drive</option>
-                  <option value="rss_new_article">عند إضافة مقال RSS</option>
-                  <option value="dashboard_button">عند ضغط زر من لوحة التحكم</option>
-                </Select>
-                <div className="grid gap-3 md:grid-cols-2">
-                  <label className="flex items-center gap-2 rounded-lg border p-3 text-sm">
-                    <input type="checkbox" name="approvalRequired" />
-                    موافقة قبل النشر
-                  </label>
-                  <Select name="errorPolicy" defaultValue="retry_failed_only">
-                    <option value="retry_failed_only">أعد المنصات الفاشلة فقط</option>
-                    <option value="auto_shorten_x">اختصر X إذا كان النص طويلًا</option>
-                    <option value="resize_media">صغّر الصورة إذا كان حجمها كبيرًا</option>
-                    <option value="rate_limit_wait">انتظر عند Rate Limit ثم أعد المحاولة</option>
-                    <option value="notify_only">تنبيه فقط عند الفشل</option>
-                  </Select>
-                </div>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="scheduledAt">وقت الجدولة</Label>
-                <Input id="scheduledAt" name="scheduledAt" type="datetime-local" />
-              </div>
+              </details>
             </ActionForm>
           </CardContent>
         </Card>

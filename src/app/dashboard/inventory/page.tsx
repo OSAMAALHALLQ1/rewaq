@@ -14,16 +14,46 @@ import { formatNumber } from "@/lib/utils";
 import { saveInventoryItemAction } from "@/server/actions/mutations";
 import { getInventoryData } from "@/server/queries/app";
 
-export default async function InventoryPage() {
+interface SearchParams {
+  warehouse?: string;
+  [key: string]: string | string[] | undefined;
+}
+
+export default async function InventoryPage({
+  searchParams,
+}: {
+  searchParams: Promise<SearchParams>;
+}) {
+  const params = await searchParams;
+  const warehouse = params?.warehouse;
   const { items, categories, branchStock, suppliers, branches } = await getInventoryData();
   const savedCategories = categories.filter((category) => !category.id.startsWith("suggested-"));
   const categoryNames = categories.map((category) => category.name);
 
+  // Filter items by warehouse
+  const filteredItems = warehouse
+    ? items.filter((item) => item.warehouse === warehouse)
+    : items;
+
+  const pageTitle =
+    warehouse === "general"
+      ? "المستودع العام"
+      : warehouse === "kitchen"
+        ? "مستودع المطبخ"
+        : "مخطط المخزن";
+
+  const pageDescription =
+    warehouse === "general"
+      ? "متابعة المواد والتغليف والمستهلكات في المستودع العام للمطعم."
+      : warehouse === "kitchen"
+        ? "متابعة المواد الغذائية ومكونات التحضير الفورية داخل مستودع المطبخ."
+        : "متابعة المواد والكميات وحركات المخزن عبر الأقسام. كل تغيير يجب أن يولد حركة مخزون واضحة.";
+
   return (
     <>
       <PageHeader
-        title="مخطط المخزن"
-        description="متابعة المواد والكميات وحركات المخزن عبر الأقسام. كل تغيير يجب أن يولد حركة مخزون واضحة."
+        title={pageTitle}
+        description={pageDescription}
         actions={
           <>
             <Button variant="outline" asChild>
@@ -86,7 +116,7 @@ export default async function InventoryPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {items.map((item) => {
+                {filteredItems.map((item) => {
                   const totalQuantity = branchStock
                     .filter((stock) => stock.itemId === item.id)
                     .reduce((sum, stock) => sum + stock.quantity, 0);
@@ -126,6 +156,7 @@ export default async function InventoryPage() {
           </CardHeader>
           <CardContent>
             <ActionForm action={saveInventoryItemAction} submitLabel="حفظ المادة" className="space-y-4">
+              <input type="hidden" name="warehouse" value={warehouse || "general"} />
               <div className="grid gap-2">
                 <Label htmlFor="name">الاسم</Label>
                 <Input id="name" name="name" placeholder="مثال: دجاج" required />

@@ -183,6 +183,7 @@ export const demoInventoryItems: InventoryItem[] = [
     primarySupplierName: demoSuppliers[0].name,
     sku: "CHK-001",
     notes: "صدور دجاج مجمدة",
+    warehouse: "kitchen",
     isActive: true,
   },
   {
@@ -198,6 +199,7 @@ export const demoInventoryItems: InventoryItem[] = [
     minimumQuantity: 60,
     primarySupplierId: demoSuppliers[1].id,
     primarySupplierName: demoSuppliers[1].name,
+    warehouse: "kitchen",
     isActive: true,
   },
   {
@@ -213,6 +215,7 @@ export const demoInventoryItems: InventoryItem[] = [
     minimumQuantity: 30,
     primarySupplierId: demoSuppliers[1].id,
     primarySupplierName: demoSuppliers[1].name,
+    warehouse: "kitchen",
     isActive: true,
   },
   {
@@ -228,6 +231,7 @@ export const demoInventoryItems: InventoryItem[] = [
     minimumQuantity: 35,
     primarySupplierId: demoSuppliers[1].id,
     primarySupplierName: demoSuppliers[1].name,
+    warehouse: "kitchen",
     isActive: true,
   },
   {
@@ -243,6 +247,7 @@ export const demoInventoryItems: InventoryItem[] = [
     minimumQuantity: 120,
     primarySupplierId: demoSuppliers[2].id,
     primarySupplierName: demoSuppliers[2].name,
+    warehouse: "general",
     isActive: true,
   },
   {
@@ -258,6 +263,7 @@ export const demoInventoryItems: InventoryItem[] = [
     minimumQuantity: 5000,
     primarySupplierId: demoSuppliers[1].id,
     primarySupplierName: demoSuppliers[1].name,
+    warehouse: "kitchen",
     isActive: true,
   },
   {
@@ -273,6 +279,7 @@ export const demoInventoryItems: InventoryItem[] = [
     minimumQuantity: 100,
     primarySupplierId: demoSuppliers[0].id,
     primarySupplierName: demoSuppliers[0].name,
+    warehouse: "kitchen",
     isActive: true,
   },
   {
@@ -288,6 +295,7 @@ export const demoInventoryItems: InventoryItem[] = [
     minimumQuantity: 300,
     primarySupplierId: demoSuppliers[2].id,
     primarySupplierName: demoSuppliers[2].name,
+    warehouse: "general",
     isActive: true,
   },
   {
@@ -305,6 +313,7 @@ export const demoInventoryItems: InventoryItem[] = [
     primarySupplierName: demoSuppliers[3].name,
     sku: "MET-001",
     notes: "مناسب للبرجر والستيك",
+    warehouse: "kitchen",
     isActive: true,
   },
   {
@@ -321,6 +330,7 @@ export const demoInventoryItems: InventoryItem[] = [
     primarySupplierId: demoSuppliers[3].id,
     primarySupplierName: demoSuppliers[3].name,
     sku: "SEA-010",
+    warehouse: "kitchen",
     isActive: true,
   },
   {
@@ -337,6 +347,7 @@ export const demoInventoryItems: InventoryItem[] = [
     primarySupplierId: demoSuppliers[4].id,
     primarySupplierName: demoSuppliers[4].name,
     sku: "EGG-030",
+    warehouse: "kitchen",
     isActive: true,
   },
   {
@@ -353,6 +364,7 @@ export const demoInventoryItems: InventoryItem[] = [
     primarySupplierId: demoSuppliers[1].id,
     primarySupplierName: demoSuppliers[1].name,
     sku: "VEG-011",
+    warehouse: "kitchen",
     isActive: true,
   },
   {
@@ -369,6 +381,7 @@ export const demoInventoryItems: InventoryItem[] = [
     primarySupplierId: demoSuppliers[1].id,
     primarySupplierName: demoSuppliers[1].name,
     sku: "VEG-012",
+    warehouse: "kitchen",
     isActive: true,
   },
   {
@@ -385,6 +398,7 @@ export const demoInventoryItems: InventoryItem[] = [
     primarySupplierId: demoSuppliers[1].id,
     primarySupplierName: demoSuppliers[1].name,
     sku: "VEG-013",
+    warehouse: "kitchen",
     isActive: true,
   },
   {
@@ -401,6 +415,7 @@ export const demoInventoryItems: InventoryItem[] = [
     primarySupplierId: demoSuppliers[1].id,
     primarySupplierName: demoSuppliers[1].name,
     sku: "VEG-014",
+    warehouse: "kitchen",
     isActive: true,
   },
   {
@@ -417,6 +432,7 @@ export const demoInventoryItems: InventoryItem[] = [
     primarySupplierId: demoSuppliers[1].id,
     primarySupplierName: demoSuppliers[1].name,
     sku: "VEG-015",
+    warehouse: "kitchen",
     isActive: true,
   },
   {
@@ -433,6 +449,7 @@ export const demoInventoryItems: InventoryItem[] = [
     primarySupplierId: demoSuppliers[1].id,
     primarySupplierName: demoSuppliers[1].name,
     sku: "FRT-021",
+    warehouse: "kitchen",
     isActive: true,
   },
   {
@@ -449,6 +466,7 @@ export const demoInventoryItems: InventoryItem[] = [
     primarySupplierId: demoSuppliers[1].id,
     primarySupplierName: demoSuppliers[1].name,
     sku: "HRB-001",
+    warehouse: "kitchen",
     isActive: true,
   },
   {
@@ -465,6 +483,7 @@ export const demoInventoryItems: InventoryItem[] = [
     primarySupplierId: demoSuppliers[1].id,
     primarySupplierName: demoSuppliers[1].name,
     sku: "HRB-002",
+    warehouse: "kitchen",
     isActive: true,
   },
   {
@@ -481,6 +500,7 @@ export const demoInventoryItems: InventoryItem[] = [
     primarySupplierId: demoSuppliers[3].id,
     primarySupplierName: demoSuppliers[3].name,
     sku: "FRZ-001",
+    warehouse: "kitchen",
     isActive: true,
   },
   {
@@ -497,6 +517,7 @@ export const demoInventoryItems: InventoryItem[] = [
     primarySupplierId: demoSuppliers[4].id,
     primarySupplierName: demoSuppliers[4].name,
     sku: "GRN-010",
+    warehouse: "kitchen",
     isActive: true,
   },
   {
@@ -513,6 +534,7 @@ export const demoInventoryItems: InventoryItem[] = [
     primarySupplierId: demoSuppliers[6].id,
     primarySupplierName: demoSuppliers[6].name,
     sku: "GRN-011",
+    warehouse: "kitchen",
     isActive: true,
   },
   {
@@ -529,6 +551,7 @@ export const demoInventoryItems: InventoryItem[] = [
     primarySupplierId: demoSuppliers[1].id,
     primarySupplierName: demoSuppliers[1].name,
     sku: "GRN-012",
+    warehouse: "kitchen",
     isActive: true,
   },
   {
@@ -545,6 +568,7 @@ export const demoInventoryItems: InventoryItem[] = [
     primarySupplierId: demoSuppliers[4].id,
     primarySupplierName: demoSuppliers[4].name,
     sku: "BAK-001",
+    warehouse: "kitchen",
     isActive: true,
   },
   {
@@ -561,6 +585,7 @@ export const demoInventoryItems: InventoryItem[] = [
     primarySupplierId: demoSuppliers[4].id,
     primarySupplierName: demoSuppliers[4].name,
     sku: "BAK-002",
+    warehouse: "kitchen",
     isActive: true,
   },
   {
@@ -577,6 +602,7 @@ export const demoInventoryItems: InventoryItem[] = [
     primarySupplierId: demoSuppliers[4].id,
     primarySupplierName: demoSuppliers[4].name,
     sku: "DRY-001",
+    warehouse: "kitchen",
     isActive: true,
   },
   {
@@ -593,6 +619,7 @@ export const demoInventoryItems: InventoryItem[] = [
     primarySupplierId: demoSuppliers[4].id,
     primarySupplierName: demoSuppliers[4].name,
     sku: "DRY-002",
+    warehouse: "kitchen",
     isActive: true,
   },
   {
@@ -609,6 +636,7 @@ export const demoInventoryItems: InventoryItem[] = [
     primarySupplierId: demoSuppliers[4].id,
     primarySupplierName: demoSuppliers[4].name,
     sku: "DRY-003",
+    warehouse: "kitchen",
     isActive: true,
   },
   {
@@ -625,6 +653,7 @@ export const demoInventoryItems: InventoryItem[] = [
     primarySupplierId: demoSuppliers[4].id,
     primarySupplierName: demoSuppliers[4].name,
     sku: "DRY-004",
+    warehouse: "kitchen",
     isActive: true,
   },
   {
@@ -641,6 +670,7 @@ export const demoInventoryItems: InventoryItem[] = [
     primarySupplierId: demoSuppliers[5].id,
     primarySupplierName: demoSuppliers[5].name,
     sku: "SPC-001",
+    warehouse: "kitchen",
     isActive: true,
   },
   {
@@ -657,6 +687,7 @@ export const demoInventoryItems: InventoryItem[] = [
     primarySupplierId: demoSuppliers[5].id,
     primarySupplierName: demoSuppliers[5].name,
     sku: "SPC-002",
+    warehouse: "kitchen",
     isActive: true,
   },
   {
@@ -673,6 +704,7 @@ export const demoInventoryItems: InventoryItem[] = [
     primarySupplierId: demoSuppliers[5].id,
     primarySupplierName: demoSuppliers[5].name,
     sku: "SPC-003",
+    warehouse: "kitchen",
     isActive: true,
   },
   {
@@ -689,6 +721,7 @@ export const demoInventoryItems: InventoryItem[] = [
     primarySupplierId: demoSuppliers[5].id,
     primarySupplierName: demoSuppliers[5].name,
     sku: "SPC-004",
+    warehouse: "kitchen",
     isActive: true,
   },
   {
@@ -705,6 +738,7 @@ export const demoInventoryItems: InventoryItem[] = [
     primarySupplierId: demoSuppliers[5].id,
     primarySupplierName: demoSuppliers[5].name,
     sku: "SAU-010",
+    warehouse: "kitchen",
     isActive: true,
   },
   {
@@ -721,6 +755,7 @@ export const demoInventoryItems: InventoryItem[] = [
     primarySupplierId: demoSuppliers[5].id,
     primarySupplierName: demoSuppliers[5].name,
     sku: "SAU-011",
+    warehouse: "kitchen",
     isActive: true,
   },
   {
@@ -737,6 +772,7 @@ export const demoInventoryItems: InventoryItem[] = [
     primarySupplierId: demoSuppliers[5].id,
     primarySupplierName: demoSuppliers[5].name,
     sku: "SAU-012",
+    warehouse: "kitchen",
     isActive: true,
   },
   {
@@ -753,6 +789,7 @@ export const demoInventoryItems: InventoryItem[] = [
     primarySupplierId: demoSuppliers[5].id,
     primarySupplierName: demoSuppliers[5].name,
     sku: "SAU-013",
+    warehouse: "kitchen",
     isActive: true,
   },
   {
@@ -769,6 +806,7 @@ export const demoInventoryItems: InventoryItem[] = [
     primarySupplierId: demoSuppliers[6].id,
     primarySupplierName: demoSuppliers[6].name,
     sku: "BEV-001",
+    warehouse: "general",
     isActive: true,
   },
   {
@@ -785,6 +823,7 @@ export const demoInventoryItems: InventoryItem[] = [
     primarySupplierId: demoSuppliers[6].id,
     primarySupplierName: demoSuppliers[6].name,
     sku: "BEV-002",
+    warehouse: "general",
     isActive: true,
   },
   {
@@ -801,6 +840,7 @@ export const demoInventoryItems: InventoryItem[] = [
     primarySupplierId: demoSuppliers[6].id,
     primarySupplierName: demoSuppliers[6].name,
     sku: "BEV-003",
+    warehouse: "general",
     isActive: true,
   },
   {
@@ -817,6 +857,7 @@ export const demoInventoryItems: InventoryItem[] = [
     primarySupplierId: demoSuppliers[6].id,
     primarySupplierName: demoSuppliers[6].name,
     sku: "BEV-004",
+    warehouse: "general",
     isActive: true,
   },
   {
@@ -833,6 +874,7 @@ export const demoInventoryItems: InventoryItem[] = [
     primarySupplierId: demoSuppliers[2].id,
     primarySupplierName: demoSuppliers[2].name,
     sku: "DSP-001",
+    warehouse: "general",
     isActive: true,
   },
   {
@@ -849,6 +891,7 @@ export const demoInventoryItems: InventoryItem[] = [
     primarySupplierId: demoSuppliers[2].id,
     primarySupplierName: demoSuppliers[2].name,
     sku: "DSP-002",
+    warehouse: "general",
     isActive: true,
   },
   {
@@ -865,6 +908,7 @@ export const demoInventoryItems: InventoryItem[] = [
     primarySupplierId: demoSuppliers[2].id,
     primarySupplierName: demoSuppliers[2].name,
     sku: "DSP-003",
+    warehouse: "general",
     isActive: true,
   },
   {
@@ -881,6 +925,7 @@ export const demoInventoryItems: InventoryItem[] = [
     primarySupplierId: demoSuppliers[7].id,
     primarySupplierName: demoSuppliers[7].name,
     sku: "DSP-004",
+    warehouse: "general",
     isActive: true,
   },
   {
@@ -897,6 +942,7 @@ export const demoInventoryItems: InventoryItem[] = [
     primarySupplierId: demoSuppliers[2].id,
     primarySupplierName: demoSuppliers[2].name,
     sku: "PKG-010",
+    warehouse: "general",
     isActive: true,
   },
   {
@@ -913,6 +959,7 @@ export const demoInventoryItems: InventoryItem[] = [
     primarySupplierId: demoSuppliers[2].id,
     primarySupplierName: demoSuppliers[2].name,
     sku: "PKG-011",
+    warehouse: "general",
     isActive: true,
   },
   {
@@ -930,6 +977,7 @@ export const demoInventoryItems: InventoryItem[] = [
     primarySupplierName: demoSuppliers[7].name,
     sku: "OPS-001",
     notes: "للطابعات الحرارية عند الحاجة",
+    warehouse: "general",
     isActive: true,
   },
   {
@@ -946,6 +994,7 @@ export const demoInventoryItems: InventoryItem[] = [
     primarySupplierId: demoSuppliers[7].id,
     primarySupplierName: demoSuppliers[7].name,
     sku: "OPS-002",
+    warehouse: "general",
     isActive: true,
   },
   {
@@ -962,6 +1011,7 @@ export const demoInventoryItems: InventoryItem[] = [
     primarySupplierId: demoSuppliers[7].id,
     primarySupplierName: demoSuppliers[7].name,
     sku: "CLN-001",
+    warehouse: "general",
     isActive: true,
   },
   {
@@ -978,6 +1028,7 @@ export const demoInventoryItems: InventoryItem[] = [
     primarySupplierId: demoSuppliers[7].id,
     primarySupplierName: demoSuppliers[7].name,
     sku: "CLN-002",
+    warehouse: "general",
     isActive: true,
   },
   {
@@ -994,6 +1045,7 @@ export const demoInventoryItems: InventoryItem[] = [
     primarySupplierId: demoSuppliers[7].id,
     primarySupplierName: demoSuppliers[7].name,
     sku: "CLN-003",
+    warehouse: "general",
     isActive: true,
   },
 ];

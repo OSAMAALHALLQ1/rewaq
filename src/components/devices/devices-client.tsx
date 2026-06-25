@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import { 
   Tablet, KeyRound, CheckSquare, Square, Copy, ShieldCheck, 
-  Trash2, Plus, MessageSquare, AlertCircle, RefreshCw, Send, Users, 
-  Eye, CheckCheck, Landmark, Calendar, Radio, Check 
+  Trash2, Plus, AlertCircle, RefreshCw, Send, Users, 
+  Eye, CheckCheck, Landmark, Calendar, Radio, Check, X 
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -64,7 +64,7 @@ const roleDefaultModules: Record<string, string[]> = {
 };
 
 export function DevicesClient({ orgId, branches, currentRole, currentName }: DevicesClientProps) {
-  const [activeTab, setActiveTab] = useState<"list" | "create" | "chat">("list");
+  const [activeTab, setActiveTab] = useState<"list" | "create" | "permissions">("list");
   const [devices, setDevices] = useState<DeviceKey[]>([]);
   const [auditChats, setAuditChats] = useState<AuditMessage[]>([]);
   
@@ -257,15 +257,15 @@ export function DevicesClient({ orgId, branches, currentRole, currentName }: Dev
           </button>
 
           <button
-            onClick={() => setActiveTab("chat")}
+            onClick={() => setActiveTab("permissions")}
             className={`px-4 py-2 text-xs font-black rounded-lg transition-all flex items-center gap-2 ${
-              activeTab === "chat" 
+              activeTab === "permissions" 
                 ? "bg-white text-slate-900 shadow-sm" 
                 : "text-slate-500 hover:text-slate-800"
             }`}
           >
-            <MessageSquare className="h-4 w-4 text-blue-600" />
-            سجل الرقابة ({auditChats.length})
+            <ShieldCheck className="h-4 w-4 text-teal-600" />
+            جدول الصلاحيات
           </button>
         </div>
       </div>
@@ -601,85 +601,68 @@ export function DevicesClient({ orgId, branches, currentRole, currentName }: Dev
         </div>
       )}
 
-      {/* 3. Live Chat Monitoring Logs */}
-      {activeTab === "chat" && (
+      {/* 3. Permissions Matrix (Takka-style) */}
+      {activeTab === "permissions" && (
         <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-200">
-          <Card className="border-slate-150 shadow-sm">
-            <CardHeader className="bg-slate-50/50 border-b border-slate-100 p-4 flex flex-row items-center justify-between gap-4">
-              <div>
-                <CardTitle className="text-sm font-black flex items-center gap-2">
-                  <MessageSquare className="h-5 w-5 text-teal-600" />
-                  لوحة الرقابة والإشراف الفوري للمراسلات
-                </CardTitle>
-                <CardDescription className="text-[10.5px] text-right mt-1">
-                  مراقبة فورية للرسائل المتبادلة بين المطبخ، الكاشير والمستودعات للتحقق من سلامة التشغيل.
-                </CardDescription>
-              </div>
-              <Button 
-                variant="outline" 
-                size="icon" 
-                onClick={loadAuditChats} 
-                className="text-slate-400 hover:text-slate-700 h-8 w-8 border-slate-200"
-                title="تحديث المحادثة"
-              >
-                <RefreshCw className="h-3.5 w-3.5" />
-              </Button>
+          <Card className="border-slate-150 shadow-sm overflow-hidden">
+            <CardHeader className="bg-slate-50/50 border-b border-slate-100 p-4">
+              <CardTitle className="text-sm font-black flex items-center gap-2">
+                <ShieldCheck className="h-5 w-5 text-teal-600" />
+                مصفوفة توزيع صلاحيات الأدوار والأجهزة
+              </CardTitle>
+              <CardDescription className="text-[10.5px] text-right mt-1">
+                توزيع الصلاحيات الافتراضية لكل دور تشغيلي في المطعم على مستوى واجهات الأنظمة والأجهزة المخصصة.
+              </CardDescription>
             </CardHeader>
-            <CardContent className="p-4 space-y-4">
-              <div className="rounded-xl bg-teal-50 border border-teal-100/60 p-3 text-[10.5px] text-teal-800 flex items-start gap-2.5">
-                <AlertCircle className="h-4.5 w-4.5 shrink-0 mt-0.5 text-teal-600" />
-                <span>
-                  <strong>نمط الرقابة الإدارية:</strong> بصفتك مديراً، تمنحك هذه اللوحة شفافية مطلقة لرؤية المحادثات المغلقة للأقسام والمجموعات العامة. Supabase Realtime يقوم ببث الرسائل الجديدة فور إرسالها من الأجهزة.
-                </span>
-              </div>
-
-              <div className="space-y-3.5 max-h-[450px] overflow-y-auto p-1">
-                {chatError && (
-                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-bold text-amber-800 flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4 shrink-0" />
-                    <span>{chatError}</span>
-                  </div>
-                )}
-                {auditChats.length === 0 ? (
-                  <div className="text-center py-10 text-slate-400 space-y-2">
-                    <MessageSquare className="h-8 w-8 mx-auto stroke-[1.5]" />
-                    <p className="text-xs">لا توجد رسائل مسجلة في الفرع حالياً.</p>
-                  </div>
-                ) : (
-                  auditChats.map((msg) => {
-                    const colorConfig = roleColors[msg.sender_role] || roleColors.staff;
+            <CardContent className="p-0 overflow-x-auto text-right" dir="rtl">
+              <table className="w-full text-right border-collapse text-xs">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-100">
+                    <th className="p-4 font-black text-slate-800 text-right w-1/3">البرنامج / الوحدة التشغيلية</th>
+                    {["chef", "cashier", "inventory_manager", "staff"].map(r => (
+                      <th key={r} className="p-4 font-black text-slate-800 text-center">
+                        <span className={`inline-block px-2.5 py-1 rounded-full text-[10px] border ${roleColors[r]?.bg} ${roleColors[r]?.text} ${roleColors[r]?.border}`}>
+                          {roleColors[r]?.label}
+                        </span>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {["pos", "recipes", "inventory", "purchasing", "waste", "reports"].map(modKey => {
+                    const mod = moduleLabels[modKey];
                     return (
-                      <div 
-                        key={msg.id} 
-                        className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 flex flex-col gap-2 hover:border-slate-200 hover:bg-slate-100/40 transition-all duration-150"
-                      >
-                        <div className="flex justify-between items-center text-[10px]">
-                          <div className="flex items-center gap-2">
-                            <span className="font-black text-slate-800">{msg.sender_name}</span>
-                            <Badge className={`${colorConfig.text} ${colorConfig.bg} ${colorConfig.border} border text-[8.5px] font-black px-1.5 py-0`}>
-                              {colorConfig.label}
-                            </Badge>
+                      <tr key={modKey} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="p-4">
+                          <div className="flex items-center gap-2.5">
+                            <span className="text-lg">{mod.icon}</span>
+                            <div>
+                              <p className="font-bold text-slate-900">{mod.title}</p>
+                              <p className="text-[10px] text-muted-foreground mt-0.5">{mod.desc}</p>
+                            </div>
                           </div>
-                          
-                          <span className="text-slate-400">
-                            {new Date(msg.created_at).toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" })}
-                          </span>
-                        </div>
-                        
-                        <p className="text-xs text-slate-650 leading-relaxed font-medium">{msg.content}</p>
-                        
-                        <div className="flex justify-end pt-1">
-                          <span className="text-[9px] font-bold bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full">
-                            {msg.recipient_role 
-                              ? `موجهة إلى: ${roleColors[msg.recipient_role]?.label || msg.recipient_role}` 
-                              : "جروب المطعم العام"}
-                          </span>
-                        </div>
-                      </div>
+                        </td>
+                        {["chef", "cashier", "inventory_manager", "staff"].map(role => {
+                          const hasAccess = roleDefaultModules[role]?.includes(modKey);
+                          return (
+                            <td key={role} className="p-4 text-center">
+                              {hasAccess ? (
+                                <span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100 shadow-sm">
+                                  <Check className="h-3.5 w-3.5 stroke-[3]" />
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-rose-50 text-rose-600 border border-rose-100 shadow-sm">
+                                  <X className="h-3.5 w-3.5 stroke-[3]" />
+                                </span>
+                              )}
+                            </td>
+                          );
+                        })}
+                      </tr>
                     );
-                  })
-                )}
-              </div>
+                  })}
+                </tbody>
+              </table>
             </CardContent>
           </Card>
         </div>

@@ -8,7 +8,6 @@ import {
   ClipboardList,
   Loader2,
   LogOut,
-  MessageSquare,
   PackageCheck,
   Search,
   ShieldAlert,
@@ -17,7 +16,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { InternalChatDrawer } from "@/components/layout/internal-chat-drawer";
 
 type DeviceSession = {
   token: string;
@@ -65,7 +63,6 @@ export default function DepartmentInventoryPage() {
   const router = useRouter();
   const [device, setDevice] = useState<DeviceSession>({ token: "", name: "", orgId: "", branchId: "", role: "" });
   const [authorized, setAuthorized] = useState(false);
-  const [chatOpen, setChatOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [stockItems, setStockItems] = useState<StockItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -175,14 +172,7 @@ export default function DepartmentInventoryPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            className="border-slate-800 bg-slate-900/50 hover:bg-slate-800 text-slate-100 flex items-center gap-2 text-xs h-10 px-4"
-            onClick={() => setChatOpen(true)}
-          >
-            <MessageSquare className="h-4 w-4 text-teal-400" />
-            <span>الدردشة الفورية</span>
-          </Button>
+
           <Button
             variant="outline"
             className="border-slate-800 bg-slate-900/50 hover:bg-rose-950/30 hover:border-rose-900/50 text-rose-400 h-10 w-10 p-0"
@@ -300,15 +290,6 @@ export default function DepartmentInventoryPage() {
         </Card>
       </main>
 
-      <InternalChatDrawer
-        isOpen={chatOpen}
-        onClose={() => setChatOpen(false)}
-        orgId={device.orgId}
-        branchId={device.branchId}
-        currentRole={device.role}
-        currentName={device.name}
-        departmentKey={device.token}
-      />
     </div>
   );
 }

@@ -1,11 +1,31 @@
 import { NextResponse } from "next/server";
 import { authenticateDepartmentDevice } from "@/lib/department/auth";
+import { demoCatalogItems } from "@/lib/demo-data";
+import { hasSupabaseAdminEnv } from "@/lib/supabase/env";
 
 export async function GET(request: Request) {
   const auth = await authenticateDepartmentDevice(request, "pos");
 
   if (!auth.ok) {
     return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
+  }
+
+  if (!hasSupabaseAdminEnv()) {
+    // Return demo catalog items in Simulation mode!
+    return NextResponse.json({
+      success: true,
+      device: auth.device,
+      items: demoCatalogItems.map((item) => ({
+        id: item.id,
+        code: item.code,
+        name: item.name,
+        category: item.categoryName ?? "عام",
+        unit: item.mainUnit ?? "قطعة",
+        price: Number(item.retailPrice ?? 0),
+        taxRate: Number(item.taxRate ?? 0),
+        barcodes: item.barcodes ?? [],
+      })),
+    });
   }
 
   const { data: itemRows, error: itemError } = await auth.admin

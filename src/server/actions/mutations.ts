@@ -731,6 +731,7 @@ export async function saveInventoryItemAction(_prevState: ActionState, formData:
     sku: formData.get("sku") || undefined,
     notes: formData.get("notes") || undefined,
     isActive: formData.get("isActive") !== "false",
+    warehouse: formData.get("warehouse") || undefined,
   });
 
   if (!parsed.success) return invalid(parsed.error.issues[0]?.message ?? "بيانات المادة غير صحيحة");
@@ -792,6 +793,7 @@ export async function saveInventoryItemAction(_prevState: ActionState, formData:
       sku: parsed.data.sku || null,
       notes: parsed.data.notes || null,
       status: parsed.data.isActive ? "active" : "inactive",
+      warehouse: parsed.data.warehouse || "general",
       created_by: userId,
     });
 

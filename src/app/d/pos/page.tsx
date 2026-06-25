@@ -3,14 +3,13 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { 
-  Receipt, ShoppingCart, MessageSquare, LogOut, Search, Plus, Minus, Trash2, 
+  Receipt, ShoppingCart, LogOut, Search, Plus, Minus, Trash2, 
   CreditCard, Banknote, BadgeCent
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { InternalChatDrawer } from "@/components/layout/internal-chat-drawer";
 
 type CartItem = {
   id: string;
@@ -189,16 +188,6 @@ export default function CashierPOSWorkspace() {
 
         {/* Action items */}
         <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            className="border-slate-800 bg-slate-900/50 hover:bg-slate-800 text-slate-100 flex items-center gap-2 text-xs h-10 px-4"
-            onClick={() => setChatOpen(true)}
-          >
-            <MessageSquare className="h-4 w-4 text-teal-400" />
-            <span>الدردشة الفورية</span>
-            <Badge tone="default" className="bg-teal-500 text-slate-950 text-[10px] font-bold">نشط</Badge>
-          </Button>
-
           <Button 
             variant="outline" 
             className="border-slate-800 bg-slate-900/50 hover:bg-rose-950/30 hover:border-rose-900/50 text-rose-400 h-10 w-10 p-0" 
@@ -338,19 +327,7 @@ export default function CashierPOSWorkspace() {
             ))}
           </div>
         </div>
-
       </div>
-
-      {/* Stateful Internal Chat Drawer */}
-      <InternalChatDrawer 
-        isOpen={chatOpen} 
-        onClose={() => setChatOpen(false)} 
-        orgId={device.orgId} 
-        branchId={device.branchId} 
-        currentRole={device.role} 
-        currentName="مسؤول الكاشير" 
-        departmentKey={device.token}
-      />
     </div>
   );
 }

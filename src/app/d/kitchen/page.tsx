@@ -3,14 +3,13 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { 
-  ChefHat, CookingPot, MessageSquare, LogOut, Clock, CheckCircle2, 
+  ChefHat, CookingPot, LogOut, Clock, CheckCircle2, 
   Search, BookOpen, AlertTriangle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { InternalChatDrawer } from "@/components/layout/internal-chat-drawer";
 
 type OrderItem = {
   name: string;
@@ -91,7 +90,6 @@ export default function KitchenKDSWorkspace() {
   const router = useRouter();
   const [device, setDevice] = useState<DeviceSession>({ token: "", name: "", orgId: "", branchId: "", role: "" });
   const [authorized, setAuthorized] = useState(false);
-  const [chatOpen, setChatOpen] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(true);
   const [ordersError, setOrdersError] = useState<string | null>(null);
@@ -226,16 +224,6 @@ export default function KitchenKDSWorkspace() {
 
         {/* Action controls */}
         <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            className="border-slate-800 bg-slate-900/50 hover:bg-slate-800 text-slate-100 flex items-center gap-2 text-xs h-10 px-4"
-            onClick={() => setChatOpen(true)}
-          >
-            <MessageSquare className="h-4 w-4 text-teal-400" />
-            <span>الدردشة الفورية</span>
-            <Badge tone="default" className="bg-teal-500 text-slate-950 text-[10px] font-bold">نشط</Badge>
-          </Button>
-
           <Button 
             variant="outline" 
             className="border-slate-800 bg-slate-900/50 hover:bg-rose-950/30 hover:border-rose-900/50 text-rose-400 h-10 w-10 p-0" 
@@ -379,19 +367,7 @@ export default function KitchenKDSWorkspace() {
             ))}
           </div>
         </div>
-
       </div>
-
-      {/* Stateful Internal Chat Drawer */}
-      <InternalChatDrawer 
-        isOpen={chatOpen} 
-        onClose={() => setChatOpen(false)} 
-        orgId={device.orgId} 
-        branchId={device.branchId} 
-        currentRole={device.role} 
-        currentName="شيف المطبخ" 
-        departmentKey={device.token}
-      />
     </div>
   );
 }

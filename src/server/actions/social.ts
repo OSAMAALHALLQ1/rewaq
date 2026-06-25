@@ -143,9 +143,17 @@ export async function createSocialPostAction(_prevState: ActionState, formData: 
 
       if (error) return { ok: false, message: error.message };
 
-      const preferredIds = new Set(preferences.defaultAccountIds);
-      const preferredAccounts = (accountRows ?? []).filter((account) => preferredIds.has(account.id));
-      const accountsToUse = preferredAccounts.length > 0 ? preferredAccounts : accountRows ?? [];
+      const submittedPlatforms = formData.getAll("platforms").map(String);
+      let accountsToUse = accountRows ?? [];
+      
+      if (submittedPlatforms.length > 0) {
+        const submittedSet = new Set(submittedPlatforms);
+        accountsToUse = accountsToUse.filter((account) => submittedSet.has(account.platform));
+      } else {
+        const preferredIds = new Set(preferences.defaultAccountIds);
+        const preferredAccounts = (accountRows ?? []).filter((account) => preferredIds.has(account.id));
+        accountsToUse = preferredAccounts.length > 0 ? preferredAccounts : accountRows ?? [];
+      }
 
       selectedAccounts = accountsToUse.map((account) => ({
         id: account.id,

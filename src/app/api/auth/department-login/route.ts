@@ -21,6 +21,19 @@ export async function POST(request: Request) {
       );
     }
 
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      // Demo/Simulation mode bypass!
+      return NextResponse.json({
+        success: true,
+        token: normalizedKey,
+        organizationId: "00000000-0000-4000-8000-000000000001",
+        branchId: "00000000-0000-4000-8000-000000000101",
+        role: "cashier",
+        allowedModules: ["pos", "inventory", "recipes", "waste"],
+        deviceName: "جهاز كاشير تجريبي",
+      });
+    }
+
     // 1. Hash the key using SHA-256 for secure database lookup
     const keyHash = createHash("sha256").update(normalizedKey).digest("hex");
 

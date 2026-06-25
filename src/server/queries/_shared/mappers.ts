@@ -79,12 +79,9 @@ export function mapInventoryItem(
     sku: optionalText(row.sku),
     notes: optionalText(row.notes),
     isActive: row.status === "active",
+    warehouse: (row as any).warehouse ? ((row as any).warehouse as "general" | "kitchen") : "general",
   };
 }
-
-// ============================================================================
-// Branch Stock Mapping
-// ============================================================================
 
 export function mapBranchStock(
   row: RowLike<Tables<"branch_stock">>,

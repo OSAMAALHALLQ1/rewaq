@@ -6,7 +6,6 @@ import { AppSidebar } from "@/components/layout/app-sidebar";
 import { MobileHeader } from "@/components/layout/mobile-header";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { MobileMenu } from "@/components/layout/mobile-menu";
-import { InternalChatDrawer } from "@/components/layout/internal-chat-drawer";
 import type { AppSession } from "@/lib/auth/session";
 import type { Branch, Notification } from "@/types/domain";
 
@@ -40,7 +39,6 @@ export function ResponsivePageShell({
   mode = "app",
 }: ResponsivePageShellProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [chatOpen, setChatOpen] = useState(false);
 
   return (
     <>
@@ -50,7 +48,6 @@ export function ResponsivePageShell({
         branches={branches}
         notifications={notifications}
         onMenuOpen={() => setMobileMenuOpen(true)}
-        onChatOpen={() => setChatOpen(true)}
       />
 
       {/* Mobile Menu - centered full-screen overlay */}
@@ -58,28 +55,16 @@ export function ResponsivePageShell({
         <MobileMenu 
           mode={mode} 
           onClose={() => setMobileMenuOpen(false)} 
-          onChatOpen={() => setChatOpen(true)}
         />
       )}
 
-      {/* Internal Chat Drawer (Global) */}
-      {session && session.organizationId && (
-        <InternalChatDrawer
-          isOpen={chatOpen}
-          onClose={() => setChatOpen(false)}
-          orgId={session.organizationId}
-          branchId={session.branchId}
-          currentRole={session.role}
-          currentName={session.user.name}
-        />
-      )}
+
 
       <div className="flex relative min-h-screen">
         {/* Desktop Sidebar - visible on md+ */}
         <div className="hidden md:flex shrink-0 w-64 xl:w-72 border-s border-border bg-white">
           <AppSidebar 
             mode={mode} 
-            onChatOpen={() => setChatOpen(true)}
           />
         </div>
 
@@ -91,7 +76,6 @@ export function ResponsivePageShell({
               session={session} 
               branches={branches} 
               notifications={notifications} 
-              onChatOpen={() => setChatOpen(true)}
             />
           </div>
 

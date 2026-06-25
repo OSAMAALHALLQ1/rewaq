@@ -51,7 +51,7 @@ const demoAccounts: LedgerAccount[] = [
   { id: "acc-cash-diff", code: "5900", name: "فروقات الصندوق", accountType: "expense", normalBalance: "debit", systemKey: "cash_over_short" },
 ];
 
-const demoEntries: LedgerEntry[] = [
+export const demoEntries: LedgerEntry[] = [
   {
     id: "je-demo-1",
     entryNumber: "JE-20260624-0001",

@@ -41,6 +41,7 @@ export const inventoryItemSchema = z.object({
   sku: z.string().optional(),
   notes: z.string().optional(),
   isActive: z.boolean().default(true),
+  warehouse: z.string().optional(),
 }).refine((value) => Boolean(value.categoryId || value.categoryName?.trim()), {
   message: "اختر الفئة أو أضف فئة جديدة",
   path: ["categoryId"],
