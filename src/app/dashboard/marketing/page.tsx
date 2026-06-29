@@ -121,10 +121,16 @@ export default async function MarketingCenterPage() {
                 السجلات
               </Link>
             </Button>
-            <Button asChild>
+            <Button asChild variant="outline">
               <Link href="/dashboard/marketing/create">
                 <Plus className="h-4 w-4" />
-                إنشاء منشور
+                منشور متقدم
+              </Link>
+            </Button>
+            <Button asChild>
+              <Link href="/dashboard/marketing/quick-publish">
+                <Send className="h-4 w-4" />
+                نشر سريع للكل
               </Link>
             </Button>
           </>

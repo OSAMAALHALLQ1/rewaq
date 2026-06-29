@@ -14,6 +14,7 @@ import type {
   InventoryItem,
   Invoice,
   CustomerInvoice,
+  CustomerInvoiceItem,
   PayableBill,
   MenuItem,
   Notification,
@@ -1599,6 +1600,186 @@ export const demoRestaurantTables: RestaurantTable[] = [
   },
 ];
 
+// ============================================================================
+// Full-Day Simulation (محاكاة يوم عمل كامل لمطعم متوسط)
+// Generates peak-time sales invoices + linked stock deductions (sale_usage)
+// and extra live tables, so the app shows a "living" restaurant end-to-end.
+//
+// NOTE: Defined as a function and called once at the very bottom of this file,
+// AFTER all demo datasets (incl. demoRecipes) are declared, to avoid the
+// block-scoped "used before declaration" error.
+// ============================================================================
+
+type SimCatalogLine = {
+  catalogItemId: string;
+  menuItemId: string;
+  name: string;
+  unitPrice: number;
+};
+
+function pick<T>(arr: T[], seed: number): T {
+  return arr[seed % arr.length];
+}
+
+const hourlyWeights: Record<number, number> = {
+  10: 2, 11: 3, 12: 6, 13: 7, 14: 5, // lunch peak
+  15: 2, 16: 2, 17: 3, 18: 5, 19: 8, 20: 9, 21: 7, 22: 4, // dinner peak
+};
+
+const simDate = "2026-05-16";
+const simCustomerNames = [
+  "عميل نقدي", "أبو محمد", "عائلة السيد", "عميل دليفري", "ساندويتش سفري",
+  "مجموعة شباب", "وجبة جاهزة", "عميل طاولة 5",
+];
+
+function initDaySimulation() {
+  const simCatalogLines: SimCatalogLine[] = [
+    { catalogItemId: "catalog-thai-chicken", menuItemId: "menu-thai-chicken", name: "وجبة دجاج تايلندي", unitPrice: 25 },
+    { catalogItemId: "catalog-zinger", menuItemId: "menu-zinger", name: "ساندويتش زنجر", unitPrice: 15 },
+    { catalogItemId: "catalog-rice", menuItemId: "menu-veggie-rice", name: "أرز بالخضار", unitPrice: 12 },
+    { catalogItemId: "catalog-burger", menuItemId: "menu-chicken-burger", name: "برجر دجاج", unitPrice: 18 },
+  ];
+
+  const recipeByName = new Map(demoRecipes.map((r) => [r.name, r]));
+  const simInvoices: CustomerInvoice[] = [];
+  const simMovements: StockMovement[] = [];
+  let counter = 4100;
+
+  for (const hour of Object.keys(hourlyWeights).map(Number).sort((a, b) => a - b)) {
+    const salesThisHour = hourlyWeights[hour];
+    for (let i = 0; i < salesThisHour; i += 1) {
+      counter += 1;
+      const minute = (i * (60 / salesThisHour)) % 60;
+      const issuedAt = `${simDate}T${String(hour).padStart(2, "0")}:${String(Math.floor(minute)).padStart(2, "0")}:00Z`;
+      const seed = counter;
+
+      const itemCount = 1 + (seed % 4);
+      const chosen = new Set<number>();
+      const invoiceItems: CustomerInvoiceItem[] = [];
+      let subtotal = 0;
+
+      for (let n = 0; n < itemCount; n += 1) {
+        const line = pick(simCatalogLines, seed + n * 7);
+        const key = simCatalogLines.indexOf(line);
+        if (chosen.has(key)) continue;
+        chosen.add(key);
+        const quantity = 1 + ((seed + n) % 3);
+        const total = line.unitPrice * quantity;
+        subtotal += total;
+
+        invoiceItems.push({
+          id: `sim-cinv-${counter}-${n}`,
+          menuItemId: line.menuItemId,
+          name: line.name,
+          quantity,
+          unitPrice: line.unitPrice,
+          total,
+        });
+
+        // Auto-deduct recipe ingredients -> sale_usage stock movements.
+        const recipe = recipeByName.get(line.name);
+        if (recipe) {
+          for (const ingredient of recipe.ingredients) {
+            const deductQty = ingredient.quantity * quantity;
+            simMovements.push({
+              id: `sim-mv-${counter}-${n}-${ingredient.itemId}`,
+              organizationId: demoOrganization.id,
+              branchId: demoBranches[0].id,
+              branchName: demoBranches[0].name,
+              itemId: ingredient.itemId,
+              itemName: ingredient.itemName,
+              movementType: "sale_usage",
+              quantity: -deductQty,
+              unitCost: ingredient.unitCost,
+              totalCost: deductQty * ingredient.unitCost,
+              reference: `C-2026-${counter}`,
+              notes: `خصم تلقائي عند بيع ${line.name} - فاتورة C-2026-${counter}`,
+              createdAt: issuedAt,
+            });
+          }
+        }
+      }
+
+      if (invoiceItems.length === 0) continue;
+
+      simInvoices.push({
+        id: `sim-cinv-${counter}`,
+        organizationId: demoOrganization.id,
+        branchId: demoBranches[0].id,
+        branchName: demoBranches[0].name,
+        invoiceNumber: `C-2026-${counter}`,
+        customerName: pick(simCustomerNames, seed),
+        status: "paid",
+        paymentMethod: pick(["cash", "card", "cash", "delivery_app"] as const, seed),
+        issuedAt,
+        subtotal,
+        discount: 0,
+        taxRate: 0,
+        taxTotal: 0,
+        total: subtotal,
+        items: invoiceItems,
+      });
+    }
+  }
+
+  demoCustomerInvoices.push(...simInvoices);
+  demoStockMovements.unshift(...simMovements);
+
+  demoRestaurantTables.push(
+    {
+      id: "table-9",
+      organizationId: demoOrganization.id,
+      branchId: demoBranches[0].id,
+      branchName: demoBranches[0].name,
+      number: 9,
+      zone: "الصالة الرئيسية",
+      seats: 4,
+      status: "needs_cleaning",
+      openedAt: "2026-05-16T20:40:00Z",
+      waiterName: "سامي",
+      guests: 3,
+      currentTotal: 64,
+      orderItems: [
+        { name: "وجبة دجاج تايلندي", quantity: 1, total: 25 },
+        { name: "ساندويتش زنجر", quantity: 1, total: 15 },
+        { name: "برجر دجاج", quantity: 1, total: 18 },
+        { name: "مياه", quantity: 1, total: 2 },
+      ],
+    },
+    {
+      id: "table-10",
+      organizationId: demoOrganization.id,
+      branchId: demoBranches[0].id,
+      branchName: demoBranches[0].name,
+      number: 10,
+      zone: "الصالة الرئيسية",
+      seats: 2,
+      status: "occupied",
+      openedAt: "2026-05-16T21:02:00Z",
+      waiterName: "ليان",
+      guests: 2,
+      currentTotal: 37,
+      orderItems: [
+        { name: "ساندويتش زنجر", quantity: 1, total: 15 },
+        { name: "أرز بالخضار", quantity: 1, total: 12 },
+        { name: "مياه", quantity: 1, total: 2 },
+      ],
+    },
+  );
+
+  // Low-stock alerts: push a couple of raw materials under their minimum.
+  const lowStockItemIds = ["item-hot-sauce", "item-cheese"];
+  for (const stockRow of demoBranchStock) {
+    if (lowStockItemIds.includes(stockRow.itemId)) {
+      stockRow.quantity = 3;
+      stockRow.reservedQuantity = 2;
+    }
+  }
+}
+
+
+
+
 export const demoPayableBills: PayableBill[] = [
   {
     id: "bill-electricity-1",
@@ -2391,3 +2572,6 @@ export const demoSystemLogs = [
   { id: "log-2", level: "info", message: "تم استلام طلب شراء وتسجيل حركات المخزون", createdAt: "2026-05-15 15:12" },
   { id: "log-3", level: "error", message: "فشل النشر التجريبي على إنستغرام", createdAt: "2026-05-15 18:02" },
 ];
+
+// Run the full-day simulation now that every demo dataset is declared.
+initDaySimulation();

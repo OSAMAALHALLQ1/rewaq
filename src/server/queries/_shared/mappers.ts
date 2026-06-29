@@ -79,7 +79,7 @@ export function mapInventoryItem(
     sku: optionalText(row.sku),
     notes: optionalText(row.notes),
     isActive: row.status === "active",
-    warehouse: (row as any).warehouse ? ((row as any).warehouse as "general" | "kitchen") : "general",
+    warehouse: row.warehouse === "kitchen" ? "kitchen" : "general",
   };
 }
 

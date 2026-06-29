@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { 
   Tablet, KeyRound, CheckSquare, Square, Copy, ShieldCheck, 
-  Trash2, Plus, AlertCircle, RefreshCw, Send, Users, 
+  Trash2, Plus, AlertCircle, RefreshCw, Send, Users, UserCheck,
   Eye, CheckCheck, Landmark, Calendar, Radio, Check, X 
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -40,6 +40,27 @@ type DevicesClientProps = {
   currentName: string;
 };
 
+// Tekka-style staff member: avatar initial + role color + generated login code.
+type StaffMember = {
+  id: string;
+  full_name: string;
+  phone: string;
+  role: "waiter" | "cashier" | "kitchen" | "bar" | "shisha" | "manager";
+  login_code: string;
+  is_active: boolean;
+  created_at: string;
+  branch_name?: string;
+};
+
+const staffRoleMeta: Record<string, { label: string; text: string; bg: string; border: string }> = {
+  waiter: { label: "جرسون", text: "text-sky-700", bg: "bg-sky-50", border: "border-sky-100" },
+  cashier: { label: "محاسب", text: "text-emerald-700", bg: "bg-emerald-50", border: "border-emerald-100" },
+  kitchen: { label: "مطبخ", text: "text-amber-700", bg: "bg-amber-50", border: "border-amber-100" },
+  bar: { label: "بار", text: "text-violet-700", bg: "bg-violet-50", border: "border-violet-100" },
+  shisha: { label: "شيشة", text: "text-rose-700", bg: "bg-rose-50", border: "border-rose-100" },
+  manager: { label: "مدير", text: "text-slate-800", bg: "bg-slate-100", border: "border-slate-200" },
+};
+
 const moduleLabels: Record<string, { title: string; desc: string; icon: string }> = {
   inventory: { title: "المخزون والجرد", desc: "مراقبة مستويات المواد وكميات المخازن", icon: "📉" },
   recipes: { title: "الوصفات والتكاليف", desc: "مكونات وجبات الطعام وتكاليف المكونات", icon: "🍳" },
@@ -64,10 +85,18 @@ const roleDefaultModules: Record<string, string[]> = {
 };
 
 export function DevicesClient({ orgId, branches, currentRole, currentName }: DevicesClientProps) {
-  const [activeTab, setActiveTab] = useState<"list" | "create" | "permissions">("list");
+  const [activeTab, setActiveTab] = useState<"list" | "create" | "permissions" | "staff">("list");
   const [devices, setDevices] = useState<DeviceKey[]>([]);
   const [auditChats, setAuditChats] = useState<AuditMessage[]>([]);
-  
+
+  // Staff state (Tekka-style login codes)
+  const [staff, setStaff] = useState<StaffMember[]>([]);
+  const [staffLoading, setStaffLoading] = useState(false);
+  const [staffFormOpen, setStaffFormOpen] = useState(false);
+  const [staffForm, setStaffForm] = useState({ fullName: "", phone: "", role: "waiter", branchId: branches[0]?.id || "" });
+  const [createdStaffCode, setCreatedStaffCode] = useState<string | null>(null);
+  const [staffCopied, setStaffCopied] = useState(false);
+
   // Form State
   const [deviceName, setDeviceName] = useState("");
   const [selectedRole, setSelectedRole] = useState("chef");
@@ -84,6 +113,7 @@ export function DevicesClient({ orgId, branches, currentRole, currentName }: Dev
   useEffect(() => {
     loadDevices();
     loadAuditChats();
+    loadStaff();
   }, [orgId]);
 
   useEffect(() => {
@@ -132,6 +162,87 @@ export function DevicesClient({ orgId, branches, currentRole, currentName }: Dev
       console.error("Error loading messages:", err);
       setChatError("تعذر تحميل سجل المراسلات بسبب مشكلة في الاتصال.");
     }
+  };
+
+  const loadStaff = async () => {
+    setStaffLoading(true);
+    try {
+      const res = await fetch(`/api/staff/list?orgId=${encodeURIComponent(orgId)}`);
+      const result = await res.json();
+      if (result.success && result.staff) {
+        setStaff(result.staff);
+      }
+    } catch (err) {
+      console.error("Error loading staff:", err);
+    }
+    setStaffLoading(false);
+  };
+
+  const handleCreateStaff = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!staffForm.fullName.trim()) {
+      alert("يرجى إدخال الاسم الكامل.");
+      return;
+    }
+    try {
+      const res = await fetch("/api/staff/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fullName: staffForm.fullName.trim(),
+          phone: staffForm.phone.trim(),
+          role: staffForm.role,
+          branchId: staffForm.branchId || null,
+        }),
+      });
+      const result = await res.json();
+      if (result.success) {
+        setCreatedStaffCode(result.loginCode);
+        setStaffForm({ fullName: "", phone: "", role: "waiter", branchId: branches[0]?.id || "" });
+        await loadStaff();
+      } else {
+        alert(result.error || "فشل إنشاء الموظف.");
+      }
+    } catch (err) {
+      alert("فشل إنشاء الموظف بسبب مشكلة في الاتصال.");
+    }
+  };
+
+  const handleToggleStaff = async (id: string) => {
+    try {
+      const res = await fetch("/api/staff/toggle", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ staffId: id, action: "toggle" }),
+      });
+      const result = await res.json();
+      if (result.success) loadStaff();
+      else alert(result.error || "فشل تحديث حالة الموظف.");
+    } catch (err) {
+      alert("فشل تحديث الموظف بسبب مشكلة في الاتصال.");
+    }
+  };
+
+  const handleDeleteStaff = async (id: string) => {
+    if (!confirm("حذف هذا الموظف نهائياً؟")) return;
+    try {
+      const res = await fetch("/api/staff/toggle", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ staffId: id, action: "delete" }),
+      });
+      const result = await res.json();
+      if (result.success) loadStaff();
+      else alert(result.error || "فشل حذف الموظف.");
+    } catch (err) {
+      alert("فشل حذف الموظف بسبب مشكلة في الاتصال.");
+    }
+  };
+
+  const copyStaffCode = (code: string) => {
+    navigator.clipboard.writeText(code);
+    setStaffCopied(true);
+    setTimeout(() => setStaffCopied(false), 2000);
   };
 
   const handleToggleModule = (moduleKey: string) => {
@@ -266,6 +377,18 @@ export function DevicesClient({ orgId, branches, currentRole, currentName }: Dev
           >
             <ShieldCheck className="h-4 w-4 text-teal-600" />
             جدول الصلاحيات
+          </button>
+
+          <button
+            onClick={() => setActiveTab("staff")}
+            className={`px-4 py-2 text-xs font-black rounded-lg transition-all flex items-center gap-2 ${
+              activeTab === "staff"
+                ? "bg-white text-slate-900 shadow-sm"
+                : "text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            <Users className="h-4 w-4 text-teal-600" />
+            الموظفون وأكواد الدخول ({staff.length})
           </button>
         </div>
       </div>
@@ -665,6 +788,207 @@ export function DevicesClient({ orgId, branches, currentRole, currentName }: Dev
               </table>
             </CardContent>
           </Card>
+        </div>
+      )}
+
+      {/* 4. Staff Members (Tekka-style cards with login codes) */}
+      {activeTab === "staff" && (
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-200">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-black text-slate-800 flex items-center gap-2">
+              <Users className="h-4 w-4 text-slate-400" />
+              إدارة الموظفين وأكواد الدخول السريع
+            </h2>
+            <Button
+              onClick={() => { setStaffFormOpen((v) => !v); setCreatedStaffCode(null); }}
+              className="bg-teal-600 hover:bg-teal-700 text-white font-bold h-9 text-xs gap-1.5"
+            >
+              <Plus className="h-4 w-4" />
+              موظف جديد
+            </Button>
+          </div>
+
+          {staffFormOpen && (
+            <Card className="border-teal-200 shadow-sm">
+              <CardHeader className="bg-slate-50/50 border-b border-slate-100 p-4">
+                <CardTitle className="text-sm font-black flex items-center gap-2">
+                  <UserCheck className="h-4.5 w-4.5 text-teal-600" />
+                  إضافة موظف جديد
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-5">
+                <form onSubmit={handleCreateStaff} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label className="text-xs font-black text-slate-800">الاسم الكامل *</Label>
+                      <Input
+                        placeholder="مثال: محمد علي"
+                        value={staffForm.fullName}
+                        onChange={(e) => setStaffForm((p) => ({ ...p, fullName: e.target.value }))}
+                        required
+                        className="h-10 text-xs text-right"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label className="text-xs font-black text-slate-800">رقم الهاتف</Label>
+                      <Input
+                        placeholder="059XXXXXXX"
+                        value={staffForm.phone}
+                        onChange={(e) => setStaffForm((p) => ({ ...p, phone: e.target.value }))}
+                        className="h-10 text-xs text-right"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label className="text-xs font-black text-slate-800">الدور</Label>
+                      <select
+                        value={staffForm.role}
+                        onChange={(e) => setStaffForm((p) => ({ ...p, role: e.target.value }))}
+                        className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 outline-none focus:border-teal-500/50"
+                      >
+                        <option value="waiter">جرسون</option>
+                        <option value="cashier">محاسب</option>
+                        <option value="kitchen">مطبخ</option>
+                        <option value="bar">بار</option>
+                        <option value="shisha">شيشة</option>
+                        <option value="manager">مدير</option>
+                      </select>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label className="text-xs font-black text-slate-800">الفرع</Label>
+                      <select
+                        value={staffForm.branchId}
+                        onChange={(e) => setStaffForm((p) => ({ ...p, branchId: e.target.value }))}
+                        className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 outline-none focus:border-teal-500/50"
+                      >
+                        {branches.map((b) => (
+                          <option key={b.id} value={b.id}>{b.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <Button type="submit" className="w-full h-11 text-xs font-black bg-teal-600 hover:bg-teal-700 text-white">
+                    توليد كود الدخول تلقائياً
+                  </Button>
+
+                  {createdStaffCode && (
+                    <div className="bg-teal-50 border border-teal-200 rounded-xl p-4 flex items-center justify-between">
+                      <div>
+                        <span className="text-[10px] text-slate-500 block font-bold">كود الدخول الجديد:</span>
+                        <code className="font-mono text-lg font-black text-teal-800 tracking-widest">{createdStaffCode}</code>
+                      </div>
+                      <Button
+                        type="button"
+                        onClick={() => copyStaffCode(createdStaffCode)}
+                        className="bg-teal-600 hover:bg-teal-700 text-white h-9 text-xs gap-1.5"
+                      >
+                        {staffCopied ? <CheckCheck className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                        {staffCopied ? "تم النسخ" : "نسخ"}
+                      </Button>
+                    </div>
+                  )}
+                </form>
+              </CardContent>
+            </Card>
+          )}
+
+          {staffLoading ? (
+            <Card className="border-slate-150 py-12">
+              <CardContent className="flex items-center justify-center text-xs text-slate-400">
+                جاري تحميل الموظفين...
+              </CardContent>
+            </Card>
+          ) : staff.length === 0 ? (
+            <Card className="border-dashed border-slate-200 bg-slate-50/50 py-12">
+              <CardContent className="flex flex-col items-center justify-center text-center p-6 space-y-3">
+                <div className="h-12 w-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-450 border border-slate-200/60">
+                  <Users className="h-6 w-6 stroke-[1.5]" />
+                </div>
+                <p className="text-sm font-black text-slate-800">لا يوجد موظفون مسجلون بعد</p>
+                <p className="text-xs text-muted-foreground max-w-xs">
+                  أضف موظفاً ليحصل على كود دخول سريع خاص بكل قسم.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {staff.map((member) => {
+                const meta = staffRoleMeta[member.role] ?? staffRoleMeta.waiter;
+                return (
+                  <Card
+                    key={member.id}
+                    className={`border border-slate-150 shadow-sm relative overflow-hidden group hover:border-slate-300 transition-all duration-200 ${
+                      !member.is_active ? "opacity-60 bg-slate-50/40" : "bg-white"
+                    }`}
+                  >
+                    <div className={`absolute top-0 bottom-0 start-0 w-1.5 ${member.is_active ? "bg-teal-500" : "bg-slate-350"}`} />
+                    <CardContent className="p-4 space-y-3.5">
+                      {/* Avatar + name */}
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`h-12 w-12 rounded-full flex items-center justify-center font-black text-lg ${meta.bg} ${meta.text}`}
+                        >
+                          {member.full_name?.charAt(0) ?? "?"}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-black text-slate-900 truncate">{member.full_name}</p>
+                          <p className="text-[10px] text-muted-foreground truncate">{member.phone || "بدون رقم"}</p>
+                        </div>
+                      </div>
+
+                      {/* Role badge + login code */}
+                      <div className="flex items-center justify-between py-2 border-y border-slate-100">
+                        <div className="flex flex-col gap-1">
+                          <span className="text-[10px] text-muted-foreground">الدور</span>
+                          <span className={`inline-block px-2.5 py-1 rounded-full text-[10px] border ${meta.bg} ${meta.text} ${meta.border}`}>
+                            {meta.label}
+                          </span>
+                        </div>
+                        <div className="flex flex-col gap-1 items-end">
+                          <span className="text-[10px] text-muted-foreground">كود الدخول</span>
+                          <button
+                            onClick={() => copyStaffCode(member.login_code)}
+                            title="نسخ الكود"
+                            className="font-mono text-lg font-black text-teal-700 tracking-widest hover:text-teal-900"
+                          >
+                            {member.login_code}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex items-center justify-between">
+                        <span
+                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold ${
+                            member.is_active ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"
+                          }`}
+                        >
+                          {member.is_active ? <Check className="h-3.5 w-3.5" /> : <X className="h-3.5 w-3.5" />}
+                          {member.is_active ? "نشط" : "معطل"}
+                        </span>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            onClick={() => handleToggleStaff(member.id)}
+                            className="h-8 px-2.5 text-[11px] font-bold text-slate-600 hover:bg-slate-100"
+                          >
+                            {member.is_active ? "تعطيل" : "تفعيل"}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            onClick={() => handleDeleteStaff(member.id)}
+                            className="h-8 w-8 p-0 text-rose-500 hover:bg-rose-50 rounded-lg"
+                            title="حذف"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 

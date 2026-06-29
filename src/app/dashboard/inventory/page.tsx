@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ClipboardCheck, Download, Plus, Search, Trash2 } from "lucide-react";
+import { Boxes, ChefHat, ClipboardCheck, Download, Plus, Search, Trash2, Warehouse } from "lucide-react";
 import { ActionForm } from "@/components/action-form";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
@@ -71,6 +71,62 @@ export default async function InventoryPage({
           </>
         }
       />
+
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border bg-muted/30 p-1.5">
+        {[
+          { key: "", label: "كل المخزون", count: items.length, icon: Boxes },
+          { key: "kitchen", label: "مستودع المطبخ", count: items.filter((i) => i.warehouse === "kitchen").length, icon: ChefHat },
+          { key: "general", label: "المستودع العام", count: items.filter((i) => i.warehouse === "general").length, icon: Warehouse },
+        ].map((tab) => {
+          const active = (warehouse ?? "") === tab.key;
+          return (
+            <Link
+              key={tab.key || "all"}
+              href={tab.key ? `/dashboard/inventory?warehouse=${tab.key}` : "/dashboard/inventory"}
+              className={`flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-bold transition-all ${
+                active
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:bg-background/60 hover:text-foreground"
+              }`}
+            >
+              <tab.icon className="h-4 w-4" />
+              {tab.label}
+              <span className={`rounded-full px-2 py-0.5 text-[10px] ${active ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
+                {tab.count}
+              </span>
+            </Link>
+          );
+        })}
+      </div>
+
+      {/* Warehouse switcher tabs — switch between general / kitchen / all */}
+      {(() => {
+        const generalCount = items.filter((i) => i.warehouse === "general").length;
+        const kitchenCount = items.filter((i) => i.warehouse === "kitchen").length;
+        const allCount = items.length;
+        const tab = (href: string, label: string, count: number, active: boolean, icon: React.ReactNode) => (
+          <Link
+            key={href}
+            href={href}
+            className={`flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-bold transition-colors ${
+              active
+                ? "border-primary bg-primary/5 text-primary"
+                : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+            }`}
+          >
+            {icon}
+            <span>{label}</span>
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-black text-slate-600">{count}</span>
+          </Link>
+        );
+        return (
+          <div className="mb-4 flex flex-wrap gap-2">
+            {tab("/dashboard/inventory", "المخطط الكامل", allCount, !warehouse, <Boxes className="h-4 w-4" />)}
+            {tab("/dashboard/inventory?warehouse=general", "المستودع العام", generalCount, warehouse === "general", <Warehouse className="h-4 w-4" />)}
+            {tab("/dashboard/inventory?warehouse=kitchen", "مستودع المطبخ", kitchenCount, warehouse === "kitchen", <ChefHat className="h-4 w-4" />)}
+          </div>
+        );
+      })()}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-[1fr_360px]">
         <Card className="md:col-span-2 xl:col-span-1">

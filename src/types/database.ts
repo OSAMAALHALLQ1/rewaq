@@ -360,6 +360,7 @@ export type Database = {
           sku: string | null;
           notes: string | null;
           status: Database["public"]["Enums"]["record_status"];
+          warehouse: string;
           created_at: string;
           updated_at: string;
           created_by: string | null;
@@ -378,6 +379,7 @@ export type Database = {
           sku?: string | null;
           notes?: string | null;
           status?: Database["public"]["Enums"]["record_status"];
+          warehouse?: string;
           created_at?: string;
           updated_at?: string;
           created_by?: string | null;
@@ -396,6 +398,7 @@ export type Database = {
           sku?: string | null;
           notes?: string | null;
           status?: Database["public"]["Enums"]["record_status"];
+          warehouse?: string;
           created_at?: string;
           updated_at?: string;
           created_by?: string | null;
