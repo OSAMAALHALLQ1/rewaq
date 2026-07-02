@@ -1,4 +1,6 @@
 import type { PublishInput, PublishResult, SocialPublisher } from "./types";
+import { createAdminClientWithContext } from "@/lib/supabase/admin";
+import { decrypt } from "@/lib/crypto";
 
 type FacebookResponse = {
   id?: string;
@@ -12,18 +14,40 @@ type FacebookResponse = {
 };
 
 const graphVersion = process.env.FACEBOOK_GRAPH_VERSION ?? "v21.0";
-const pageId = process.env.FACEBOOK_PAGE_ID;
-const pageAccessToken =
+const envPageId = process.env.FACEBOOK_PAGE_ID;
+const envPageAccessToken =
   process.env.FACEBOOK_PAGE_ACCESS_TOKEN ??
   process.env.META_PAGE_ACCESS_TOKEN ??
   process.env.META_ACCESS_TOKEN;
 
 export class FacebookPublisher implements SocialPublisher {
   async publish(input: PublishInput): Promise<PublishResult> {
-    if (pageId || pageAccessToken) {
-      return publishToFacebookPage(input);
+    let resolvedPageId = envPageId;
+    let resolvedAccessToken = envPageAccessToken;
+
+    try {
+      if (input.accountId) {
+        const admin = createAdminClientWithContext("facebook/publisher");
+        const { data: account } = await admin
+          .from("social_accounts")
+          .select("encrypted_access_token, external_account_id")
+          .eq("id", input.accountId)
+          .maybeSingle();
+
+        if (account?.encrypted_access_token && account?.external_account_id) {
+          resolvedPageId = account.external_account_id;
+          resolvedAccessToken = decrypt(account.encrypted_access_token);
+        }
+      }
+    } catch (dbError) {
+      console.error("Failed to fetch custom Facebook credentials from DB, using env fallback:", dbError);
     }
 
+    if (resolvedPageId && resolvedAccessToken) {
+      return publishToFacebookPage(input, resolvedPageId, resolvedAccessToken);
+    }
+
+    // Dev/Sandbox Mock fallback if neither DB nor Env variables are set
     return {
       platform: "facebook",
       status: "published",
@@ -33,7 +57,7 @@ export class FacebookPublisher implements SocialPublisher {
   }
 }
 
-async function publishToFacebookPage(input: PublishInput): Promise<PublishResult> {
+async function publishToFacebookPage(input: PublishInput, pageId: string, pageAccessToken: string): Promise<PublishResult> {
   if (!pageId || !pageAccessToken) {
     return {
       platform: "facebook",
@@ -99,3 +123,4 @@ function formatFacebookError(payload: FacebookResponse | null, status: number) {
     .filter(Boolean)
     .join(" · ");
 }
+

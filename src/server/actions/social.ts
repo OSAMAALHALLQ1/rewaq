@@ -484,6 +484,40 @@ export async function disconnectSocialAccountAction(platform: string): Promise<A
 
   try {
     const scope = await resolveSocialScope();
+    
+    // If we disconnect facebook, we should also delete linked instagram accounts
+    if (platform === "facebook") {
+      // Find connected FB page ID first
+      const { data: fbAccount } = await scope.admin
+        .from("social_accounts")
+        .select("external_account_id")
+        .eq("organization_id", scope.organizationId)
+        .eq("platform", "facebook")
+        .eq("status", "connected")
+        .maybeSingle();
+        
+      if (fbAccount?.external_account_id) {
+        // Delete instagram account connected to this FB page
+        const { data: igAccounts } = await scope.admin
+          .from("social_accounts")
+          .select("id, metadata")
+          .eq("organization_id", scope.organizationId)
+          .eq("platform", "instagram");
+          
+        if (igAccounts) {
+          for (const ig of igAccounts) {
+            const metadata = (ig.metadata as any) || {};
+            if (metadata.facebook_page_id === fbAccount.external_account_id) {
+              await scope.admin
+                .from("social_accounts")
+                .delete()
+                .eq("id", ig.id);
+            }
+          }
+        }
+      }
+    }
+    
     const { error } = await scope.admin
       .from("social_accounts")
       .delete()
@@ -501,3 +535,100 @@ export async function disconnectSocialAccountAction(platform: string): Promise<A
     };
   }
 }
+
+export async function activateSocialAccountAction(accountId: string): Promise<ActionState> {
+  if (!hasSupabaseAdminEnv()) {
+    return { ok: false, message: "مفتاح Supabase الإداري غير موجود." };
+  }
+
+  try {
+    const scope = await resolveSocialScope();
+    
+    // 1. Get the target account
+    const { data: targetAccount, error: fetchError } = await scope.admin
+      .from("social_accounts")
+      .select("*")
+      .eq("id", accountId)
+      .eq("organization_id", scope.organizationId)
+      .single();
+      
+    if (fetchError || !targetAccount) {
+      return { ok: false, message: "لم يتم العثور على الحساب المحدد." };
+    }
+    
+    // 2. Set target Facebook account status to 'connected'
+    const { error: updateError } = await scope.admin
+      .from("social_accounts")
+      .update({ status: "connected" })
+      .eq("id", accountId);
+      
+    if (updateError) return { ok: false, message: updateError.message };
+    
+    // 3. Set linked Instagram account (if any) status to 'connected'
+    if (targetAccount.platform === "facebook") {
+      const fbPageId = targetAccount.external_account_id;
+      
+      // Look up Instagram account where metadata->facebook_page_id matches this Facebook page ID
+      const { data: linkedIgAccounts } = await scope.admin
+        .from("social_accounts")
+        .select("id, metadata")
+        .eq("organization_id", scope.organizationId)
+        .eq("platform", "instagram");
+        
+      if (linkedIgAccounts) {
+        for (const igAcc of linkedIgAccounts) {
+          const metadata = (igAcc.metadata as any) || {};
+          if (metadata.facebook_page_id === fbPageId) {
+            await scope.admin
+              .from("social_accounts")
+              .update({ status: "connected" })
+              .eq("id", igAcc.id);
+          }
+        }
+      }
+    }
+    
+    // 4. Clean up other disabled/temporary accounts for this platform to keep DB clean
+    // (except the newly activated ones)
+    const fbPageId = targetAccount.external_account_id;
+    
+    // Get all accounts that are disabled
+    const { data: disabledAccounts } = await scope.admin
+      .from("social_accounts")
+      .select("id, platform, external_account_id, metadata")
+      .eq("organization_id", scope.organizationId)
+      .eq("status", "disabled");
+      
+    if (disabledAccounts) {
+      for (const acc of disabledAccounts) {
+        let shouldDelete = false;
+        
+        if (acc.platform === "facebook" && acc.id !== accountId) {
+          shouldDelete = true;
+        } else if (acc.platform === "instagram") {
+          const metadata = (acc.metadata as any) || {};
+          if (metadata.facebook_page_id !== fbPageId) {
+            shouldDelete = true;
+          }
+        }
+        
+        if (shouldDelete) {
+          await scope.admin
+            .from("social_accounts")
+            .delete()
+            .eq("id", acc.id);
+        }
+      }
+    }
+    
+    revalidatePath("/dashboard/social-publishing");
+    revalidatePath("/dashboard/marketing");
+    return { ok: true, message: "تم تفعيل الحساب والصفحة المرتبطة بنجاح." };
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : "حدث خطأ أثناء تفعيل الحساب.",
+    };
+  }
+}
+

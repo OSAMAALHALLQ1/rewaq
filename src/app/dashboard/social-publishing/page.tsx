@@ -11,11 +11,13 @@ export default async function SocialPublishingRoute() {
   const { accounts, posts } = await getMarketingData();
 
   // Map backend account statuses and formatting to match what our component expects
-  const formattedAccounts = accounts.map((acc) => ({
+  const formattedAccounts = accounts.map((acc: any) => ({
     id: acc.id,
     platform: acc.platform,
     accountName: acc.accountName,
     status: acc.status as "connected" | "expired" | "disabled",
+    externalAccountId: acc.externalAccountId || "",
+    metadata: acc.metadata || {},
   }));
 
   const formattedPosts = posts.map((post) => ({

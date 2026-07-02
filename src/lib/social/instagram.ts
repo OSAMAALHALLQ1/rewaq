@@ -1,4 +1,6 @@
 import type { PublishInput, PublishResult, SocialPublisher } from "./types";
+import { createAdminClientWithContext } from "@/lib/supabase/admin";
+import { decrypt } from "@/lib/crypto";
 
 type InstagramResponse = {
   id?: string;
@@ -12,10 +14,10 @@ type InstagramResponse = {
 };
 
 const graphVersion = process.env.FACEBOOK_GRAPH_VERSION ?? "v21.0";
-const instagramBusinessAccountId =
+const envInstagramBusinessAccountId =
   process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID ??
   process.env.META_INSTAGRAM_BUSINESS_ACCOUNT_ID;
-const accessToken =
+const envAccessToken =
   process.env.INSTAGRAM_ACCESS_TOKEN ??
   process.env.FACEBOOK_PAGE_ACCESS_TOKEN ??
   process.env.META_PAGE_ACCESS_TOKEN ??
@@ -23,10 +25,32 @@ const accessToken =
 
 export class InstagramPublisher implements SocialPublisher {
   async publish(input: PublishInput): Promise<PublishResult> {
-    if (instagramBusinessAccountId || accessToken) {
-      return publishToInstagram(input);
+    let resolvedIgId = envInstagramBusinessAccountId;
+    let resolvedAccessToken = envAccessToken;
+
+    try {
+      if (input.accountId) {
+        const admin = createAdminClientWithContext("instagram/publisher");
+        const { data: account } = await admin
+          .from("social_accounts")
+          .select("encrypted_access_token, external_account_id")
+          .eq("id", input.accountId)
+          .maybeSingle();
+
+        if (account?.encrypted_access_token && account?.external_account_id) {
+          resolvedIgId = account.external_account_id;
+          resolvedAccessToken = decrypt(account.encrypted_access_token);
+        }
+      }
+    } catch (dbError) {
+      console.error("Failed to fetch custom Instagram credentials from DB, using env fallback:", dbError);
     }
 
+    if (resolvedIgId && resolvedAccessToken) {
+      return publishToInstagram(input, resolvedIgId, resolvedAccessToken);
+    }
+
+    // Dev/Sandbox Mock fallback if neither DB nor Env variables are set
     return {
       platform: "instagram",
       status: "published",
@@ -36,7 +60,7 @@ export class InstagramPublisher implements SocialPublisher {
   }
 }
 
-async function publishToInstagram(input: PublishInput): Promise<PublishResult> {
+async function publishToInstagram(input: PublishInput, instagramBusinessAccountId: string, accessToken: string): Promise<PublishResult> {
   if (!instagramBusinessAccountId || !accessToken) {
     return {
       platform: "instagram",
@@ -53,7 +77,7 @@ async function publishToInstagram(input: PublishInput): Promise<PublishResult> {
     };
   }
 
-  const container = await createInstagramMediaContainer(input);
+  const container = await createInstagramMediaContainer(input, instagramBusinessAccountId, accessToken);
 
   if (container.status === "failed" || !container.providerPostId) {
     return container;
@@ -81,7 +105,7 @@ async function publishToInstagram(input: PublishInput): Promise<PublishResult> {
     };
   }
 
-  const permalink = await readInstagramPermalink(publishPayload.id);
+  const permalink = await readInstagramPermalink(publishPayload.id, accessToken);
 
   return {
     platform: "instagram",
@@ -91,10 +115,10 @@ async function publishToInstagram(input: PublishInput): Promise<PublishResult> {
   };
 }
 
-async function createInstagramMediaContainer(input: PublishInput): Promise<PublishResult> {
+async function createInstagramMediaContainer(input: PublishInput, instagramBusinessAccountId: string, accessToken: string): Promise<PublishResult> {
   const params = new URLSearchParams({
     caption: input.body,
-    access_token: accessToken ?? "",
+    access_token: accessToken,
   });
   const mediaKind = input.mediaKind ?? "";
   const isVideo = ["video", "reel", "story_video"].includes(mediaKind);
@@ -127,10 +151,10 @@ async function createInstagramMediaContainer(input: PublishInput): Promise<Publi
   };
 }
 
-async function readInstagramPermalink(mediaId: string) {
+async function readInstagramPermalink(mediaId: string, accessToken: string) {
   const params = new URLSearchParams({
     fields: "permalink",
-    access_token: accessToken ?? "",
+    access_token: accessToken,
   });
 
   const response = await fetch(`https://graph.facebook.com/${graphVersion}/${mediaId}?${params.toString()}`);
@@ -154,3 +178,4 @@ function formatInstagramError(payload: InstagramResponse | null, status: number)
     .filter(Boolean)
     .join(" · ");
 }
+

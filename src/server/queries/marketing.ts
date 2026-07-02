@@ -72,6 +72,8 @@ async function loadMarketingBundle(admin: AdminClient, organizationId: string) {
       accountName: row.account_name ?? "",
       status: oneOf(row.status, ["connected", "expired", "disabled"] as const, "disabled"),
       lastPublishedAt: optionalText(row.last_published_at),
+      externalAccountId: row.external_account_id ?? "",
+      metadata: row.metadata ?? {},
     })),
     posts: postRows.map((row) => {
       const targets = (targetsByPost.get(row.id) ?? []).map((target) => ({
@@ -153,6 +155,8 @@ export async function getSocialAccounts() {
       accountName: row.account_name ?? "",
       status: oneOf(row.status, ["connected", "expired", "disabled"] as const, "disabled"),
       lastPublishedAt: optionalText(row.last_published_at),
+      externalAccountId: row.external_account_id ?? "",
+      metadata: row.metadata ?? {},
     }));
   });
 }

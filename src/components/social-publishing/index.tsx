@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { RawaqSocialStatsCards } from "./stats-cards";
 import { RawaqConnectedAccounts } from "./connected-accounts";
 import { RawaqPostComposer, ComposerState } from "./post-composer";
@@ -11,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { connectSocialAccountAction, disconnectSocialAccountAction } from "@/server/actions/social";
+import { connectSocialAccountAction, disconnectSocialAccountAction, activateSocialAccountAction } from "@/server/actions/social";
 import { Megaphone, Plus, LayoutDashboard, CalendarDays, Link2, PlusCircle, Sparkles } from "lucide-react";
 
 type Account = {
@@ -19,6 +20,8 @@ type Account = {
   platform: string;
   accountName: string;
   status: "connected" | "expired" | "disabled";
+  externalAccountId?: string;
+  metadata?: any; // eslint-disable-line @typescript-eslint/no-explicit-any
 };
 
 type Post = {
@@ -40,6 +43,10 @@ export default function RawaqSocialPublishingPage({
   initialAccounts = [],
   initialPosts = [],
 }: RawaqSocialPublishingPageProps) {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const [isPending, startTransition] = React.useTransition();
+
   // State for posts and accounts
   const [posts, setPosts] = React.useState<Post[]>(initialPosts);
   const [accounts, setAccounts] = React.useState<Account[]>(initialAccounts);
@@ -67,7 +74,73 @@ export default function RawaqSocialPublishingPage({
   const [connectingPlatform, setConnectingPlatform] = React.useState<string | null>(null);
   const [oauthStep, setOauthStep] = React.useState<number>(1);
   const [oauthPageName, setOauthPageName] = React.useState<string>("");
-  const [isPending, startTransition] = React.useTransition();
+
+  const selectPlatform = searchParams.get("select_platform");
+  const disabledFbAccounts = accounts.filter(
+    (a) => a.platform === "facebook" && a.status === "disabled"
+  );
+  const showSelectModal = selectPlatform === "facebook" && disabledFbAccounts.length > 0;
+
+  // Watch for success or error query params
+  React.useEffect(() => {
+    const success = searchParams.get("success");
+    const error = searchParams.get("error");
+    
+    if (success === "oauth_connected") {
+      alert("✅ تم ربط حساب السوشيال ميديا وتفعيله بنجاح!");
+      router.replace("/dashboard/social-publishing");
+    } else if (error) {
+      const errorMessages: Record<string, string> = {
+        invalid_state: "الرمز الأمني للتفويض غير صالح أو منتهي الصلاحية.",
+        oauth_init_failed: "فشل بدء الاتصال مع فيسبوك. يرجى التحقق من إعدادات المطور.",
+        oauth_callback_failed: "فشل استرداد الصلاحيات من فيسبوك.",
+        token_exchange_failed: "فشل تبديل توكن التفويض مع فيسبوك.",
+        no_pages_found: "لم نجد أي صفحات فيسبوك مرتبطة بحسابك الشخصي.",
+      };
+      alert(`❌ خطأ: ${errorMessages[error] || error}`);
+      router.replace("/dashboard/social-publishing");
+    }
+  }, [searchParams, router]);
+
+  // Handler to activate a selected page
+  const handleSelectPage = async (accountId: string) => {
+    startTransition(async () => {
+      const res = await activateSocialAccountAction(accountId);
+      if (res.ok) {
+        // Find the activated Facebook account
+        const activatedFb = accounts.find((a) => a.id === accountId);
+        
+        // Remove select_platform parameter and refresh state
+        const newParams = new URLSearchParams(searchParams.toString());
+        newParams.delete("select_platform");
+        router.replace(`/dashboard/social-publishing?${newParams.toString()}`);
+        
+        if (activatedFb) {
+          setAccounts((prev) =>
+            prev
+              .map((a) => {
+                if (a.id === accountId) return { ...a, status: "connected" as const };
+                if (a.platform === "instagram" && a.metadata?.facebook_page_id === activatedFb.externalAccountId) {
+                  return { ...a, status: "connected" as const };
+                }
+                return a;
+              })
+              .filter((a) => {
+                if (a.status === "disabled") {
+                  if (a.platform === "facebook" && a.id !== accountId) return false;
+                  if (a.platform === "instagram" && a.metadata?.facebook_page_id !== activatedFb.externalAccountId) return false;
+                }
+                return true;
+              })
+          );
+        }
+        
+        alert("✅ تم ربط وتفعيل الحساب والصفحة بنجاح.");
+      } else {
+        alert(`خطأ أثناء التفعيل: ${res.message}`);
+      }
+    });
+  };
 
   // Toggle account connection
   const handleToggleAccount = async (platformId: string) => {
@@ -86,16 +159,19 @@ export default function RawaqSocialPublishingPage({
         });
       }
     } else {
-      // Set default page names to show in the mock OAuth dialog
-      const defaultPageNames: Record<string, string> = {
-        facebook: "مطعم رواق — الصفحة الرسمية",
-        instagram: "rawaq.restaurant",
-        tiktok: "rawaq.meals",
-        youtube_shorts: "قناة رواق للأطباق"
-      };
-      setOauthPageName(defaultPageNames[platformId] || "");
-      setOauthStep(1);
-      setConnectingPlatform(platformId);
+      if (platformId === "facebook" || platformId === "instagram") {
+        // Direct redirection to the real OAuth route
+        window.location.href = `/api/social/oauth/connect?platform=${platformId}`;
+      } else {
+        // Fallback for other platforms (mock)
+        const defaultPageNames: Record<string, string> = {
+          tiktok: "rawaq.meals",
+          youtube_shorts: "قناة رواق للأطباق"
+        };
+        setOauthPageName(defaultPageNames[platformId] || "");
+        setOauthStep(1);
+        setConnectingPlatform(platformId);
+      }
     }
   };
 
@@ -415,6 +491,76 @@ export default function RawaqSocialPublishingPage({
               </div>
             </div>
           )}
+        </Modal>
+      )}
+
+      {/* Modal for Page Selection */}
+      {showSelectModal && (
+        <Modal
+          open={showSelectModal}
+          title="اختر صفحة فيسبوك لربطها بمطعمك"
+          description="تم العثور على أكثر من صفحة يديرها حسابك على فيسبوك. يرجى تحديد الصفحة الرسمية لمطعمك لتفعيل النشر والربط الحقيقي."
+          onClose={() => {
+            const newParams = new URLSearchParams(searchParams.toString());
+            newParams.delete("select_platform");
+            router.replace(`/dashboard/social-publishing?${newParams.toString()}`);
+          }}
+          className="sm:max-w-md overflow-hidden text-right"
+        >
+          <div className="space-y-4 py-2" dir="rtl">
+            <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+              {disabledFbAccounts.map((page) => {
+                // Find if there is a linked Instagram account for this page
+                const linkedIg = accounts.find(
+                  (a) =>
+                    a.platform === "instagram" &&
+                    a.status === "disabled" &&
+                    a.metadata?.facebook_page_id === page.externalAccountId
+                );
+
+                return (
+                  <div
+                    key={page.id}
+                    className="flex flex-col justify-between p-4 border rounded-xl bg-slate-50 hover:bg-slate-100 transition gap-3"
+                  >
+                    <div>
+                      <h4 className="font-bold text-slate-800 text-sm">{page.accountName}</h4>
+                      <p className="text-xs text-slate-400 mt-0.5">معرف الصفحة: {page.externalAccountId}</p>
+                      {linkedIg && (
+                        <div className="mt-2 flex items-center gap-1.5 text-xs text-pink-600 font-semibold bg-pink-50 rounded-lg p-1.5 border border-pink-100">
+                          <span className="flex h-5 w-5 items-center justify-center rounded bg-gradient-to-tr from-yellow-500 via-red-500 to-purple-600 text-white font-black text-[9px]">I</span>
+                          <span>حساب انستغرام المرتبط: {linkedIg.accountName}</span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <Button
+                      type="button"
+                      onClick={() => handleSelectPage(page.id)}
+                      disabled={isPending}
+                      className="w-full text-xs font-bold gap-1.5 h-9"
+                    >
+                      ربط هذه الصفحة 🔗
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+            
+            <div className="flex items-center justify-end gap-2 pt-3 border-t">
+              <Button
+                variant="outline"
+                type="button"
+                onClick={() => {
+                  const newParams = new URLSearchParams(searchParams.toString());
+                  newParams.delete("select_platform");
+                  router.replace(`/dashboard/social-publishing?${newParams.toString()}`);
+                }}
+              >
+                إغلاق
+              </Button>
+            </div>
+          </div>
         </Modal>
       )}
     </div>
