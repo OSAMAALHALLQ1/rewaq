@@ -27,8 +27,10 @@ CREATE TABLE IF NOT EXISTS department_api_keys (
   created_at timestamptz DEFAULT now()
 );
 
--- helper: create an index on key for fast lookup
-CREATE INDEX IF NOT EXISTS idx_department_api_keys_key ON department_api_keys (key);
+ALTER TABLE public.department_api_keys
+ADD COLUMN IF NOT EXISTS "key" text;
+
+CREATE INDEX IF NOT EXISTS idx_department_api_keys_key ON public.department_api_keys ("key");
 
 -- Note: key generation is left to application code. You can insert keys like:
 -- INSERT INTO department_api_keys (department_id, key, name) VALUES ('<dept-id>', md5(random()::text || clock_timestamp()::text), 'Kitchen API');

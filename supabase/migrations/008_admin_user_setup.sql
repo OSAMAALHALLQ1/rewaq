@@ -32,10 +32,7 @@ begin
     id
   from auth.users
   where email = 'osama.alhallq.14@gmail.com'
-    and not exists (
-      select 1 from organization_memberships
-      where user_id = auth.users.id
-        and role = 'super_admin'::app_role
-    )
-  limit 1;
+    and (select id from organizations where slug = 'admin-org' limit 1) is not null
+  on conflict (organization_id, user_id)
+  do update set role = 'super_admin'::app_role;
 end $$;

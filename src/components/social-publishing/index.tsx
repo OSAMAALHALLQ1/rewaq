@@ -7,9 +7,11 @@ import { RawaqPostComposer, ComposerState } from "./post-composer";
 import { RawaqPostPreview } from "./post-preview";
 import { RawaqContentCalendarPreview } from "./calendar-preview";
 import { RawaqRecentPostsList } from "./recent-posts";
-import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { connectSocialAccountAction, disconnectSocialAccountAction } from "@/server/actions/social";
 import { Megaphone, Plus, LayoutDashboard, CalendarDays, Link2, PlusCircle, Sparkles } from "lucide-react";
 
 type Account = {
@@ -61,29 +63,77 @@ export default function RawaqSocialPublishingPage({
   // Modal control for viewing existing posts
   const [selectedPost, setSelectedPost] = React.useState<Post | null>(null);
 
-  // Toggle account connection mock
-  const handleToggleAccount = (platformId: string) => {
-    setAccounts((prev) => {
-      const exists = prev.find((a) => a.platform === platformId);
-      if (exists) {
-        if (exists.status === "connected") {
-          return prev.map((a) => (a.platform === platformId ? { ...a, status: "disabled" as const } : a));
-        } else {
-          return prev.map((a) => (a.platform === platformId ? { ...a, status: "connected" as const } : a));
-        }
-      } else {
-        return [
-          ...prev,
-          {
-            id: `soc-${platformId}-${Date.now()}`,
-            organizationId: "demo-org",
-            platform: platformId,
-            accountName: `rawaq.${platformId}`,
-            status: "connected" as const,
-          },
-        ];
+  // Simulated/Real OAuth Modal States
+  const [connectingPlatform, setConnectingPlatform] = React.useState<string | null>(null);
+  const [oauthStep, setOauthStep] = React.useState<number>(1);
+  const [oauthPageName, setOauthPageName] = React.useState<string>("");
+  const [isPending, startTransition] = React.useTransition();
+
+  // Toggle account connection
+  const handleToggleAccount = async (platformId: string) => {
+    const exists = accounts.find((a) => a.platform === platformId && a.status === "connected");
+    
+    if (exists) {
+      if (confirm(`هل أنت متأكد من رغبتك في إلغاء ربط حساب ${platformId}؟`)) {
+        startTransition(async () => {
+          const res = await disconnectSocialAccountAction(platformId);
+          if (res.ok) {
+            setAccounts((prev) => prev.filter((a) => a.platform !== platformId));
+            alert(res.message);
+          } else {
+            alert(`خطأ: ${res.message}`);
+          }
+        });
       }
-    });
+    } else {
+      // Set default page names to show in the mock OAuth dialog
+      const defaultPageNames: Record<string, string> = {
+        facebook: "مطعم رواق — الصفحة الرسمية",
+        instagram: "rawaq.restaurant",
+        tiktok: "rawaq.meals",
+        youtube_shorts: "قناة رواق للأطباق"
+      };
+      setOauthPageName(defaultPageNames[platformId] || "");
+      setOauthStep(1);
+      setConnectingPlatform(platformId);
+    }
+  };
+
+  const handleConfirmOAuth = async () => {
+    if (!oauthPageName.trim()) {
+      alert("يرجى تحديد أو كتابة اسم الحساب.");
+      return;
+    }
+    
+    setOauthStep(2); // show simulated loading permissions grant
+    
+    setTimeout(() => {
+      startTransition(async () => {
+        if (!connectingPlatform) return;
+        const res = await connectSocialAccountAction(connectingPlatform, oauthPageName);
+        if (res.ok) {
+          // Update local state with the new connected account
+          setAccounts((prev) => {
+            const filtered = prev.filter((a) => a.platform !== connectingPlatform);
+            return [
+              ...filtered,
+              {
+                id: `soc-${connectingPlatform}-${Date.now()}`,
+                organizationId: "db-org",
+                platform: connectingPlatform,
+                accountName: oauthPageName,
+                status: "connected" as const,
+              }
+            ];
+          });
+          setConnectingPlatform(null);
+          alert(res.message);
+        } else {
+          alert(`خطأ في الربط: ${res.message}`);
+          setOauthStep(1);
+        }
+      });
+    }, 1500); // simulated OAuth redirect lag
   };
 
   // List of connected platforms helper
@@ -305,6 +355,66 @@ export default function RawaqSocialPublishingPage({
               </div>
             </div>
           </div>
+        </Modal>
+      )}
+
+      {/* Modal for Mock OAuth Flow */}
+      {connectingPlatform && (
+        <Modal
+          open={!!connectingPlatform}
+          title={`ربط حساب ${connectingPlatform === "facebook" ? "Facebook" : connectingPlatform === "instagram" ? "Instagram" : connectingPlatform === "tiktok" ? "TikTok" : "YouTube Shorts"}`}
+          description={`طلب تفويض النشر المباشر لرواق عبر OAuth.`}
+          onClose={() => setConnectingPlatform(null)}
+          className="sm:max-w-md overflow-hidden text-right"
+        >
+          {oauthStep === 1 ? (
+            <div className="space-y-4 py-2" dir="rtl">
+              <div className="rounded-lg border border-slate-100 bg-slate-50 p-4 text-xs leading-5 text-slate-600">
+                <p className="font-semibold text-slate-800 text-sm mb-2">الصلاحيات المطلوبة لتطبيق رواق:</p>
+                <ul className="list-disc list-inside space-y-1">
+                  <li>إدارة منشورات الصفحة ونشر الوسائط وعروض الوجبات</li>
+                  <li>قراءة إحصائيات التفاعل ونسب المشاهدة للمنشورات</li>
+                  <li>قراءة معلومات الحساب العامة (اسم الصفحة والمُعرّف)</li>
+                </ul>
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="oauth-handle" className="text-slate-700 font-bold">
+                  {connectingPlatform === "facebook" || connectingPlatform === "instagram"
+                    ? "اسم الصفحة أو الحساب المستهدف للربط"
+                    : "معرّف الحساب (Handle)"}
+                </Label>
+                <Input
+                  id="oauth-handle"
+                  value={oauthPageName}
+                  onChange={(e) => setOauthPageName(e.target.value)}
+                  placeholder="مثال: مطعم رواق للوجبات"
+                  className="border-slate-200 text-right"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t">
+                <Button variant="outline" type="button" onClick={() => setConnectingPlatform(null)}>
+                  إلغاء
+                </Button>
+                <Button type="button" onClick={handleConfirmOAuth} disabled={isPending}>
+                  {isPending ? "جاري الاتصال..." : "تأكيد ومنح الصلاحيات 🔑"}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-8 text-center space-y-4" dir="rtl">
+              <div className="relative flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <Sparkles className="h-8 w-8 animate-spin" />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-800 text-md">جاري منح الصلاحيات وتحويل التوكن</h3>
+                <p className="text-xs text-slate-500 mt-1 leading-5">
+                  يرجى الانتظار، نقوم بإنشاء اتصال تفويض آمن مع {connectingPlatform} وحفظ معلومات الربط في قاعدة بيانات Supabase...
+                </p>
+              </div>
+            </div>
+          )}
         </Modal>
       )}
     </div>

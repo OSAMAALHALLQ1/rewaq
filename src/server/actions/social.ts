@@ -434,3 +434,70 @@ export async function retrySocialPostAction(_prevState: ActionState, formData: F
     };
   }
 }
+
+export async function connectSocialAccountAction(
+  platform: string,
+  accountName: string,
+  externalAccountId: string = ""
+): Promise<ActionState> {
+  if (!hasSupabaseAdminEnv()) {
+    return { ok: false, message: "مفتاح Supabase الإداري غير موجود." };
+  }
+
+  try {
+    const scope = await resolveSocialScope();
+    
+    // Delete existing account for this platform first
+    await scope.admin
+      .from("social_accounts")
+      .delete()
+      .eq("organization_id", scope.organizationId)
+      .eq("platform", platform);
+
+    const { error } = await scope.admin
+      .from("social_accounts")
+      .insert({
+        organization_id: scope.organizationId,
+        platform,
+        account_name: accountName,
+        external_account_id: externalAccountId || `ext-${platform}-${Date.now()}`,
+        status: "connected",
+        created_by: scope.userId,
+      });
+
+    if (error) return { ok: false, message: error.message };
+
+    revalidatePath("/dashboard/social-publishing");
+    return { ok: true, message: `تم ربط حساب ${platform} بنجاح.` };
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : "حدث خطأ أثناء ربط الحساب.",
+    };
+  }
+}
+
+export async function disconnectSocialAccountAction(platform: string): Promise<ActionState> {
+  if (!hasSupabaseAdminEnv()) {
+    return { ok: false, message: "مفتاح Supabase الإداري غير موجود." };
+  }
+
+  try {
+    const scope = await resolveSocialScope();
+    const { error } = await scope.admin
+      .from("social_accounts")
+      .delete()
+      .eq("organization_id", scope.organizationId)
+      .eq("platform", platform);
+
+    if (error) return { ok: false, message: error.message };
+
+    revalidatePath("/dashboard/social-publishing");
+    return { ok: true, message: `تم إلغاء ربط حساب ${platform} بنجاح.` };
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : "حدث خطأ أثناء إلغاء ربط الحساب.",
+    };
+  }
+}
