@@ -1,6 +1,6 @@
 import type { PublishInput, PublishResult, SocialPublisher } from "./types";
 
-const AYRSHARE_API_KEY = process.env.AYRSHARE_API_KEY ?? "B1999FE8-177E4B10-A80ED722-B821C15F";
+const AYRSHARE_API_KEY = process.env.AYRSHARE_API_KEY ?? "B33518C0-FE5B4AEC-88736D1E-F554A026";
 
 export class AyrsharePublisher implements SocialPublisher {
   async publish(input: PublishInput): Promise<PublishResult> {
@@ -8,7 +8,7 @@ export class AyrsharePublisher implements SocialPublisher {
       // Map Rawaq platforms to Ayrshare platform IDs
       const platformMap: Record<string, string> = {
         facebook: "facebook",
-        instagram: "instagram",
+        instagram: "instagramApi",
         tiktok: "tiktok",
         youtube_shorts: "youtube",
         x: "twitter",
