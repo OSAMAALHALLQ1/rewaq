@@ -6,13 +6,22 @@ import { isNodeRedSocialPublishingConfigured, NodeRedSocialPublisher } from "./n
 import { TelegramPublisher } from "./telegram";
 import { isTriggerDevSocialPublishingConfigured, TriggerDevSocialPublisher } from "./trigger-dev";
 import type { PublishInput, PublishResult, SocialPublisher } from "./types";
+import { AyrsharePublisher } from "./ayrshare";
 import { WhatsappPublisher } from "./whatsapp";
 
+const ayrsharePublisher = new AyrsharePublisher();
+
 const publishers: Partial<Record<SocialPlatform, SocialPublisher>> = {
-  facebook: new FacebookPublisher(),
-  instagram: new InstagramPublisher(),
+  facebook: ayrsharePublisher,
+  instagram: ayrsharePublisher,
+  tiktok: ayrsharePublisher,
+  youtube_shorts: ayrsharePublisher,
+  x: ayrsharePublisher,
+  google_business: ayrsharePublisher,
+  linkedin: ayrsharePublisher,
+  pinterest: ayrsharePublisher,
+  telegram: ayrsharePublisher,
   whatsapp: new WhatsappPublisher(),
-  telegram: new TelegramPublisher(),
 };
 
 const nodeRedPublisher = new NodeRedSocialPublisher();

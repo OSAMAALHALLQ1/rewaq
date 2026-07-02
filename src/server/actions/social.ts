@@ -461,7 +461,7 @@ export async function connectSocialAccountAction(
         platform,
         account_name: accountName,
         external_account_id: externalAccountId || `ext-${platform}-${Date.now()}`,
-        status: "connected",
+        status: "active",
         created_by: scope.userId,
       });
 
