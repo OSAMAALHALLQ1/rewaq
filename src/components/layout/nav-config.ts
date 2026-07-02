@@ -36,7 +36,7 @@ export const appNav = [
       { title: "دفتر الأستاذ والقيود", href: "/dashboard/accounting/ledger", icon: Scale },
       { title: "الوصفات وكروت الإنتاج", href: "/dashboard/recipes", icon: ChefHat },
       { title: "أوامر الإنتاج وصرف المطبخ", href: "/dashboard/production", icon: Factory },
-      { title: "نشر سريع للمنصات", href: "/dashboard/marketing/quick-publish", icon: Megaphone },
+      { title: "النشر عبر السوشيال ميديا", href: "/dashboard/social-publishing", icon: Megaphone },
       { title: "شاشة الكاشير POS", href: "/d/pos", icon: MonitorSmartphone },
     ],
   },

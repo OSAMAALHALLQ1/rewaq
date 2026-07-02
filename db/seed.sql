@@ -1,16 +1,3 @@
--- 1. إضافة قيمة 'whatsapp' إلى نوع social_platform إذا لم تكن موجودة مسبقاً
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_enum
-        WHERE enumtypid = 'social_platform'::regtype
-          AND enumlabel = 'whatsapp'
-    ) THEN
-        ALTER TYPE social_platform ADD VALUE 'whatsapp';
-    END IF;
-END $$;
-
--- 2. باقي السكربت كما هو مع تعديل رقم الواتساب
 insert into plans (id, code, name, monthly_price, features)
 values
   ('00000000-0000-4000-8000-000000000011', 'starter', 'البداية', 129, '["فرع واحد","مخزون","تقارير أساسية"]'),
@@ -209,12 +196,11 @@ where not exists (
     and cii.name = v.name
 );
 
--- هنا تم تعديل رقم الواتساب ليصبح 056060073
 insert into social_accounts (id, organization_id, platform, account_name, status)
 values
   ('00000000-0000-4000-8000-000000000801', '00000000-0000-4000-8000-000000000001', 'facebook', 'صفحة مطعم إيوان', 'active'),
   ('00000000-0000-4000-8000-000000000802', '00000000-0000-4000-8000-000000000001', 'instagram', 'حساب مطعم إيوان', 'active'),
-  ('00000000-0000-4000-8000-000000000810', '00000000-0000-4000-8000-000000000001', 'whatsapp', '056060073', 'active'),   -- الرقم الجديد
+  ('00000000-0000-4000-8000-000000000810', '00000000-0000-4000-8000-000000000001', 'whatsapp', 'قناة واتساب إيوان', 'active'),
   ('00000000-0000-4000-8000-000000000803', '00000000-0000-4000-8000-000000000001', 'telegram', 'قناة عروض إيوان', 'active'),
   ('00000000-0000-4000-8000-000000000804', '00000000-0000-4000-8000-000000000001', 'tiktok', 'iwan.kitchen', 'active'),
   ('00000000-0000-4000-8000-000000000805', '00000000-0000-4000-8000-000000000001', 'x', '@iwan_restaurant', 'active'),
