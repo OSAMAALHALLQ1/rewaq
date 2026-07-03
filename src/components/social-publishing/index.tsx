@@ -12,14 +12,22 @@ import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { connectSocialAccountAction, disconnectSocialAccountAction, activateSocialAccountAction } from "@/server/actions/social";
-import { Megaphone, Plus, LayoutDashboard, CalendarDays, Link2, PlusCircle, Sparkles } from "lucide-react";
+import {
+  connectSocialAccountAction,
+  disconnectSocialAccountAction,
+  activateSocialAccountAction,
+  createPreparedSocialPostAction,
+  markPreparedSocialPostPublishedAction,
+} from "@/server/actions/social";
+import { Megaphone, Plus, LayoutDashboard, CalendarDays, Link2, PlusCircle, Sparkles, Clipboard, ExternalLink, CheckCircle2, Download } from "lucide-react";
+
+const META_BUSINESS_SUITE_COMPOSER_URL = "https://business.facebook.com/latest/composer";
 
 type Account = {
   id: string;
   platform: string;
   accountName: string;
-  status: "connected" | "expired" | "disabled";
+  status: "connected" | "expired" | "disabled" | "local_agent";
   externalAccountId?: string;
   metadata?: any; // eslint-disable-line @typescript-eslint/no-explicit-any
 };
@@ -31,6 +39,7 @@ type Post = {
   status: string;
   scheduledAt?: string | null;
   createdAt: string;
+  assetUrl?: string | null;
   targets?: Array<{ platform: string }>;
 };
 
@@ -96,6 +105,7 @@ export default function RawaqSocialPublishingPage({
         oauth_callback_failed: "فشل استرداد الصلاحيات من فيسبوك.",
         token_exchange_failed: "فشل تبديل توكن التفويض مع فيسبوك.",
         no_pages_found: "لم نجد أي صفحات فيسبوك مرتبطة بحسابك الشخصي.",
+        missing_state: "تم فتح رابط الرجوع مباشرة. استخدم زر التجهيز المحلي بدل OAuth.",
       };
       alert(`❌ خطأ: ${errorMessages[error] || error}`);
       router.replace("/dashboard/social-publishing");
@@ -144,7 +154,7 @@ export default function RawaqSocialPublishingPage({
 
   // Toggle account connection
   const handleToggleAccount = async (platformId: string) => {
-    const exists = accounts.find((a) => a.platform === platformId && a.status === "connected");
+    const exists = accounts.find((a) => a.platform === platformId && (a.status === "connected" || a.status === "local_agent"));
     
     if (exists) {
       if (confirm(`هل أنت متأكد من رغبتك في إلغاء ربط حساب ${platformId}؟`)) {
@@ -159,19 +169,40 @@ export default function RawaqSocialPublishingPage({
         });
       }
     } else {
-      if (platformId === "facebook" || platformId === "instagram") {
-        // Direct redirection to the real OAuth route
-        window.location.href = `/api/social/oauth/connect?platform=${platformId}`;
-      } else {
-        // Fallback for other platforms (mock)
-        const defaultPageNames: Record<string, string> = {
-          tiktok: "rawaq.meals",
-          youtube_shorts: "قناة رواق للأطباق"
-        };
-        setOauthPageName(defaultPageNames[platformId] || "");
-        setOauthStep(1);
-        setConnectingPlatform(platformId);
-      }
+      const defaultAccountNames: Record<string, string> = {
+        facebook: "Facebook عبر Rewaq Publisher",
+        instagram: "Instagram عبر Rewaq Publisher",
+        tiktok: "TikTok عبر Rewaq Publisher",
+        youtube_shorts: "YouTube Shorts عبر Rewaq Publisher",
+      };
+
+      startTransition(async () => {
+        const res = await connectSocialAccountAction(
+          platformId,
+          defaultAccountNames[platformId] || `${platformId} عبر Rewaq Publisher`,
+          `local-agent-${platformId}`,
+        );
+
+        if (res.ok) {
+          setAccounts((prev) => {
+            const filtered = prev.filter((a) => a.platform !== platformId);
+            return [
+              ...filtered,
+              {
+                id: `local-${platformId}-${Date.now()}`,
+                platform: platformId,
+                accountName: defaultAccountNames[platformId] || `${platformId} عبر Rewaq Publisher`,
+                status: "local_agent" as const,
+                externalAccountId: `local-agent-${platformId}`,
+                metadata: { publishing_mode: "semi_automation" },
+              },
+            ];
+          });
+          alert("✅ تم تفعيل النشر عبر الوكيل المحلي. لا حاجة لتفويض Meta.");
+        } else {
+          alert(`خطأ: ${res.message}`);
+        }
+      });
     }
   };
 
@@ -214,7 +245,7 @@ export default function RawaqSocialPublishingPage({
 
   // List of connected platforms helper
   const connectedPlatforms = accounts
-    .filter((a) => a.status === "connected")
+    .filter((a) => a.status === "connected" || a.status === "local_agent")
     .map((a) => a.platform);
 
   // Handle composer changes to update preview
@@ -269,6 +300,93 @@ export default function RawaqSocialPublishingPage({
   // Handle composer save draft
   const handleComposerSaveDraft = (composerState: ComposerState) => {
     addPost(composerState, "draft");
+  };
+
+  const buildCaption = (composerState: ComposerState) =>
+    [composerState.body.trim(), composerState.hashtags.trim()].filter(Boolean).join("\n\n");
+
+  const copyCaption = async (caption: string) => {
+    try {
+      await navigator.clipboard.writeText(caption);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const downloadLocalImage = (composerState: ComposerState) => {
+    if (!composerState.mediaFile || !composerState.mediaUrl) return;
+
+    const link = document.createElement("a");
+    link.href = composerState.mediaUrl;
+    link.download = composerState.mediaFile.name || `rewaq-social-${Date.now()}.jpg`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  };
+
+  const handlePreparePost = async (composerState: ComposerState) => {
+    const caption = buildCaption(composerState);
+    const formData = new FormData();
+    formData.set("title", composerState.title);
+    formData.set("body", caption);
+    formData.set("publishMode", composerState.publishMode);
+    if (composerState.publishMode === "schedule") {
+      formData.set("scheduledAt", `${composerState.scheduledDate}T${composerState.scheduledTime}:00`);
+    }
+    composerState.platforms.forEach((platform) => formData.append("platforms", platform));
+    if (composerState.mediaFile) {
+      formData.set("asset", composerState.mediaFile);
+    }
+
+    startTransition(async () => {
+      const res = await createPreparedSocialPostAction({ ok: false, message: "" }, formData);
+      if (!res.ok) {
+        alert(`خطأ: ${res.message}`);
+        return;
+      }
+
+      await copyCaption(caption);
+      downloadLocalImage(composerState);
+      window.open(META_BUSINESS_SUITE_COMPOSER_URL, "_blank", "noopener,noreferrer");
+
+      const newPost: Post = {
+        id: res.postId || `post-${Date.now()}`,
+        title: composerState.title,
+        body: caption,
+        status: composerState.publishMode === "draft" ? "draft" : "ready",
+        scheduledAt:
+          composerState.publishMode === "schedule"
+            ? `${composerState.scheduledDate}T${composerState.scheduledTime}:00`
+            : null,
+        createdAt: new Date().toISOString(),
+        assetUrl: res.assetUrl,
+        targets: composerState.platforms.map((p) => ({ platform: p })),
+      };
+
+      setPosts((prev) => [newPost, ...prev]);
+      setSelectedPost(newPost);
+      setActiveTab("dashboard");
+      alert(res.message);
+    });
+  };
+
+  const handleMarkPublished = async (post: Post) => {
+    startTransition(async () => {
+      const res = await markPreparedSocialPostPublishedAction(post.id);
+      if (!res.ok) {
+        alert(`خطأ: ${res.message}`);
+        return;
+      }
+
+      setPosts((prev) =>
+        prev.map((candidate) =>
+          candidate.id === post.id ? { ...candidate, status: "published", scheduledAt: candidate.scheduledAt } : candidate,
+        ),
+      );
+      setSelectedPost((current) => (current?.id === post.id ? { ...current, status: "published" } : current));
+      alert(res.message);
+    });
   };
 
   return (
@@ -369,6 +487,7 @@ export default function RawaqSocialPublishingPage({
               onChange={handleComposerChange}
               onSubmit={handleComposerSubmit}
               onSaveDraft={handleComposerSaveDraft}
+              onPrepare={handlePreparePost}
             />
           </div>
           
@@ -416,6 +535,59 @@ export default function RawaqSocialPublishingPage({
                 postType: "general"
               }}
             />
+
+            {(selectedPost.status === "ready" || selectedPost.status === "prepared") && (
+              <div className="rounded-xl border border-amber-100 bg-amber-50 p-3 text-sm text-amber-900">
+                <p className="font-bold">خطوة النشر اليدوي الذكي</p>
+                <p className="mt-1 text-xs leading-5">
+                  انسخ الكابشن وافتح Meta Business Suite. بعد الضغط على Publish من داخل Meta، اضغط "تم النشر" هنا.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="gap-1 bg-white"
+                    onClick={() => copyCaption(selectedPost.body)}
+                  >
+                    <Clipboard className="h-3.5 w-3.5" />
+                    نسخ الكابشن
+                  </Button>
+                  {selectedPost.assetUrl && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="gap-1 bg-white"
+                      onClick={() => window.open(selectedPost.assetUrl || "", "_blank", "noopener,noreferrer")}
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                      فتح الصورة
+                    </Button>
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="gap-1 bg-white"
+                    onClick={() => window.open(META_BUSINESS_SUITE_COMPOSER_URL, "_blank", "noopener,noreferrer")}
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    فتح Meta Business Suite
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="gap-1"
+                    onClick={() => handleMarkPublished(selectedPost)}
+                    disabled={isPending}
+                  >
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    تم النشر
+                  </Button>
+                </div>
+              </div>
+            )}
             
             <div className="flex items-center justify-between border-t pt-3 text-xs text-slate-500">
               <span>تاريخ الإضافة: {new Date(selectedPost.createdAt).toLocaleDateString("ar-EG")}</span>

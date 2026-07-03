@@ -7,21 +7,21 @@ export async function GET(request: Request) {
   try {
     // 1. Authenticate user
     const auth = await requireAuth();
-    
+
     // 2. Parse query parameters
     const requestUrl = new URL(request.url);
     const platform = requestUrl.searchParams.get("platform") || "facebook";
-    
+
     if (platform !== "facebook" && platform !== "instagram") {
       return NextResponse.json(
         { error: "Platform not supported. Currently only Facebook and Instagram are supported." },
         { status: 400 }
       );
     }
-    
+
     // 3. Resolve organization ID
     const admin = createAdminClientWithContext("social/oauth/connect");
-    
+
     let organizationId = auth.organizationId;
     if (!organizationId) {
       // Look up org from membership
@@ -32,10 +32,10 @@ export async function GET(request: Request) {
         .order("created_at", { ascending: true })
         .limit(1)
         .maybeSingle();
-      
+
       organizationId = membership?.organization_id || null;
     }
-    
+
     if (!organizationId) {
       // Last resort: pick the first org for the user
       const { data: firstOrg } = await admin
@@ -44,26 +44,23 @@ export async function GET(request: Request) {
         .order("created_at", { ascending: true })
         .limit(1)
         .maybeSingle();
-      
+
       organizationId = firstOrg?.id || null;
     }
-    
+
     if (!organizationId) {
       return NextResponse.json(
         { error: "No organization associated with your account." },
         { status: 400 }
       );
     }
-    
+
     // 4. Check Meta Client ID is configured
-    const clientId = process.env.FACEBOOK_CLIENT_ID || "326930381234987"; // Use a fallback or show error
-    if (!process.env.FACEBOOK_CLIENT_ID) {
-      console.warn("FACEBOOK_CLIENT_ID is not configured in .env. Using mock fallback for developer dashboard.");
-    }
-    
+    const clientId = process.env.FACEBOOK_CLIENT_ID;
+
     // 5. Generate secure state
     const state = crypto.randomBytes(16).toString("hex");
-    
+
     // 6. Insert state in database
     const { error: stateError } = await admin
       .from("social_oauth_states")
@@ -75,7 +72,7 @@ export async function GET(request: Request) {
         expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(), // 15 mins
         created_by: auth.id
       });
-      
+
     if (stateError) {
       console.error("Failed to insert OAuth state:", stateError);
       return NextResponse.json(
@@ -83,11 +80,17 @@ export async function GET(request: Request) {
         { status: 500 }
       );
     }
-    
+
     // 7. Build Meta OAuth redirect URL
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
     const redirectUri = `${appUrl}/api/social/oauth/callback`;
-    
+
+    // If client ID is not configured in .env, redirect directly to callback with 'mock' code for developer testing
+    if (!clientId) {
+      console.warn("FACEBOOK_CLIENT_ID is not configured in .env. Redirecting to developer mock flow.");
+      return NextResponse.redirect(`${redirectUri}?code=mock&state=${state}`);
+    }
+
     const scopes = [
       "pages_manage_posts",
       "pages_read_engagement",
@@ -95,9 +98,9 @@ export async function GET(request: Request) {
       "instagram_basic",
       "instagram_content_publish"
     ].join(",");
-    
+
     const oauthUrl = `https://www.facebook.com/v21.0/dialog/oauth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&scope=${scopes}`;
-    
+
     return NextResponse.redirect(oauthUrl);
   } catch (error) {
     console.error("OAuth connect error:", error);

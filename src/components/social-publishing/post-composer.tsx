@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
-import { Sparkles, ImagePlus, Check, Eye, Save, Calendar, Send } from "lucide-react";
+import { Sparkles, ImagePlus, Check, Save, Calendar, ClipboardCheck } from "lucide-react";
 
 
 const AI_CAPTIONS_POOL = [
@@ -19,8 +19,6 @@ const AI_CAPTIONS_POOL = [
 const PLATFORMS_META = [
   { id: "facebook", name: "Facebook" },
   { id: "instagram", name: "Instagram" },
-  { id: "tiktok", name: "TikTok" },
-  { id: "youtube_shorts", name: "YouTube Shorts" }
 ];
 
 export type ComposerState = {
@@ -41,15 +39,16 @@ type PostComposerProps = {
   onChange: (state: ComposerState) => void;
   onSubmit: (state: ComposerState) => void;
   onSaveDraft: (state: ComposerState) => void;
+  onPrepare: (state: ComposerState) => void;
 };
 
-export function RawaqPostComposer({ connectedPlatforms, onChange, onSubmit, onSaveDraft }: PostComposerProps) {
+export function RawaqPostComposer({ connectedPlatforms: _connectedPlatforms, onChange, onSubmit, onSaveDraft, onPrepare }: PostComposerProps) {
   const [state, setState] = React.useState<ComposerState>({
     title: "",
     body: "",
     hashtags: "#مطعم_رواق #عروض #وجبات_شهية",
     postType: "general",
-    platforms: connectedPlatforms.length > 0 ? [connectedPlatforms[0]] : [],
+    platforms: ["facebook"],
     publishMode: "now",
     scheduledDate: new Date().toISOString().split("T")[0],
     scheduledTime: "12:00",
@@ -229,7 +228,7 @@ export function RawaqPostComposer({ connectedPlatforms, onChange, onSubmit, onSa
         <Label className="text-slate-700">منصات التواصل الاجتماعي المستهدفة</Label>
         <div className="grid gap-2 sm:grid-cols-2">
           {PLATFORMS_META.map((p) => {
-            const isConnected = connectedPlatforms.includes(p.id);
+            const isConnected = true;
             const isSelected = state.platforms.includes(p.id);
 
             return (
@@ -258,7 +257,7 @@ export function RawaqPostComposer({ connectedPlatforms, onChange, onSubmit, onSa
                 <span className="min-w-0 flex-1">
                   <span className="block font-semibold">{p.name}</span>
                   <span className="block text-xs text-muted-foreground">
-                    {isConnected ? "متصل" : "قريبًا / غير متصل"}
+                    {state.platforms.length > 1 ? "نشر مزدوج" : "جاهز عبر الوكيل المحلي"}
                   </span>
                 </span>
               </button>
@@ -278,7 +277,7 @@ export function RawaqPostComposer({ connectedPlatforms, onChange, onSubmit, onSa
               onChange={() => updateState({ publishMode: "now" })}
               className="h-4 w-4 border-slate-300 text-primary focus:ring-primary"
             />
-            نشر الآن فورًا
+            تجهيز للنشر الآن
           </label>
           <label className="flex items-center gap-2 text-sm font-medium text-slate-700 cursor-pointer">
             <input
@@ -334,21 +333,37 @@ export function RawaqPostComposer({ connectedPlatforms, onChange, onSubmit, onSa
         </Button>
         <Button
           type="button"
-          onClick={() => handleActionSubmit(state.publishMode === "now" ? "now" : "schedule")}
+          onClick={() => {
+            const mode: ComposerState["publishMode"] = state.publishMode === "now" ? "now" : "schedule";
+            const finalState = { ...state, publishMode: mode };
+            updateState({ publishMode: mode });
+
+            if (!finalState.title.trim()) {
+              alert("يرجى إدخال عنوان المنشور داخلياً.");
+              return;
+            }
+            if (!finalState.body.trim()) {
+              alert("يرجى إدخال نص المنشور (الكابشن).");
+              return;
+            }
+            if (finalState.platforms.length === 0) {
+              alert("يرجى اختيار Facebook أو Instagram على الأقل.");
+              return;
+            }
+
+            onPrepare(finalState);
+          }}
           className="gap-1 px-6"
         >
-          <Send className="h-4 w-4" />
-          {state.publishMode === "now" ? "انشر الآن" : "جدولة المنشور"}
+          <ClipboardCheck className="h-4 w-4" />
+          {state.publishMode === "now" ? "جهز وانسخ للنشر" : "جهز للجدولة"}
         </Button>
       </div>
 
       {/* TODO Comments (Requirements compliance) */}
-      {/* TODO: Connect Meta OAuth for Facebook/Instagram. */}
-      {/* TODO: Add official Instagram publishing. */}
+      {/* TODO: Add the Electron Rewaq Publisher auto-fill client. */}
       {/* TODO: Add TikTok publishing. */}
       {/* TODO: Add YouTube Shorts publishing. */}
-      {/* TODO: Add background queue publishing. */}
-      {/* TODO: Add encrypted token storage. */}
       {/* TODO: Add analytics sync. */}
     </div>
   );

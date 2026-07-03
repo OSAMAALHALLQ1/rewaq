@@ -7,7 +7,7 @@ type Account = {
   id: string;
   platform: string;
   accountName: string;
-  status: "connected" | "expired" | "disabled";
+  status: "connected" | "expired" | "disabled" | "local_agent";
 };
 
 type ConnectedAccountsProps = {
@@ -67,14 +67,15 @@ export function RawaqConnectedAccounts({ accounts, onToggleAccount }: ConnectedA
           الحسابات المتصلة وقنوات النشر
         </CardTitle>
         <CardDescription>
-          اربط منصات التواصل الاجتماعي الخاصة بالمطعم لتتمكن من النشر إليها مباشرة.
+          فعّل الوكيل المحلي لتجهيز المنشورات داخل Meta Business Suite بدون صلاحيات Meta Review.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="grid gap-4 sm:grid-cols-2">
           {platforms.map((p) => {
-            const connectedAccount = accounts.find((a) => a.platform === p.id && a.status === "connected");
+            const connectedAccount = accounts.find((a) => a.platform === p.id && (a.status === "connected" || a.status === "local_agent"));
             const isConnected = !!connectedAccount;
+            const isLocalAgent = connectedAccount?.status === "local_agent";
 
             return (
               <div
@@ -99,7 +100,7 @@ export function RawaqConnectedAccounts({ accounts, onToggleAccount }: ConnectedA
                     >
                       {isConnected ? (
                         <span className="flex items-center gap-1">
-                          <Check className="h-3 w-3" /> متصل
+                          <Check className="h-3 w-3" /> {isLocalAgent ? "وكيل محلي" : "متصل"}
                         </span>
                       ) : (
                         "غير متصل"
@@ -110,7 +111,7 @@ export function RawaqConnectedAccounts({ accounts, onToggleAccount }: ConnectedA
                   <p className="mt-1 text-xs text-slate-500 leading-5 min-h-[40px]">
                     {isConnected ? (
                       <span className="flex items-center gap-1 font-semibold text-slate-700">
-                        معرّف الحساب: {connectedAccount.accountName}
+                        {isLocalAgent ? "التجهيز يتم عبر Rewaq Publisher" : `معرّف الحساب: ${connectedAccount.accountName}`}
                       </span>
                     ) : (
                       p.description
@@ -121,7 +122,7 @@ export function RawaqConnectedAccounts({ accounts, onToggleAccount }: ConnectedA
                 <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
                   <div className="text-[10px] text-muted-foreground flex items-center gap-1">
                     <AlertCircle className="h-3 w-3" />
-                    {isConnected ? "جاهز للنشر وجدولة العروض" : "يرجى ربط القناة للبدء"}
+                    {isConnected ? "جاهز للتجهيز والنسخ" : "فعّل القناة للبدء"}
                   </div>
                   <Button
                     type="button"
@@ -136,7 +137,7 @@ export function RawaqConnectedAccounts({ accounts, onToggleAccount }: ConnectedA
                       </>
                     ) : (
                       <>
-                        <Link2 className="h-3 w-3" /> ربط الحساب
+                        <Link2 className="h-3 w-3" /> تفعيل الوكيل
                       </>
                     )}
                   </Button>

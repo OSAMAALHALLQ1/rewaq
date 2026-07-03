@@ -51,17 +51,24 @@ async function loadMarketingBundle(admin: AdminClient, organizationId: string) {
   ]);
 
   // Load post targets
-  const targetRows = await query(
-    admin.from("social_post_targets").select("*").eq("organization_id", organizationId),
-    "social_post_targets",
-  );
+  const [targetRows, assetRows] = await Promise.all([
+    query(admin.from("social_post_targets").select("*").eq("organization_id", organizationId), "social_post_targets"),
+    query(admin.from("social_media_assets").select("*").eq("organization_id", organizationId), "social_media_assets"),
+  ]);
 
   // Map posts with targets
   const targetsByPost = new Map<string, typeof targetRows>();
   for (const target of targetRows) {
-    const existing = targetsByPost.get(target.post_id) ?? [];
+    const existing = targetsByPost.get(target.social_post_id) ?? [];
     existing.push(target);
-    targetsByPost.set(target.post_id, existing);
+    targetsByPost.set(target.social_post_id, existing);
+  }
+
+  const assetByPost = new Map<string, (typeof assetRows)[number]>();
+  for (const asset of assetRows) {
+    if (asset.social_post_id && !assetByPost.has(asset.social_post_id)) {
+      assetByPost.set(asset.social_post_id, asset);
+    }
   }
 
   return {
@@ -70,7 +77,7 @@ async function loadMarketingBundle(admin: AdminClient, organizationId: string) {
       organizationId: row.organization_id,
       platform: row.platform as any,
       accountName: row.account_name ?? "",
-      status: oneOf(row.status, ["connected", "expired", "disabled"] as const, "disabled"),
+      status: oneOf(row.status, ["connected", "expired", "disabled", "local_agent"] as const, "disabled"),
       lastPublishedAt: optionalText(row.last_published_at),
       externalAccountId: row.external_account_id ?? "",
       metadata: row.metadata ?? {},
@@ -79,7 +86,7 @@ async function loadMarketingBundle(admin: AdminClient, organizationId: string) {
       const targets = (targetsByPost.get(row.id) ?? []).map((target) => ({
         platform: target.platform as any,
         accountName: target.account_name ?? "",
-        status: target.status as "pending" | "publishing" | "published" | "failed",
+        status: target.status as "pending" | "ready" | "prepared" | "publishing" | "published" | "failed",
         error: optionalText(target.error_message),
       }));
 
@@ -88,8 +95,10 @@ async function loadMarketingBundle(admin: AdminClient, organizationId: string) {
         organizationId: row.organization_id,
         title: row.title ?? "",
         body: row.body ?? "",
-        status: oneOf(row.status, ["draft", "scheduled", "publishing", "published", "failed"] as const, "draft"),
+        status: oneOf(row.status, ["draft", "ready", "prepared", "scheduled", "publishing", "published", "failed"] as const, "draft"),
         scheduledAt: optionalText(row.scheduled_at),
+        assetUrl: optionalText(assetByPost.get(row.id)?.url ?? assetByPost.get(row.id)?.storage_path),
+        imageLocalPath: optionalText(row.image_local_path),
         targets,
         createdAt: row.created_at,
       };
@@ -153,7 +162,7 @@ export async function getSocialAccounts() {
       organizationId: row.organization_id,
       platform: row.platform,
       accountName: row.account_name ?? "",
-      status: oneOf(row.status, ["connected", "expired", "disabled"] as const, "disabled"),
+      status: oneOf(row.status, ["connected", "expired", "disabled", "local_agent"] as const, "disabled"),
       lastPublishedAt: optionalText(row.last_published_at),
       externalAccountId: row.external_account_id ?? "",
       metadata: row.metadata ?? {},
@@ -182,7 +191,7 @@ export async function getSocialPosts(limit = 50) {
       organizationId: row.organization_id,
       title: row.title ?? "",
       body: row.body ?? "",
-      status: oneOf(row.status, ["draft", "scheduled", "publishing", "published", "failed"] as const, "draft"),
+      status: oneOf(row.status, ["draft", "ready", "prepared", "scheduled", "publishing", "published", "failed"] as const, "draft"),
       scheduledAt: optionalText(row.scheduled_at),
       targets: [],
       createdAt: row.created_at,
@@ -213,7 +222,7 @@ export async function getSocialPost(id: string) {
         organizationId: postRow.data.organization_id,
         title: postRow.data.title ?? "",
         body: postRow.data.body ?? "",
-        status: oneOf(postRow.data.status, ["draft", "scheduled", "publishing", "published", "failed"] as const, "draft"),
+        status: oneOf(postRow.data.status, ["draft", "ready", "prepared", "scheduled", "publishing", "published", "failed"] as const, "draft"),
         scheduledAt: optionalText(postRow.data.scheduled_at),
         targets: (targetRows.data ?? []).map((target: any) => ({
           platform: target.platform,

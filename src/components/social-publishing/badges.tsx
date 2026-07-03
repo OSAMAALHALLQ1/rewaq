@@ -2,10 +2,12 @@ import * as React from "react";
 import { Badge } from "@/components/ui/badge";
 import type { StatusTone } from "@/types/domain";
 
-type PostStatus = "draft" | "scheduled" | "publishing" | "published" | "failed";
+type PostStatus = "draft" | "ready" | "prepared" | "scheduled" | "publishing" | "published" | "failed";
 
 const statusMapping: Record<PostStatus, { label: string; tone: StatusTone }> = {
   draft: { label: "مسودة", tone: "muted" },
+  ready: { label: "جاهز للنشر", tone: "warning" },
+  prepared: { label: "مجهز في Meta", tone: "default" },
   scheduled: { label: "مجدول", tone: "warning" },
   publishing: { label: "جاري النشر...", tone: "default" },
   published: { label: "منشور", tone: "success" },

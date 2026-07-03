@@ -420,7 +420,7 @@ export type SocialAccount = {
   organizationId: string;
   platform: SocialPlatform;
   accountName: string;
-  status: "connected" | "expired" | "disabled";
+  status: "connected" | "expired" | "disabled" | "local_agent";
   lastPublishedAt?: string;
 };
 
@@ -429,7 +429,7 @@ export type SocialPostTarget = {
   platform: SocialPlatform;
   socialAccountId?: string;
   accountName: string;
-  status: "pending" | "publishing" | "published" | "failed";
+  status: "pending" | "ready" | "prepared" | "publishing" | "published" | "failed";
   error?: string;
 };
 
@@ -438,10 +438,11 @@ export type SocialPost = {
   organizationId: string;
   title: string;
   body: string;
-  status: "draft" | "scheduled" | "publishing" | "published" | "failed";
+  status: "draft" | "ready" | "prepared" | "scheduled" | "publishing" | "published" | "failed";
   scheduledAt?: string;
   recurrenceInterval?: "none" | "daily" | "weekly";
   assetUrl?: string;
+  imageLocalPath?: string;
   targets: SocialPostTarget[];
   createdAt: string;
 };

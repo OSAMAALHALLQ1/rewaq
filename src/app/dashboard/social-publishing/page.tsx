@@ -15,7 +15,7 @@ export default async function SocialPublishingRoute() {
     id: acc.id,
     platform: acc.platform,
     accountName: acc.accountName,
-    status: acc.status as "connected" | "expired" | "disabled",
+    status: acc.status as "connected" | "expired" | "disabled" | "local_agent",
     externalAccountId: acc.externalAccountId || "",
     metadata: acc.metadata || {},
   }));
@@ -27,6 +27,7 @@ export default async function SocialPublishingRoute() {
     status: post.status,
     scheduledAt: post.scheduledAt,
     createdAt: post.createdAt,
+    assetUrl: post.assetUrl || null,
     targets: post.targets?.map((t) => ({ platform: t.platform })) || [],
   }));
 

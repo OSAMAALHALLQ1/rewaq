@@ -67,6 +67,72 @@ function postStatusForMode(mode: "now" | "schedule" | "draft") {
   return "draft" as const;
 }
 
+function preparedPostStatusForMode(mode: "now" | "schedule" | "draft") {
+  if (mode === "draft") return "draft" as const;
+  return "ready" as const;
+}
+
+function displayPlatformName(platform: SocialPlatform) {
+  if (platform === "facebook") return "Facebook";
+  if (platform === "instagram") return "Instagram";
+  if (platform === "youtube_shorts") return "YouTube Shorts";
+  if (platform === "tiktok") return "TikTok";
+  return platform;
+}
+
+async function ensureLocalPublisherAccount(
+  scope: Awaited<ReturnType<typeof resolveSocialScope>>,
+  platform: SocialPlatform,
+) {
+  const externalAccountId = `local-agent-${platform}`;
+  const { data: existing, error: existingError } = await scope.admin
+    .from("social_accounts")
+    .select("id,account_name")
+    .eq("organization_id", scope.organizationId)
+    .eq("platform", platform)
+    .eq("external_account_id", externalAccountId)
+    .maybeSingle();
+
+  if (existingError) {
+    throw new Error(existingError.message);
+  }
+
+  if (existing?.id) {
+    return {
+      id: existing.id,
+      platform,
+      accountName: existing.account_name || `${displayPlatformName(platform)} عبر Rewaq Publisher`,
+    };
+  }
+
+  const { data: created, error } = await scope.admin
+    .from("social_accounts")
+    .insert({
+      organization_id: scope.organizationId,
+      platform,
+      account_name: `${displayPlatformName(platform)} عبر Rewaq Publisher`,
+      external_account_id: externalAccountId,
+      status: "local_agent",
+      metadata: {
+        publishing_mode: "semi_automation",
+        requires_human_publish: true,
+      },
+      created_by: scope.userId,
+    })
+    .select("id,account_name")
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return {
+    id: created.id,
+    platform,
+    accountName: created.account_name || `${displayPlatformName(platform)} عبر Rewaq Publisher`,
+  };
+}
+
 function recurrenceInterval(value: FormDataEntryValue | null) {
   return value === "daily" || value === "weekly" ? value : "none";
 }
@@ -348,6 +414,180 @@ export async function createSocialPostAction(_prevState: ActionState, formData: 
   };
 }
 
+export async function createPreparedSocialPostAction(
+  _prevState: ActionState,
+  formData: FormData,
+): Promise<ActionState & { postId?: string; assetUrl?: string | null }> {
+  if (!hasSupabaseAdminEnv()) {
+    return { ok: false, message: "مفتاح Supabase الإداري غير موجود. لا يمكن حفظ المنشور الجاهز." };
+  }
+
+  let scope: Awaited<ReturnType<typeof resolveSocialScope>>;
+
+  try {
+    scope = await resolveSocialScope();
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : "تعذر تجهيز نطاق النشر المحلي.",
+    };
+  }
+
+  const platforms = formData.getAll("platforms").map(String).filter(isSocialPlatform);
+  const publishMode = String(formData.get("publishMode") || "now") as "now" | "schedule" | "draft";
+  const scheduledAt = String(formData.get("scheduledAt") || "");
+  const parsed = socialPostSchema.safeParse({
+    title: formData.get("title"),
+    body: formData.get("body"),
+    platforms,
+    publishMode,
+    scheduledAt: scheduledAt || undefined,
+  });
+
+  if (!parsed.success) {
+    return { ok: false, message: parsed.error.issues[0]?.message ?? "بيانات المنشور غير صحيحة" };
+  }
+
+  let assetUrl: string | undefined;
+  const asset = formData.get("asset");
+
+  if (asset instanceof File && asset.size > 0) {
+    try {
+      const uploadedAsset = await uploadMarketingAssetToImageKit(asset);
+      assetUrl = uploadedAsset?.url;
+    } catch (error) {
+      return {
+        ok: false,
+        message: error instanceof Error ? error.message : "تعذر رفع الصورة إلى ImageKit.",
+      };
+    }
+  }
+
+  try {
+    const selectedAccounts = await Promise.all(platforms.map((platform) => ensureLocalPublisherAccount(scope, platform)));
+    const status = preparedPostStatusForMode(parsed.data.publishMode);
+
+    const { data: post, error: postError } = await (scope.admin as any)
+      .from("social_posts")
+      .insert({
+        organization_id: scope.organizationId,
+        title: parsed.data.title,
+        body: parsed.data.body,
+        status,
+        scheduled_at: parsed.data.publishMode === "schedule" ? parsed.data.scheduledAt ?? null : null,
+        local_agent_payload: {
+          mode: "semi_automation",
+          action: "prepare_in_meta_business_suite",
+        },
+        created_by: scope.userId,
+      })
+      .select("id")
+      .single();
+
+    if (postError) return { ok: false, message: postError.message };
+
+    if (assetUrl) {
+      await scope.admin.from("social_media_assets").insert({
+        organization_id: scope.organizationId,
+        social_post_id: post.id,
+        storage_path: assetUrl,
+        url: assetUrl,
+        provider: "imagekit",
+        media_kind: "image",
+        created_by: scope.userId,
+      });
+    }
+
+    const targetRows = selectedAccounts.map((account) => ({
+      organization_id: scope.organizationId,
+      social_post_id: post.id,
+      social_account_id: account.id,
+      platform: account.platform,
+      status: status === "draft" ? ("pending" as const) : ("ready" as const),
+      created_by: scope.userId,
+    }));
+
+    const { error: targetError } = await scope.admin.from("social_post_targets").insert(targetRows);
+    if (targetError) return { ok: false, message: targetError.message };
+
+    await scope.admin.from("social_publish_logs").insert({
+      organization_id: scope.organizationId,
+      social_post_id: post.id,
+      platform: selectedAccounts[0]?.platform ?? null,
+      status: status === "draft" ? "pending" : "ready",
+      message:
+        status === "draft"
+          ? "تم حفظ المنشور كمسودة محلية."
+          : "تم تجهيز المنشور للوكيل المحلي بدون استخدام Meta Graph API.",
+      requested_by: scope.userId,
+      created_by: scope.userId,
+    });
+
+    revalidatePath("/dashboard/social-publishing");
+    revalidatePath("/dashboard/marketing");
+
+    return {
+      ok: true,
+      postId: post.id,
+      assetUrl: assetUrl ?? null,
+      message:
+        status === "draft"
+          ? "تم حفظ المنشور كمسودة."
+          : "تم تجهيز المنشور للنشر اليدوي الذكي. تم نسخ النص ويمكن فتح Meta Business Suite الآن.",
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : "تعذر تجهيز المنشور للنشر المحلي.",
+    };
+  }
+}
+
+export async function markPreparedSocialPostPublishedAction(postId: string): Promise<ActionState> {
+  if (!hasSupabaseAdminEnv()) {
+    return { ok: false, message: "مفتاح Supabase الإداري غير موجود. لا يمكن تحديث حالة المنشور." };
+  }
+
+  try {
+    const scope = await resolveSocialScope();
+    const publishedAt = new Date().toISOString();
+
+    const { error: postError } = await scope.admin
+      .from("social_posts")
+      .update({ status: "published", published_at: publishedAt, updated_at: publishedAt })
+      .eq("id", postId)
+      .eq("organization_id", scope.organizationId);
+
+    if (postError) return { ok: false, message: postError.message };
+
+    const { error: targetError } = await scope.admin
+      .from("social_post_targets")
+      .update({ status: "published", updated_at: publishedAt })
+      .eq("social_post_id", postId)
+      .eq("organization_id", scope.organizationId);
+
+    if (targetError) return { ok: false, message: targetError.message };
+
+    await scope.admin.from("social_publish_logs").insert({
+      organization_id: scope.organizationId,
+      social_post_id: postId,
+      status: "published",
+      message: "أكد المستخدم أن المنشور تم نشره من Meta Business Suite.",
+      requested_by: scope.userId,
+      created_by: scope.userId,
+    });
+
+    revalidatePath("/dashboard/social-publishing");
+    revalidatePath("/dashboard/marketing");
+    return { ok: true, message: "تم تحديث حالة المنشور إلى منشور." };
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : "تعذر تحديث حالة المنشور.",
+    };
+  }
+}
+
 export async function retrySocialPostAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
   if (!hasSupabaseAdminEnv()) {
     return { ok: false, message: "مفتاح Supabase الإداري غير موجود. لا يمكن إعادة النشر." };
@@ -461,7 +701,7 @@ export async function connectSocialAccountAction(
         platform,
         account_name: accountName,
         external_account_id: externalAccountId || `ext-${platform}-${Date.now()}`,
-        status: "active",
+        status: externalAccountId.startsWith("local-agent-") ? "local_agent" : "connected",
         created_by: scope.userId,
       });
 
