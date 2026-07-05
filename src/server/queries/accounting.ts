@@ -132,3 +132,207 @@ export async function getAccountingLedgerData(): Promise<AccountingLedgerData> {
     },
   );
 }
+
+export type FinancialReportItem = {
+  code: string;
+  name: string;
+  balance: number;
+};
+
+export type ProfitAndLossData = {
+  revenues: FinancialReportItem[];
+  cogs: FinancialReportItem[];
+  expenses: FinancialReportItem[];
+  revenueTotal: number;
+  cogsTotal: number;
+  grossProfit: number;
+  expenseTotal: number;
+  netProfit: number;
+};
+
+export type BalanceSheetData = {
+  assets: FinancialReportItem[];
+  liabilities: FinancialReportItem[];
+  equity: FinancialReportItem[];
+  assetsTotal: number;
+  liabilitiesTotal: number;
+  equityTotal: number;
+  retainedEarnings: number;
+  balanced: boolean;
+};
+
+const demoProfitAndLoss: ProfitAndLossData = {
+  revenues: [
+    { code: "4100", name: "مبيعات المطعم", balance: 12500 },
+    { code: "4200", name: "إيرادات توصيل", balance: 1200 },
+  ],
+  cogs: [
+    { code: "5100", name: "تكلفة البضاعة المباعة", balance: 4100 },
+  ],
+  expenses: [
+    { code: "5200", name: "رواتب وأجور", balance: 2500 },
+    { code: "5300", name: "إيجار المحل", balance: 1500 },
+    { code: "5400", name: "كهرباء ومياه", balance: 450 },
+    { code: "5900", name: "فروقات الصندوق", balance: 50 },
+  ],
+  revenueTotal: 13700,
+  cogsTotal: 4100,
+  grossProfit: 9600,
+  expenseTotal: 4500,
+  netProfit: 5100,
+};
+
+const demoBalanceSheet: BalanceSheetData = {
+  assets: [
+    { code: "1010", name: "الصندوق", balance: 5400 },
+    { code: "1020", name: "البنك / بطاقات", balance: 3500 },
+    { code: "1300", name: "المخزون", balance: 2400 },
+  ],
+  liabilities: [
+    { code: "2100", name: "ضريبة مبيعات مستحقة", balance: 1200 },
+    { code: "2200", name: "ذمم الموردين", balance: 1500 },
+  ],
+  equity: [
+    { code: "3100", name: "رأس المال", balance: 3500 },
+  ],
+  assetsTotal: 11300,
+  liabilitiesTotal: 2700,
+  equityTotal: 8600,
+  retainedEarnings: 5100,
+  balanced: true,
+};
+
+export async function getProfitAndLossData(): Promise<ProfitAndLossData> {
+  if (isDemoMode()) {
+    return demoProfitAndLoss;
+  }
+
+  return withAdminScope<ProfitAndLossData>(
+    demoProfitAndLoss,
+    async (admin, scope) => {
+      const [accountRows, lineRows] = await Promise.all([
+        (admin as any).from("chart_of_accounts").select("id, code, name, account_type").eq("organization_id", scope.organizationId),
+        (admin as any).from("journal_lines").select("account_id, debit, credit").eq("organization_id", scope.organizationId),
+      ]);
+
+      const accounts = accountRows.data ?? [];
+      const lines = lineRows.data ?? [];
+
+      const balancesMap = new Map<string, { debit: number; credit: number }>();
+      for (const line of lines) {
+        const current = balancesMap.get(line.account_id) ?? { debit: 0, credit: 0 };
+        balancesMap.set(line.account_id, {
+          debit: current.debit + numberValue(line.debit),
+          credit: current.credit + numberValue(line.credit),
+        });
+      }
+
+      const reportItems = accounts.map((acc: any) => {
+        const accum = balancesMap.get(acc.id) ?? { debit: 0, credit: 0 };
+        let balance = 0;
+        if (acc.account_type === "revenue") {
+          balance = accum.credit - accum.debit;
+        } else {
+          balance = accum.debit - accum.credit; // expense, cogs
+        }
+        return {
+          code: acc.code,
+          name: acc.name,
+          accountType: acc.account_type,
+          balance,
+        };
+      }).filter((item: any) => item.balance !== 0);
+
+      const revenues = reportItems.filter((i: any) => i.accountType === "revenue").map((i: any) => ({ code: i.code, name: i.name, balance: i.balance }));
+      const cogs = reportItems.filter((i: any) => i.accountType === "cogs").map((i: any) => ({ code: i.code, name: i.name, balance: i.balance }));
+      const expenses = reportItems.filter((i: any) => i.accountType === "expense").map((i: any) => ({ code: i.code, name: i.name, balance: i.balance }));
+
+      const revenueTotal = revenues.reduce((sum: number, i: any) => sum + i.balance, 0);
+      const cogsTotal = cogs.reduce((sum: number, i: any) => sum + i.balance, 0);
+      const grossProfit = revenueTotal - cogsTotal;
+      const expenseTotal = expenses.reduce((sum: number, i: any) => sum + i.balance, 0);
+      const netProfit = grossProfit - expenseTotal;
+
+      return {
+        revenues,
+        cogs,
+        expenses,
+        revenueTotal,
+        cogsTotal,
+        grossProfit,
+        expenseTotal,
+        netProfit,
+      };
+    }
+  );
+}
+
+export async function getBalanceSheetData(): Promise<BalanceSheetData> {
+  if (isDemoMode()) {
+    return demoBalanceSheet;
+  }
+
+  // Use getProfitAndLossData to calculate current period net profit
+  const plData = await getProfitAndLossData();
+  const retainedEarnings = plData.netProfit;
+
+  return withAdminScope<BalanceSheetData>(
+    demoBalanceSheet,
+    async (admin, scope) => {
+      const [accountRows, lineRows] = await Promise.all([
+        (admin as any).from("chart_of_accounts").select("id, code, name, account_type").eq("organization_id", scope.organizationId),
+        (admin as any).from("journal_lines").select("account_id, debit, credit").eq("organization_id", scope.organizationId),
+      ]);
+
+      const accounts = accountRows.data ?? [];
+      const lines = lineRows.data ?? [];
+
+      const balancesMap = new Map<string, { debit: number; credit: number }>();
+      for (const line of lines) {
+        const current = balancesMap.get(line.account_id) ?? { debit: 0, credit: 0 };
+        balancesMap.set(line.account_id, {
+          debit: current.debit + numberValue(line.debit),
+          credit: current.credit + numberValue(line.credit),
+        });
+      }
+
+      const reportItems = accounts.map((acc: any) => {
+        const accum = balancesMap.get(acc.id) ?? { debit: 0, credit: 0 };
+        let balance = 0;
+        if (acc.account_type === "asset") {
+          balance = accum.debit - accum.credit;
+        } else {
+          balance = accum.credit - accum.debit; // liability, equity
+        }
+        return {
+          code: acc.code,
+          name: acc.name,
+          accountType: acc.account_type,
+          balance,
+        };
+      }).filter((item: any) => item.balance !== 0);
+
+      const assets = reportItems.filter((i: any) => i.accountType === "asset").map((i: any) => ({ code: i.code, name: i.name, balance: i.balance }));
+      const liabilities = reportItems.filter((i: any) => i.accountType === "liability").map((i: any) => ({ code: i.code, name: i.name, balance: i.balance }));
+      const equity = reportItems.filter((i: any) => i.accountType === "equity").map((i: any) => ({ code: i.code, name: i.name, balance: i.balance }));
+
+      const assetsTotal = assets.reduce((sum: number, i: any) => sum + i.balance, 0);
+      const liabilitiesTotal = liabilities.reduce((sum: number, i: any) => sum + i.balance, 0);
+      const baseEquityTotal = equity.reduce((sum: number, i: any) => sum + i.balance, 0);
+      const equityTotal = baseEquityTotal + retainedEarnings;
+
+      const balanced = Math.abs(assetsTotal - (liabilitiesTotal + equityTotal)) < 0.01;
+
+      return {
+        assets,
+        liabilities,
+        equity,
+        assetsTotal,
+        liabilitiesTotal,
+        equityTotal,
+        retainedEarnings,
+        balanced,
+      };
+    }
+  );
+}

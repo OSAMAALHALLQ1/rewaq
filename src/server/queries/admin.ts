@@ -36,6 +36,11 @@ import {
   oneOf,
   type AdminClient,
 } from "./_shared/utils";
+import {
+  mapSupplier,
+  mapStockMovement,
+  mapPurchaseOrder,
+} from "./_shared/mappers";
 
 import type {
   BillPaymentBatch,
@@ -677,19 +682,30 @@ export async function getTablesData(): Promise<TablesBundle> {
   }
 
   return withAdminScope<TablesBundle>({ tables: demoRestaurantTables, branches: demoBranches }, async (admin, scope) => {
-    const { data } = await admin
-      .from("restaurant_tables")
-      .select("*")
-      .eq("organization_id", scope.organizationId)
-      .order("name");
+    const [tableRows, branchRows] = await Promise.all([
+      admin.from("restaurant_tables").select("*").eq("organization_id", scope.organizationId).order("name"),
+      admin.from("branches").select("*").eq("organization_id", scope.organizationId).order("name"),
+    ]);
+
+    const dbBranches = (branchRows.data ?? []).map((row: any) => ({
+      id: row.id,
+      organizationId: row.organization_id,
+      name: row.name,
+      city: row.city ?? "",
+      address: row.address ?? "",
+      manager: row.manager_name ?? "",
+      status: row.status === "inactive" || row.status === "archived" ? ("inactive" as const) : ("active" as const),
+    }));
+
+    const branchesMap = new Map(dbBranches.map((b) => [b.id, b]));
 
     return {
-      branches: demoBranches,
-      tables: (data ?? []).map((row: any) => ({
+      branches: dbBranches,
+      tables: (tableRows.data ?? []).map((row: any) => ({
         id: row.id,
         organizationId: row.organization_id,
         branchId: row.branch_id,
-        branchName: demoBranches.find((branch) => branch.id === row.branch_id)?.name ?? "",
+        branchName: branchesMap.get(row.branch_id)?.name ?? "فرع غير معروف",
         number: Number(row.number ?? row.name ?? 0),
         zone: row.zone ?? "الصالة",
         seats: row.seats ?? row.capacity ?? 4,
@@ -713,17 +729,30 @@ export async function getFinancialCalendarData(): Promise<FinancialCalendarBundl
   }
 
   return withAdminScope<FinancialCalendarBundle>({ days: demoFinancialCalendar, branches: demoBranches }, async (admin, scope) => {
-    const [calendarRows, saleRows, expenseRows] = await Promise.all([
+    const [calendarRows, saleRows, expenseRows, branchRows] = await Promise.all([
       (admin as any).from("financial_calendar_days").select("*").eq("organization_id", scope.organizationId).order("date", { ascending: false }).limit(60),
       (admin as any).from("financial_calendar_sales").select("*").eq("organization_id", scope.organizationId),
       (admin as any).from("financial_calendar_expenses").select("*").eq("organization_id", scope.organizationId),
+      admin.from("branches").select("*").eq("organization_id", scope.organizationId).order("name"),
     ]);
 
+    const dbBranches = (branchRows.data ?? []).map((row: any) => ({
+      id: row.id,
+      organizationId: row.organization_id,
+      name: row.name,
+      city: row.city ?? "",
+      address: row.address ?? "",
+      manager: row.manager_name ?? "",
+      status: row.status === "inactive" || row.status === "archived" ? ("inactive" as const) : ("active" as const),
+    }));
+
+    const branchesMap = new Map(dbBranches.map((b) => [b.id, b]));
+
     return {
-      branches: demoBranches,
+      branches: dbBranches,
       days: (calendarRows.data ?? []).map((row: any) => ({
         date: row.date,
-        branchName: demoBranches.find((branch) => branch.id === row.branch_id)?.name ?? "",
+        branchName: branchesMap.get(row.branch_id)?.name ?? "فرع غير معروف",
         salesTotal: numberValue(row.sales_total),
         expensesTotal: numberValue(row.expenses_total),
         netProfit: numberValue(row.net_profit),
@@ -770,17 +799,50 @@ export async function getOperationsData(): Promise<OperationsBundle> {
       items: demoInventoryItems,
     },
     async (admin, scope) => {
-      const [wasteRows, transferRows] = await Promise.all([
+      const [wasteRows, transferRows, branchRows, itemRows] = await Promise.all([
         admin.from("waste_logs").select("*").eq("organization_id", scope.organizationId).order("created_at", { ascending: false }).limit(100),
         admin.from("transfers").select("*").eq("organization_id", scope.organizationId).order("created_at", { ascending: false }).limit(100),
+        admin.from("branches").select("*").eq("organization_id", scope.organizationId).order("name"),
+        admin.from("inventory_items").select("*").eq("organization_id", scope.organizationId).order("name"),
       ]);
+
+      const dbBranches = (branchRows.data ?? []).map((row: any) => ({
+        id: row.id,
+        organizationId: row.organization_id,
+        name: row.name,
+        city: row.city ?? "",
+        address: row.address ?? "",
+        manager: row.manager_name ?? "",
+        status: row.status === "inactive" || row.status === "archived" ? ("inactive" as const) : ("active" as const),
+      }));
+
+      const dbItems = (itemRows.data ?? []).map((row: any) => ({
+        id: row.id,
+        organizationId: row.organization_id,
+        name: row.name,
+        categoryId: row.category_id ?? "",
+        categoryName: "",
+        purchaseUnit: "",
+        usageUnit: "",
+        lastPurchasePrice: numberValue(row.last_purchase_price),
+        averageCost: numberValue(row.average_cost),
+        minimumQuantity: numberValue(row.minimum_quantity),
+        primarySupplierId: row.primary_supplier_id || undefined,
+        primarySupplierName: undefined,
+        sku: row.sku || undefined,
+        notes: row.notes || undefined,
+        isActive: row.status === "active",
+      }));
+
+      const branchesMap = new Map(dbBranches.map((b) => [b.id, b]));
+      const itemsMap = new Map(dbItems.map((i) => [i.id, i]));
 
       return {
         wasteLogs: (wasteRows.data ?? []).map((row: any) => ({
           id: row.id,
           organizationId: row.organization_id,
-          branchName: demoBranches.find((branch) => branch.id === row.branch_id)?.name ?? "",
-          itemName: demoInventoryItems.find((item) => item.id === row.item_id)?.name ?? "",
+          branchName: branchesMap.get(row.branch_id)?.name ?? "فرع غير معروف",
+          itemName: itemsMap.get(row.item_id)?.name ?? "مادة غير معروفة",
           quantity: numberValue(row.quantity),
           reason: row.reason ?? "",
           cost: numberValue(row.total_cost ?? row.cost),
@@ -790,14 +852,14 @@ export async function getOperationsData(): Promise<OperationsBundle> {
         transfers: (transferRows.data ?? []).map((row: any) => ({
           id: row.id,
           organizationId: row.organization_id,
-          fromBranchName: demoBranches.find((branch) => branch.id === row.from_branch_id)?.name ?? "",
-          toBranchName: demoBranches.find((branch) => branch.id === row.to_branch_id)?.name ?? "",
+          fromBranchName: branchesMap.get(row.from_branch_id)?.name ?? "فرع غير معروف",
+          toBranchName: branchesMap.get(row.to_branch_id)?.name ?? "فرع غير معروف",
           status: row.status,
           createdAt: row.created_at,
           totalItems: row.total_items ?? 0,
         })),
-        branches: demoBranches,
-        items: demoInventoryItems,
+        branches: dbBranches,
+        items: dbItems,
       };
     },
   );
@@ -854,32 +916,114 @@ export async function getReportsData(): Promise<ReportsBundle> {
       expiryAlerts: [],
     },
     async (admin, scope) => {
-      const [wasteRows, itemRows] = await Promise.all([
+      const [
+        wasteRows,
+        itemRows,
+        branchRows,
+        movementRows,
+        orderRows,
+        orderItemRows,
+        supplierRows,
+      ] = await Promise.all([
         admin.from("waste_logs").select("*").eq("organization_id", scope.organizationId).gte("created_at", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()),
         admin.from("inventory_items").select("*").eq("organization_id", scope.organizationId),
+        admin.from("branches").select("*").eq("organization_id", scope.organizationId).order("name"),
+        admin.from("stock_movements").select("*").eq("organization_id", scope.organizationId).order("created_at", { ascending: false }).limit(100),
+        admin.from("purchase_orders").select("*").eq("organization_id", scope.organizationId).order("order_date", { ascending: false }).limit(100),
+        admin.from("purchase_order_items").select("*").eq("organization_id", scope.organizationId),
+        admin.from("suppliers").select("*").eq("organization_id", scope.organizationId).order("name"),
       ]);
 
-      const totalCost = (wasteRows.data ?? []).reduce((sum: number, row: any) => sum + numberValue(row.total_cost), 0);
+      const branchesMap = new Map((branchRows.data ?? []).map((b: any) => [b.id, b]));
+      const itemsMap = new Map((itemRows.data ?? []).map((i: any) => [i.id, i]));
+      const suppliersMap = new Map((supplierRows.data ?? []).map((s: any) => [s.id, s]));
+      
+      const itemsByOrder = new Map<string, any[]>();
+      for (const item of orderItemRows.data ?? []) {
+        const orderId = item.purchase_order_id;
+        if (!itemsByOrder.has(orderId)) {
+          itemsByOrder.set(orderId, []);
+        }
+        itemsByOrder.get(orderId)!.push(item);
+      }
+
+      const dbBranches = (branchRows.data ?? []).map((row: any) => ({
+        id: row.id,
+        organizationId: row.organization_id,
+        name: row.name,
+        city: row.city ?? "",
+        address: row.address ?? "",
+        manager: row.manager_name ?? "",
+        status: row.status === "inactive" || row.status === "archived" ? ("inactive" as const) : ("active" as const),
+      }));
+
+      const dbSuppliers = (supplierRows.data ?? []).map((row: any) => mapSupplier(row, 0));
+
+      const dbMovements = (movementRows.data ?? []).map((row: any) =>
+        mapStockMovement(row, branchesMap, itemsMap)
+      );
+
+      const dbPurchaseOrders = (orderRows.data ?? []).map((row: any) =>
+        mapPurchaseOrder(row, suppliersMap, branchesMap, itemsMap, itemsByOrder.get(row.id) ?? [])
+      );
+
+      const dbWasteLogs = (wasteRows.data ?? []).map((row: any) => ({
+        id: row.id,
+        organizationId: row.organization_id,
+        branchName: branchesMap.get(row.branch_id)?.name ?? "فرع غير معروف",
+        itemName: itemsMap.get(row.item_id)?.name ?? "مادة غير معروفة",
+        quantity: numberValue(row.quantity),
+        reason: row.reason ?? "",
+        cost: numberValue(row.total_cost ?? row.cost),
+        loggedAt: row.created_at ?? row.logged_at,
+        notes: row.notes,
+      }));
+
+      const totalCost = dbWasteLogs.reduce((sum, row) => sum + row.cost, 0);
+
+      const byBranchMap = new Map<string, number>();
+      for (const log of dbWasteLogs) {
+        byBranchMap.set(log.branchName, (byBranchMap.get(log.branchName) ?? 0) + log.cost);
+      }
+      const byBranch = Array.from(byBranchMap.entries()).map(([branch, value]) => ({ branch, value }));
+
+      const dbItems = (itemRows.data ?? []).map((row: any) => ({
+        id: row.id,
+        organizationId: row.organization_id,
+        name: row.name,
+        categoryId: row.category_id ?? "",
+        categoryName: "",
+        purchaseUnit: "",
+        usageUnit: "",
+        lastPurchasePrice: numberValue(row.last_purchase_price),
+        averageCost: numberValue(row.average_cost),
+        minimumQuantity: numberValue(row.minimum_quantity),
+        primarySupplierId: row.primary_supplier_id || undefined,
+        primarySupplierName: undefined,
+        sku: row.sku || undefined,
+        notes: row.notes || undefined,
+        isActive: row.status === "active",
+      }));
 
       return {
         wasteSummary: {
           totalCost,
           byCategory: [],
-          byBranch: [],
+          byBranch,
         },
         dashboard: {
-          purchaseCost30Days: (wasteRows.data ?? []).slice(0, 6).map((row: any) => ({
-            label: String(row.created_at ?? "").slice(0, 10),
-            value: numberValue(row.total_cost),
+          purchaseCost30Days: dbMovements.slice(0, 6).map((row) => ({
+            label: String(row.createdAt ?? "").slice(0, 10),
+            value: row.totalCost,
           })),
         },
-        movements: demoStockMovements,
-        purchaseOrders: demoPurchaseOrders,
-        wasteLogs: demoWasteLogs,
-        suppliers: demoSuppliers,
-        branches: demoBranches,
-        stockAlerts: (itemRows.data ?? []).filter((item: any) => numberValue(item.average_cost) < numberValue(item.minimum_quantity)),
-        expiryAlerts: [],
+        movements: dbMovements,
+        purchaseOrders: dbPurchaseOrders,
+        wasteLogs: dbWasteLogs,
+        suppliers: dbSuppliers,
+        branches: dbBranches,
+        stockAlerts: dbItems.filter((item) => item.averageCost < item.minimumQuantity),
+        expiryAlerts: dbItems.slice(0, 4),
       };
     },
   );

@@ -138,7 +138,7 @@ export default function CashierPOSWorkspace() {
       }
 
       setStatusMessage(`تم حفظ الفاتورة ${payload.invoiceNumber} في Supabase`);
-      alert(`تم إصدار الفاتورة ${payload.invoiceNumber} بنجاح.\nالمجموع: ${Number(payload.total).toFixed(2)} ر.س\nطريقة الدفع: ${method === "cash" ? "نقدي" : "شبكة"}`);
+      alert(`تم إصدار الفاتورة ${payload.invoiceNumber} بنجاح.\nالمجموع: ${Number(payload.total).toFixed(2)} شيكل\nطريقة الدفع: ${method === "cash" ? "نقدي" : "شبكة"}`);
       
       setCart([]);
     } catch (err) {
@@ -229,7 +229,7 @@ export default function CashierPOSWorkspace() {
                 <div key={item.id} className="bg-slate-900/80 border border-slate-850 p-3 rounded-xl flex items-center justify-between gap-3 text-right">
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-bold text-slate-100 truncate">{item.name}</p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">{(item.price * item.qty).toFixed(2)} ر.س</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">{(item.price * item.qty).toFixed(2)} شيكل</p>
                   </div>
                   
                   {/* Quantity adjustments */}
@@ -248,17 +248,17 @@ export default function CashierPOSWorkspace() {
             <div className="space-y-1.5 text-xs text-slate-400">
               <div className="flex justify-between">
                 <span>المجموع الفرعي:</span>
-                <span className="font-mono text-slate-200">{subtotal.toFixed(2)} ر.س</span>
+                <span className="font-mono text-slate-200">{subtotal.toFixed(2)} شيكل</span>
               </div>
               <div className="flex justify-between">
-                <span>ضريبة القيمة المضافة (15%):</span>
-                <span className="font-mono text-slate-200">{tax.toFixed(2)} ر.س</span>
+                <span>ضريبة القيمة المضافة:</span>
+                <span className="font-mono text-slate-200">{tax.toFixed(2)} شيكل</span>
               </div>
             </div>
             
             <div className="flex justify-between items-center text-sm font-bold text-slate-100 border-t border-slate-800/80 pt-2.5">
               <span>المجموع الكلي:</span>
-              <span className="text-lg text-teal-400 font-mono font-black">{total.toFixed(2)} ر.س</span>
+              <span className="text-lg text-teal-400 font-mono font-black">{total.toFixed(2)} شيكل</span>
             </div>
 
             <div className="grid grid-cols-2 gap-2.5 pt-1">
@@ -317,7 +317,7 @@ export default function CashierPOSWorkspace() {
                 <CardContent className="p-3.5 pt-0 text-right flex-1 flex flex-col justify-end space-y-2">
                   <h3 className="font-bold text-xs group-hover:text-teal-400 transition-colors">{item.name}</h3>
                   <div className="flex items-center justify-between">
-                    <span className="text-teal-400 text-xs font-bold font-mono">{item.price.toFixed(2)} ر.س</span>
+                    <span className="text-teal-400 text-xs font-bold font-mono">{item.price.toFixed(2)} شيكل</span>
                     <span className="h-6 w-6 rounded-full bg-slate-950 text-slate-450 border border-slate-800 flex items-center justify-center group-hover:bg-teal-500 group-hover:text-slate-950 transition-all">
                       <Plus className="h-3.5 w-3.5" />
                     </span>

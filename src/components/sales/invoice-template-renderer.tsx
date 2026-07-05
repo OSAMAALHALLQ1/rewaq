@@ -324,7 +324,7 @@ function FormalReceipt({ data, options }: { data: PrintableInvoiceData; options:
           <p className="text-slate-500">إلى</p>
           <p className="font-bold">{data.customerName || "عميل نقدي"}</p>
           <p>{data.customerPhone || "بدون هاتف"}</p>
-          <p>{data.customerTaxNumber ? `رقم ضريبي: ${data.customerTaxNumber}` : "بدون رقم ضريبي"}</p>
+          <p>{data.customerTaxNumber ? `مشتغل مرخص / رقم ضريبي: ${data.customerTaxNumber}` : "بدون مشتغل مرخص"}</p>
         </div>
       </div>
       <table className="w-full text-sm">

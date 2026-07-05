@@ -1604,6 +1604,8 @@ export async function saveStockCountAction(_prevState: ActionState, formData: Fo
 
     if (countError) return invalid(countError.message);
 
+    let totalFinancialVariance = 0;
+
     for (let index = 0; index < itemIds.length; index += 1) {
       const itemId = itemIds[index];
       const countedQuantity = countedQuantities[index] ?? 0;
@@ -1621,6 +1623,8 @@ export async function saveStockCountAction(_prevState: ActionState, formData: Fo
       const systemQuantity = Number(stock?.quantity ?? 0);
       const variance = countedQuantity - systemQuantity;
       const unitCost = Number(item.average_cost ?? 0);
+
+      totalFinancialVariance += variance * unitCost;
 
       const { error: itemError } = await admin.from("stock_count_items").insert({
         organization_id: organizationId,
@@ -1653,6 +1657,73 @@ export async function saveStockCountAction(_prevState: ActionState, formData: Fo
         if (movementError) return invalid(movementError.message);
       }
     }
+
+    if (Math.abs(totalFinancialVariance) > 0.01) {
+      const [inventoryAcc, varianceAcc] = await Promise.all([
+        admin.from("chart_of_accounts").select("id").eq("organization_id", organizationId).eq("system_key", "inventory").maybeSingle(),
+        admin.from("chart_of_accounts").select("id").eq("organization_id", organizationId).eq("system_key", "cash_over_short").maybeSingle(),
+      ]);
+
+      if (inventoryAcc.data?.id && varianceAcc.data?.id) {
+        const absVariance = Math.abs(totalFinancialVariance);
+        const entryNumber = await nextJournalEntryNumber(admin, organizationId);
+        
+        const { data: entry, error: entryError } = await admin
+          .from("journal_entries")
+          .insert({
+            organization_id: organizationId,
+            entry_number: entryNumber,
+            entry_date: new Date().toISOString().slice(0, 10),
+            memo: `تسوية فروقات جرد مخزن - وثيقة رقم ${stockCount.id.slice(0, 8)}`,
+            status: "posted",
+            source_doc_type: "stock_count",
+            source_doc_id: stockCount.id,
+            created_by: userId,
+          })
+          .select("id")
+          .single();
+
+        if (!entryError && entry) {
+          const lines = [];
+          if (totalFinancialVariance < 0) {
+            lines.push({
+              organization_id: organizationId,
+              journal_entry_id: entry.id,
+              account_id: varianceAcc.data.id,
+              debit: absVariance,
+              credit: 0,
+              memo: "عجز جرد مخزني",
+            });
+            lines.push({
+              organization_id: organizationId,
+              journal_entry_id: entry.id,
+              account_id: inventoryAcc.data.id,
+              debit: 0,
+              credit: absVariance,
+              memo: "تخفيض قيمة المخزون بالعجز",
+            });
+          } else {
+            lines.push({
+              organization_id: organizationId,
+              journal_entry_id: entry.id,
+              account_id: inventoryAcc.data.id,
+              debit: absVariance,
+              credit: 0,
+              memo: "زيادة جرد مخزني",
+            });
+            lines.push({
+              organization_id: organizationId,
+              journal_entry_id: entry.id,
+              account_id: varianceAcc.data.id,
+              debit: 0,
+              credit: absVariance,
+              memo: "تسوية زيادة الجرد",
+            });
+          }
+          await admin.from("journal_lines").insert(lines);
+        }
+      }
+    }
   } catch (error) {
     return invalid(error instanceof Error ? error.message : "تعذر حفظ الجرد في Supabase.");
   }
@@ -1678,7 +1749,10 @@ export async function requestDemoAction(_prevState: ActionState, formData: FormD
   return ok("وصلنا طلبك. سنرتب عرضًا تجريبيًا مناسبًا لفريقك.");
 }
 
-// New Schemas for Rewaq SaaS fixes
+
+
+
+
 const catalogItemSchema = z.object({
   name: z.string().min(2, "اسم الصنف مطلوب"),
   code: z.string().min(2, "كود الصنف مطلوب"),
@@ -1698,6 +1772,7 @@ const invoiceSchema = z.object({
   quantity: z.coerce.number().positive("الكمية يجب أن تكون أكبر من صفر"),
   unitPrice: z.coerce.number().positive("السعر يجب أن يكون أكبر من صفر"),
   expiryDate: z.string().optional(),
+  purchaseOrderId: z.string().optional(),
 });
 
 const transferSchema = z.object({
@@ -1782,6 +1857,7 @@ export async function saveCatalogItemAction(_prevState: ActionState, formData: F
   return ok("تم حفظ الصنف في الكتالوج بنجاح.");
 }
 
+
 export async function saveInvoiceAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
   const parsed = invoiceSchema.safeParse({
     supplierId: formData.get("supplierId"),
@@ -1792,6 +1868,7 @@ export async function saveInvoiceAction(_prevState: ActionState, formData: FormD
     quantity: formData.get("quantity"),
     unitPrice: formData.get("unitPrice"),
     expiryDate: formData.get("expiryDate") || undefined,
+    purchaseOrderId: formData.get("purchaseOrderId") || undefined,
   });
 
   if (!parsed.success) return invalid(parsed.error.issues[0]?.message ?? "بيانات الفاتورة غير صحيحة");
@@ -1822,6 +1899,7 @@ export async function saveInvoiceAction(_prevState: ActionState, formData: FormD
         supplier_id: parsed.data.supplierId,
         branch_id: parsed.data.branchId,
         invoice_number: parsed.data.invoiceNumber,
+        purchase_order_id: parsed.data.purchaseOrderId || null,
         total,
         issued_at: parsed.data.issuedAt,
         status: "paid",
@@ -1845,52 +1923,56 @@ export async function saveInvoiceAction(_prevState: ActionState, formData: FormD
 
     if (itemError) return invalid(itemError.message);
 
-    await addToBranchStock(admin, organizationId, parsed.data.branchId, parsed.data.itemId, parsed.data.quantity, userId);
+    const hasPo = !!parsed.data.purchaseOrderId;
 
-    const { error: movementError } = await admin.from("stock_movements").insert({
-      organization_id: organizationId,
-      branch_id: parsed.data.branchId,
-      item_id: parsed.data.itemId,
-      movement_type: "purchase",
-      quantity: parsed.data.quantity,
-      unit_cost: parsed.data.unitPrice,
-      source_doc_type: "invoice",
-      source_doc_id: invoice.id,
-      idempotency_key: `${invoice.id}:${parsed.data.itemId}:receive`,
-      notes: `فاتورة توريد رقم ${parsed.data.invoiceNumber}${parsed.data.expiryDate ? ` - انتهاء: ${parsed.data.expiryDate}` : ""}`,
-      created_by: userId,
-    });
+    if (!hasPo) {
+      await addToBranchStock(admin, organizationId, parsed.data.branchId, parsed.data.itemId, parsed.data.quantity, userId);
 
-    if (movementError && !movementError.message.includes("duplicate key")) return invalid(movementError.message);
+      const { error: movementError } = await admin.from("stock_movements").insert({
+        organization_id: organizationId,
+        branch_id: parsed.data.branchId,
+        item_id: parsed.data.itemId,
+        movement_type: "purchase",
+        quantity: parsed.data.quantity,
+        unit_cost: parsed.data.unitPrice,
+        source_doc_type: "invoice",
+        source_doc_id: invoice.id,
+        idempotency_key: `${invoice.id}:${parsed.data.itemId}:receive`,
+        notes: `فاتورة توريد رقم ${parsed.data.invoiceNumber}${parsed.data.expiryDate ? ` - انتهاء: ${parsed.data.expiryDate}` : ""}`,
+        created_by: userId,
+      });
 
-    await admin.from("supplier_price_history").insert({
-      organization_id: organizationId,
-      supplier_id: parsed.data.supplierId,
-      item_id: parsed.data.itemId,
-      unit_price: parsed.data.unitPrice,
-      source_doc_type: "invoice",
-      source_doc_id: invoice.id,
-      created_by: userId,
-    });
+      if (movementError && !movementError.message.includes("duplicate key")) return invalid(movementError.message);
 
-    const { data: stockRows } = await admin
-      .from("branch_stock")
-      .select("quantity")
-      .eq("organization_id", organizationId)
-      .eq("item_id", parsed.data.itemId);
-    
-    const currentStock = stockRows?.reduce((sum, s) => sum + Number(s.quantity ?? 0), 0) ?? 0;
-    const oldStock = Math.max(0, currentStock - parsed.data.quantity);
-    const oldCost = Number(item.data.average_cost ?? 0);
-    const newAverageCost = (oldCost * oldStock + total) / Math.max(1, currentStock);
+      await admin.from("supplier_price_history").insert({
+        organization_id: organizationId,
+        supplier_id: parsed.data.supplierId,
+        item_id: parsed.data.itemId,
+        unit_price: parsed.data.unitPrice,
+        source_doc_type: "invoice",
+        source_doc_id: invoice.id,
+        created_by: userId,
+      });
 
-    await admin
-      .from("inventory_items")
-      .update({
-        average_cost: newAverageCost,
-        last_purchase_price: parsed.data.unitPrice,
-      })
-      .eq("id", parsed.data.itemId);
+      const { data: stockRows } = await admin
+        .from("branch_stock")
+        .select("quantity")
+        .eq("organization_id", organizationId)
+        .eq("item_id", parsed.data.itemId);
+      
+      const currentStock = stockRows?.reduce((sum, s) => sum + Number(s.quantity ?? 0), 0) ?? 0;
+      const oldStock = Math.max(0, currentStock - parsed.data.quantity);
+      const oldCost = Number(item.data.average_cost ?? 0);
+      const newAverageCost = (oldCost * oldStock + total) / Math.max(1, currentStock);
+
+      await admin
+        .from("inventory_items")
+        .update({
+          average_cost: newAverageCost,
+          last_purchase_price: parsed.data.unitPrice,
+        })
+        .eq("id", parsed.data.itemId);
+    }
 
     await postSupplierInvoiceJournal(admin, {
       organizationId,
@@ -1909,7 +1991,7 @@ export async function saveInvoiceAction(_prevState: ActionState, formData: FormD
   revalidatePath("/dashboard/stock-movements");
   revalidatePath("/dashboard/accounting/ledger");
   revalidatePath("/dashboard/reports");
-  return ok("تم حفظ فاتورة التوريد وتحديث كميات وأسعار المخزون بنجاح.");
+  return ok("تم حفظ فاتورة التوريد بنجاح.");
 }
 
 export async function saveTransferAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
@@ -2214,4 +2296,103 @@ export async function closeSalesShiftAction(_prevState: ActionState, formData: F
   revalidatePath("/dashboard/shifts");
   revalidatePath("/dashboard/accounting/ledger");
   return ok("تم إغلاق الوردية وتسجيل فرق الصندوق محاسبياً.");
+}
+
+async function nextJournalEntryNumber(admin: ReturnType<typeof createAdminClient>, organizationId: string) {
+  const today = new Date().toISOString().slice(0, 10);
+  const compactDate = today.replaceAll("-", "");
+  const { count, error } = await (admin as any)
+    .from("journal_entries")
+    .select("id", { count: "exact", head: true })
+    .eq("organization_id", organizationId)
+    .gte("created_at", `${today}T00:00:00.000Z`)
+    .lt("created_at", `${today}T23:59:59.999Z`);
+
+  if (error) throw new Error(error.message);
+
+  return `JV-${compactDate}-${String((count ?? 0) + 1).padStart(4, "0")}`;
+}
+
+export async function saveJournalEntryAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
+  const entryDate = String(formData.get("entryDate") ?? "");
+  const memo = String(formData.get("memo") ?? "");
+  const linesJson = String(formData.get("lines") ?? "[]");
+
+  if (!entryDate) return invalid("التاريخ مطلوب");
+  if (!memo) return invalid("البيان مطلوب");
+
+  let lines: any[] = [];
+  try {
+    lines = JSON.parse(linesJson);
+  } catch {
+    return invalid("صيغة خطوط القيد المحاسبي غير صالحة.");
+  }
+
+  if (!Array.isArray(lines) || lines.length < 2) {
+    return invalid("القيد المحاسبي يجب أن يحتوي على سطرين (مدين ودائن) على الأقل.");
+  }
+
+  let debitSum = 0;
+  let creditSum = 0;
+
+  for (const line of lines) {
+    const debit = Number(line.debit ?? 0);
+    const credit = Number(line.credit ?? 0);
+    if (!line.accountId) return invalid("يجب تحديد حساب لكل سطر.");
+    if (debit < 0 || credit < 0) return invalid("المبالغ لا يمكن أن تكون سالبة.");
+    if (debit > 0 && credit > 0) return invalid("لا يمكن إدخال مبلغ مدين ودائن في نفس السطر.");
+    if (debit === 0 && credit === 0) return invalid("يجب إدخال مبلغ مدين أو دائن في السطر.");
+    debitSum += debit;
+    creditSum += credit;
+  }
+
+  if (Math.abs(debitSum - creditSum) > 0.01) {
+    return invalid(`القيد المحاسبي غير متزن. إجمالي المدين (${debitSum.toFixed(2)}) لا يساوي إجمالي الدائن (${creditSum.toFixed(2)}).`);
+  }
+
+  if (!hasSupabaseAdminEnv()) {
+    return invalid("مفتاح Supabase الإداري غير موجود.");
+  }
+
+  try {
+    const { admin, organizationId, userId } = await resolveMutationScope();
+    const entryNumber = await nextJournalEntryNumber(admin, organizationId);
+
+    const { data: entry, error: entryError } = await (admin as any)
+      .from("journal_entries")
+      .insert({
+        organization_id: organizationId,
+        entry_number: entryNumber,
+        entry_date: entryDate,
+        memo,
+        status: "posted",
+        created_by: userId,
+      })
+      .select("id")
+      .single();
+
+    if (entryError || !entry) return invalid(entryError?.message ?? "تعذر إنشاء القيد المحاسبي.");
+
+    const { error: linesError } = await (admin as any).from("journal_lines").insert(
+      lines.map((line) => ({
+        organization_id: organizationId,
+        journal_entry_id: entry.id,
+        account_id: line.accountId,
+        debit: Number(line.debit ?? 0),
+        credit: Number(line.credit ?? 0),
+        memo: line.memo || null,
+      }))
+    );
+
+    if (linesError) {
+      await (admin as any).from("journal_entries").delete().eq("id", entry.id);
+      return invalid(linesError.message);
+    }
+
+  } catch (error) {
+    return invalid(error instanceof Error ? error.message : "حدث خطأ أثناء حفظ القيد المحاسبي.");
+  }
+
+  revalidatePath("/dashboard/accounting/ledger");
+  return ok("تم حفظ القيد المحاسبي بنجاح.");
 }

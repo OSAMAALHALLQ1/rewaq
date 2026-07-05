@@ -540,7 +540,7 @@ export default function RawaqSocialPublishingPage({
               <div className="rounded-xl border border-amber-100 bg-amber-50 p-3 text-sm text-amber-900">
                 <p className="font-bold">خطوة النشر اليدوي الذكي</p>
                 <p className="mt-1 text-xs leading-5">
-                  انسخ الكابشن وافتح Meta Business Suite. بعد الضغط على Publish من داخل Meta، اضغط "تم النشر" هنا.
+                  انسخ الكابشن وافتح Meta Business Suite. بعد الضغط على Publish من داخل Meta، اضغط &quot;تم النشر&quot; هنا.
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Button

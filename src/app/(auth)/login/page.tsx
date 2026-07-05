@@ -32,8 +32,8 @@ export default async function LoginPage({
           </div>
         ) : null}
         <div className="grid gap-2">
-          <Label htmlFor="email">البريد الإلكتروني</Label>
-          <Input id="email" name="email" type="email" placeholder="owner@example.com" required />
+          <Label htmlFor="email">البريد الإلكتروني / اسم المستخدم</Label>
+          <Input id="email" name="email" type="text" placeholder="owner@example.com" required />
         </div>
         <div className="grid gap-2">
           <div className="flex items-center justify-between">

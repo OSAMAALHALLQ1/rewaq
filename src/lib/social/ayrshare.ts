@@ -1,9 +1,16 @@
 import type { PublishInput, PublishResult, SocialPublisher } from "./types";
 
-const AYRSHARE_API_KEY = process.env.AYRSHARE_API_KEY ?? "B33518C0-FE5B4AEC-88736D1E-F554A026";
+const AYRSHARE_API_KEY = process.env.AYRSHARE_API_KEY;
 
 export class AyrsharePublisher implements SocialPublisher {
   async publish(input: PublishInput): Promise<PublishResult> {
+    if (!AYRSHARE_API_KEY) {
+      return {
+        platform: input.platform,
+        status: "failed",
+        error: "لم يتم تكوين مفتاح الوصول AYRSHARE_API_KEY في ملف البيئة الخاص بالخادم."
+      };
+    }
     try {
       // Map Rawaq platforms to Ayrshare platform IDs
       const platformMap: Record<string, string> = {

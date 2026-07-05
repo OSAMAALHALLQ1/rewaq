@@ -90,6 +90,7 @@ export default async function PrintCustomerInvoicePage({
   const query = (await searchParams) ?? {};
   const [invoice, context] = await Promise.all([getCustomerInvoice(id), getOrganizationContext()]);
   if (!invoice) notFound();
+  
   const receiptUrl = `${getBaseUrl()}/r/customer-invoices/${invoice.id}/image`;
   const receiptQr = createQrDataUrl(receiptUrl);
   const options = buildTemplateOptions(query);
