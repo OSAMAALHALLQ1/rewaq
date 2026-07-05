@@ -5,7 +5,7 @@
 import "server-only";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { hasSupabaseEnv, hasSupabaseAdminEnv } from "@/lib/supabase/env";
+import { canUseDemoFallback, hasSupabaseEnv, hasSupabaseAdminEnv, isDemoModeEnabled } from "@/lib/supabase/env";
 import { demoOrganization, demoBranches } from "@/lib/demo-data";
 import type { Tables } from "@/types/database";
 import type { Organization, Branch } from "@/types/domain";
@@ -74,7 +74,7 @@ export async function query<T>(promise: PromiseLike<QueryResult<T>>, label: stri
 }
 
 /**
- * Wrapper that falls back to demo data when Supabase is not configured.
+ * Wrapper that falls back to demo data only in explicit local demo mode.
  * USE THIS SPARINGLY - prefer isDemoMode() checks instead.
  */
 export async function withAdminScope<T>(
@@ -82,7 +82,10 @@ export async function withAdminScope<T>(
   loader: (admin: AdminClient, scope: AppScope) => Promise<T>,
 ): Promise<T> {
   if (!hasSupabaseAdminEnv()) {
-    return fallback;
+    if (canUseDemoFallback()) {
+      return fallback;
+    }
+    throw new Error("Supabase admin environment is required unless RAWAQ_DEMO_MODE=true outside production.");
   }
 
   try {
@@ -91,13 +94,16 @@ export async function withAdminScope<T>(
     return await loader(admin, scope);
   } catch (error) {
     console.error("[queries]", error instanceof Error ? error.message : error);
-    return fallback;
+    if (isDemoModeEnabled()) {
+      return fallback;
+    }
+    throw error;
   }
 }
 
-/** Check if we're in demo mode (no Supabase configured) */
+/** Check if explicit local demo mode is enabled. Production never enters demo mode. */
 export function isDemoMode(): boolean {
-  return !hasSupabaseEnv();
+  return isDemoModeEnabled() && !hasSupabaseEnv();
 }
 
 /** Get current authenticated user ID */
@@ -136,7 +142,11 @@ export async function resolveScope(admin: AdminClient): Promise<AppScope> {
     }
   }
 
-  // Fallback to demo org
+  if (!isDemoModeEnabled()) {
+    throw new Error("Unable to resolve organization scope for the current user.");
+  }
+
+  // Explicit local demo fallback.
   const { data: demoOrg } = await admin
     .from("organizations")
     .select("id")
@@ -176,7 +186,8 @@ export function oneOf<T extends string>(value: string | null | undefined, allowe
 }
 
 export function optionalText(value: string | null | undefined): string | undefined {
-  return value?.trim() ? value : undefined;
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
 }
 
 // ============================================================================

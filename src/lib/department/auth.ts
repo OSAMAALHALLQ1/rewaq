@@ -1,7 +1,9 @@
 import "server-only";
 
 import { createHash } from "crypto";
+import { cookies } from "next/headers";
 import { createAdminClient, hasSupabaseAdminEnv } from "@/lib/supabase/admin";
+import { isDemoModeEnabled } from "@/lib/supabase/env";
 
 export type DepartmentDeviceContext = {
   id: string;
@@ -16,12 +18,41 @@ export type DepartmentAuthResult =
   | { ok: true; admin: ReturnType<typeof createAdminClient>; device: DepartmentDeviceContext }
   | { ok: false; status: number; error: string };
 
+const DEPARTMENT_CAPABILITY_ROLES = {
+  pos_write: new Set(["cashier", "manager"]),
+  kitchen_write: new Set(["chef", "kitchen", "manager"]),
+  inventory_write: new Set(["inventory_manager", "manager"]),
+} as const;
+
+export type DepartmentDeviceCapability = keyof typeof DEPARTMENT_CAPABILITY_ROLES;
+
+export function requireDepartmentDeviceCapability(
+  auth: DepartmentAuthResult,
+  capability: DepartmentDeviceCapability,
+  targetBranchId?: string | null,
+): DepartmentAuthResult {
+  if (!auth.ok) return auth;
+
+  if (!DEPARTMENT_CAPABILITY_ROLES[capability].has(auth.device.role)) {
+    return { ok: false, status: 403, error: "دور هذا الجهاز لا يسمح بهذه العملية." };
+  }
+
+  if (targetBranchId !== undefined && auth.device.branchId !== targetBranchId) {
+    return { ok: false, status: 403, error: "هذا الجهاز غير مخول للعمل على هذا الفرع." };
+  }
+
+  return auth;
+}
+
 export async function authenticateDepartmentDevice(
   request: Request,
   requiredModule?: string,
 ): Promise<DepartmentAuthResult> {
   if (!hasSupabaseAdminEnv()) {
-    // Return mock session in Demo/Simulation mode!
+    if (!isDemoModeEnabled()) {
+      return { ok: false, status: 503, error: "إعداد Supabase الإداري غير مكتمل." };
+    }
+
     return {
       ok: true,
       admin: null as any,
@@ -36,7 +67,9 @@ export async function authenticateDepartmentDevice(
     };
   }
 
-  const rawKey = request.headers.get("x-department-key") || request.headers.get("x-api-key");
+  const cookieStore = await cookies();
+  const cookieKey = cookieStore.get("rwq_dept_token")?.value;
+  const rawKey = request.headers.get("x-department-key") || request.headers.get("x-api-key") || cookieKey;
   const normalizedKey = rawKey?.trim().toUpperCase();
 
   if (!normalizedKey || normalizedKey.length !== 10) {

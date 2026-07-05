@@ -23,24 +23,18 @@ import {
   demoInventoryItems,
   demoCatalogItems,
   demoCategories,
-  demoStockMovements,
-  demoPurchaseOrders,
-  demoSuppliers,
 } from "@/lib/demo-data";
 import {
   isDemoMode,
   withAdminScope,
   query,
   indexBy,
+  groupBy,
   numberValue,
   oneOf,
   type AdminClient,
 } from "./_shared/utils";
-import {
-  mapSupplier,
-  mapStockMovement,
-  mapPurchaseOrder,
-} from "./_shared/mappers";
+import { mapPurchaseOrder, mapStockMovement, mapSupplier } from "./_shared/mappers";
 
 import type {
   BillPaymentBatch,
@@ -526,6 +520,7 @@ type ReportsBundle = {
   };
   stockAlerts: InventoryItem[];
   expiryAlerts: InventoryItem[];
+  dataNotice?: string;
 };
 
 type AmwaliData = {
@@ -869,161 +864,154 @@ export async function getOperationsData(): Promise<OperationsBundle> {
  * Get reports data (backward compatibility)
  */
 export async function getReportsData(): Promise<ReportsBundle> {
+  const emptyReports: ReportsBundle = {
+    wasteSummary: {
+      totalCost: 0,
+      byCategory: [],
+      byBranch: [],
+    },
+    dashboard: { purchaseCost30Days: [] },
+    movements: [],
+    purchaseOrders: [],
+    wasteLogs: [],
+    suppliers: [],
+    branches: [],
+    stockAlerts: [],
+    expiryAlerts: [],
+    dataNotice: "تعذر تحميل بيانات التقارير من قاعدة البيانات. لا يتم عرض بيانات تجريبية في هذه الصفحة.",
+  };
+
   if (isDemoMode()) {
     return {
-      dashboard: { purchaseCost30Days: demoStockMovements.slice(0, 6).map((movement) => ({ label: movement.createdAt.slice(0, 10), value: movement.totalCost })) },
-      movements: demoStockMovements,
-      purchaseOrders: demoPurchaseOrders,
-      wasteLogs: demoWasteLogs,
-      suppliers: demoSuppliers,
-      branches: demoBranches,
-      wasteSummary: {
-        totalCost: 670,
-        byCategory: [
-          { category: "بروتين", value: 320 },
-          { category: "نشويات", value: 180 },
-          { category: "مخلفات", value: 170 },
-        ],
-        byBranch: [
-          { branch: "الفرع الرئيسي", value: 410 },
-          { branch: "فرع الرمال", value: 260 },
-        ],
-      },
-      stockAlerts: demoInventoryItems.filter((item) => item.averageCost < item.minimumQuantity),
-      expiryAlerts: demoInventoryItems.slice(0, 4),
+      ...emptyReports,
+      dataNotice: "Supabase غير مضبوط لهذه الجلسة، لذلك تظهر التقارير فارغة بدل استخدام بيانات تجريبية.",
     };
   }
 
   return withAdminScope<ReportsBundle>(
-    {
-      wasteSummary: {
-        totalCost: 670,
-        byCategory: [
-          { category: "بروتين", value: 320 },
-          { category: "نشويات", value: 180 },
-        ],
-        byBranch: [
-          { branch: "الفرع الرئيسي", value: 410 },
-        ],
-      },
-      dashboard: { purchaseCost30Days: [] },
-      movements: demoStockMovements,
-      purchaseOrders: demoPurchaseOrders,
-      wasteLogs: demoWasteLogs,
-      suppliers: demoSuppliers,
-      branches: demoBranches,
-      stockAlerts: [],
-      expiryAlerts: [],
-    },
+    emptyReports,
     async (admin, scope) => {
-      const [
-        wasteRows,
-        itemRows,
-        branchRows,
-        movementRows,
-        orderRows,
-        orderItemRows,
-        supplierRows,
-      ] = await Promise.all([
-        admin.from("waste_logs").select("*").eq("organization_id", scope.organizationId).gte("created_at", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()),
-        admin.from("inventory_items").select("*").eq("organization_id", scope.organizationId),
-        admin.from("branches").select("*").eq("organization_id", scope.organizationId).order("name"),
-        admin.from("stock_movements").select("*").eq("organization_id", scope.organizationId).order("created_at", { ascending: false }).limit(100),
-        admin.from("purchase_orders").select("*").eq("organization_id", scope.organizationId).order("order_date", { ascending: false }).limit(100),
-        admin.from("purchase_order_items").select("*").eq("organization_id", scope.organizationId),
-        admin.from("suppliers").select("*").eq("organization_id", scope.organizationId).order("name"),
+      const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      const [wasteRows, itemRows, movementRows, orderRows, orderItemRows, supplierRows, branchRows, priceRows] = await Promise.all([
+        query(admin.from("waste_logs").select("*").eq("organization_id", scope.organizationId).gte("created_at", since).order("created_at", { ascending: false }), "waste_logs"),
+        query(admin.from("inventory_items").select("*").eq("organization_id", scope.organizationId).order("name"), "inventory_items"),
+        query(
+          admin
+            .from("stock_movements")
+            .select("*")
+            .eq("organization_id", scope.organizationId)
+            .order("created_at", { ascending: false })
+            .limit(150),
+          "stock_movements",
+        ),
+        query(
+          admin
+            .from("purchase_orders")
+            .select("*")
+            .eq("organization_id", scope.organizationId)
+            .order("order_date", { ascending: false })
+            .limit(100),
+          "purchase_orders",
+        ),
+        query(admin.from("purchase_order_items").select("*").eq("organization_id", scope.organizationId), "purchase_order_items"),
+        query(admin.from("suppliers").select("*").eq("organization_id", scope.organizationId).order("name"), "suppliers"),
+        query(admin.from("branches").select("*").eq("organization_id", scope.organizationId).order("name"), "branches"),
+        query(
+          admin
+            .from("supplier_price_history")
+            .select("*")
+            .eq("organization_id", scope.organizationId)
+            .order("recorded_at", { ascending: false })
+            .limit(250),
+          "supplier_price_history",
+        ),
       ]);
 
-      const branchesMap = new Map((branchRows.data ?? []).map((b: any) => [b.id, b]));
-      const itemsMap = new Map((itemRows.data ?? []).map((i: any) => [i.id, i]));
-      const suppliersMap = new Map((supplierRows.data ?? []).map((s: any) => [s.id, s]));
-      
-      const itemsByOrder = new Map<string, any[]>();
-      for (const item of orderItemRows.data ?? []) {
-        const orderId = item.purchase_order_id;
-        if (!itemsByOrder.has(orderId)) {
-          itemsByOrder.set(orderId, []);
-        }
-        itemsByOrder.get(orderId)!.push(item);
+      const branchMap = indexBy(branchRows, (row) => row.id);
+      const itemMap = indexBy(itemRows, (row) => row.id);
+      const supplierMap = indexBy(supplierRows, (row) => row.id);
+      const itemsByOrder = groupBy(orderItemRows, (row) => row.purchase_order_id);
+      const priceRiskBySupplier = new Map<string, number>();
+
+      for (const row of priceRows) {
+        const current = priceRiskBySupplier.get(row.supplier_id) ?? 0;
+        priceRiskBySupplier.set(row.supplier_id, Math.max(current, Math.abs(numberValue(row.price_change_percent))));
       }
 
-      const dbBranches = (branchRows.data ?? []).map((row: any) => ({
+      const wasteLogs = wasteRows.map((row: any) => ({
         id: row.id,
         organizationId: row.organization_id,
-        name: row.name,
-        city: row.city ?? "",
-        address: row.address ?? "",
-        manager: row.manager_name ?? "",
-        status: row.status === "inactive" || row.status === "archived" ? ("inactive" as const) : ("active" as const),
-      }));
-
-      const dbSuppliers = (supplierRows.data ?? []).map((row: any) => mapSupplier(row, 0));
-
-      const dbMovements = (movementRows.data ?? []).map((row: any) =>
-        mapStockMovement(row, branchesMap, itemsMap)
-      );
-
-      const dbPurchaseOrders = (orderRows.data ?? []).map((row: any) =>
-        mapPurchaseOrder(row, suppliersMap, branchesMap, itemsMap, itemsByOrder.get(row.id) ?? [])
-      );
-
-      const dbWasteLogs = (wasteRows.data ?? []).map((row: any) => ({
-        id: row.id,
-        organizationId: row.organization_id,
-        branchName: branchesMap.get(row.branch_id)?.name ?? "فرع غير معروف",
-        itemName: itemsMap.get(row.item_id)?.name ?? "مادة غير معروفة",
+        branchName: String(branchMap.get(row.branch_id)?.name ?? "فرع غير معروف"),
+        itemName: String(itemMap.get(row.item_id)?.name ?? "مادة غير معروفة"),
         quantity: numberValue(row.quantity),
-        reason: row.reason ?? "",
+        reason: oneOf(
+          row.reason,
+          ["تلف", "انتهاء صلاحية", "خطأ تحضير", "كسر/انسكاب", "محاريق", "منظفات", "إرجاع", "سبب آخر"] as const,
+          "سبب آخر",
+        ),
         cost: numberValue(row.total_cost ?? row.cost),
-        loggedAt: row.created_at ?? row.logged_at,
-        notes: row.notes,
+        loggedAt: String(row.created_at ?? row.logged_at ?? ""),
+        notes: row.notes ?? undefined,
       }));
 
-      const totalCost = dbWasteLogs.reduce((sum, row) => sum + row.cost, 0);
+      const totalCost = wasteLogs.reduce((sum, row) => sum + row.cost, 0);
+      const wasteByCategory = new Map<string, number>();
+      const wasteByBranch = new Map<string, number>();
 
-      const byBranchMap = new Map<string, number>();
-      for (const log of dbWasteLogs) {
-        byBranchMap.set(log.branchName, (byBranchMap.get(log.branchName) ?? 0) + log.cost);
+      for (const row of wasteLogs) {
+        wasteByCategory.set(row.reason, (wasteByCategory.get(row.reason) ?? 0) + row.cost);
+        wasteByBranch.set(row.branchName, (wasteByBranch.get(row.branchName) ?? 0) + row.cost);
       }
-      const byBranch = Array.from(byBranchMap.entries()).map(([branch, value]) => ({ branch, value }));
-
-      const dbItems = (itemRows.data ?? []).map((row: any) => ({
-        id: row.id,
-        organizationId: row.organization_id,
-        name: row.name,
-        categoryId: row.category_id ?? "",
-        categoryName: "",
-        purchaseUnit: "",
-        usageUnit: "",
-        lastPurchasePrice: numberValue(row.last_purchase_price),
-        averageCost: numberValue(row.average_cost),
-        minimumQuantity: numberValue(row.minimum_quantity),
-        primarySupplierId: row.primary_supplier_id || undefined,
-        primarySupplierName: undefined,
-        sku: row.sku || undefined,
-        notes: row.notes || undefined,
-        isActive: row.status === "active",
-      }));
 
       return {
         wasteSummary: {
           totalCost,
-          byCategory: [],
-          byBranch,
+          byCategory: Array.from(wasteByCategory.entries()).map(([category, value]) => ({ category, value })),
+          byBranch: Array.from(wasteByBranch.entries()).map(([branch, value]) => ({ branch, value })),
         },
         dashboard: {
-          purchaseCost30Days: dbMovements.slice(0, 6).map((row) => ({
-            label: String(row.createdAt ?? "").slice(0, 10),
-            value: row.totalCost,
-          })),
+          purchaseCost30Days: movementRows
+            .filter((row: any) => row.movement_type === "purchase")
+            .slice(0, 30)
+            .reverse()
+            .map((row: any) => ({
+              label: String(row.created_at ?? "").slice(0, 10),
+              value: numberValue(row.total_cost),
+            })),
         },
-        movements: dbMovements,
-        purchaseOrders: dbPurchaseOrders,
-        wasteLogs: dbWasteLogs,
-        suppliers: dbSuppliers,
-        branches: dbBranches,
-        stockAlerts: dbItems.filter((item) => item.averageCost < item.minimumQuantity),
-        expiryAlerts: dbItems.slice(0, 4),
+        movements: movementRows.map((row: any) => mapStockMovement(row, branchMap, itemMap)),
+        purchaseOrders: orderRows.map((row: any) => mapPurchaseOrder(row, supplierMap, branchMap, itemMap, itemsByOrder.get(row.id) ?? [])),
+        wasteLogs,
+        suppliers: supplierRows.map((row: any) => mapSupplier(row, priceRiskBySupplier.get(row.id) ?? 0)),
+        branches: branchRows.map((row: any) => ({
+          id: row.id,
+          organizationId: row.organization_id,
+          name: row.name,
+          city: row.city ?? "",
+          address: row.address ?? "",
+          manager: row.manager_name ?? "",
+          status: row.status === "inactive" || row.status === "archived" ? "inactive" as const : "active" as const,
+        })),
+        stockAlerts: itemRows
+          .filter((item: any) => numberValue(item.average_cost) < numberValue(item.minimum_quantity))
+          .map((item: any) => ({
+            id: item.id,
+            organizationId: item.organization_id,
+            name: item.name,
+            categoryId: item.category_id ?? "",
+            categoryName: "",
+            purchaseUnit: "",
+            usageUnit: "",
+            lastPurchasePrice: numberValue(item.last_purchase_price),
+            averageCost: numberValue(item.average_cost),
+            minimumQuantity: numberValue(item.minimum_quantity),
+            primarySupplierId: item.primary_supplier_id ?? undefined,
+            sku: item.sku ?? undefined,
+            notes: item.notes ?? undefined,
+            isActive: item.status === "active",
+            warehouse: item.warehouse === "kitchen" ? "kitchen" : "general",
+          })),
+        expiryAlerts: [],
       };
     },
   );

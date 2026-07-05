@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { authenticateDepartmentDevice } from "@/lib/department/auth";
 import { demoCatalogItems } from "@/lib/demo-data";
-import { hasSupabaseAdminEnv } from "@/lib/supabase/env";
+import { canUseDemoFallback } from "@/lib/supabase/env";
 
 export async function GET(request: Request) {
   const auth = await authenticateDepartmentDevice(request, "pos");
@@ -10,8 +10,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
   }
 
-  if (!hasSupabaseAdminEnv()) {
-    // Return demo catalog items in Simulation mode!
+  if (canUseDemoFallback()) {
     return NextResponse.json({
       success: true,
       device: auth.device,

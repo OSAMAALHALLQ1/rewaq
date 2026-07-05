@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { hasSupabaseAdminEnv } from "@/lib/supabase/env";
+import { canUseDemoFallback, hasSupabaseAdminEnv } from "@/lib/supabase/env";
 import { getOptionalSession } from "@/lib/auth/session";
 
 // Demo seed staff members (Tekka-style: avatar initial + role color + login code).
@@ -20,11 +20,21 @@ export async function GET(request: Request) {
   }
 
   if (!hasSupabaseAdminEnv()) {
-    return NextResponse.json({ success: true, staff: demoStaff });
+    if (canUseDemoFallback()) {
+      return NextResponse.json({ success: true, staff: demoStaff });
+    }
+    return NextResponse.json(
+      { success: false, error: "إعداد Supabase الإداري غير مكتمل." },
+      { status: 503 },
+    );
   }
 
   const { searchParams } = new URL(request.url);
   const orgId = searchParams.get("orgId") || session.organizationId;
+
+  if (orgId !== session.organizationId && session.role !== "super_admin") {
+    return NextResponse.json({ success: false, error: "لا يمكنك قراءة موظفي مؤسسة أخرى." }, { status: 403 });
+  }
 
   const admin = createAdminClient();
   const { data, error } = await (admin as any)

@@ -22,18 +22,32 @@ const reportOptions = [
   ["expiry", "تقرير المواد القريبة من انتهاء الصلاحية"],
 ];
 
-const expiryRows = [
-  ["لبنة", "قسم الضيافة", "2026-05-24", "قريب"],
-  ["دجاج مبرد", "الشاورمة والمشاوي", "2026-05-25", "قريب"],
-];
-
 type SearchParams = Promise<{ type?: string }>;
+
+function EmptyTableRow({ colSpan, message }: { colSpan: number; message: string }) {
+  return (
+    <TableRow>
+      <TableCell colSpan={colSpan} className="py-8 text-center text-sm text-muted-foreground">
+        {message}
+      </TableCell>
+    </TableRow>
+  );
+}
+
+function ReportNotice({ message }: { message: string }) {
+  return (
+    <div className="mb-4 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+      <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+      <p>{message}</p>
+    </div>
+  );
+}
 
 export default async function ReportsPage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
   const activeReport = params.type || "daily_movements";
 
-  const { dashboard, movements, purchaseOrders, wasteLogs, suppliers, branches } = await getReportsData();
+  const { dashboard, movements, purchaseOrders, wasteLogs, suppliers, branches, expiryAlerts, dataNotice } = await getReportsData();
   const incoming = movements.filter((movement) => movement.quantity > 0).length;
   const outgoing = movements.filter((movement) => movement.quantity < 0).length;
 
@@ -52,6 +66,8 @@ export default async function ReportsPage({ searchParams }: { searchParams: Sear
           </Button>
         }
       />
+
+      {dataNotice ? <ReportNotice message={dataNotice} /> : null}
 
       <Card className="mb-4">
         <CardContent className="flex flex-wrap gap-3 p-4">
@@ -74,7 +90,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Sear
         <MetricCard label="المحاريق" value={formatNumber(burnsLogs.length)} description="سجلات محاريق" icon={Flame} tone="warning" />
         <MetricCard label="الصادر والوارد" value={`${formatNumber(incoming)} / ${formatNumber(outgoing)}`} description="وارد / صادر" icon={Truck} tone="success" />
         <MetricCard label="طلبيات الأقسام" value={formatNumber(purchaseOrders.length)} description="طلبات مفتوحة وسابقة" icon={ClipboardCheck} />
-        <MetricCard label="انتهاء الصلاحية" value={formatNumber(expiryRows.length)} description="مواد قريبة" icon={AlertTriangle} tone="warning" />
+        <MetricCard label="انتهاء الصلاحية" value={formatNumber(expiryAlerts.length)} description="مواد قريبة" icon={AlertTriangle} tone="warning" />
       </div>
 
       <div className="mt-4">
@@ -85,7 +101,13 @@ export default async function ReportsPage({ searchParams }: { searchParams: Sear
                 <CardTitle>تقرير الصادر والوارد اليومي</CardTitle>
               </CardHeader>
               <CardContent>
-                <PurchaseAreaChart data={dashboard.purchaseCost30Days} />
+                {dashboard.purchaseCost30Days.length > 0 ? (
+                  <PurchaseAreaChart data={dashboard.purchaseCost30Days} />
+                ) : (
+                  <div className="flex h-72 items-center justify-center rounded-lg border border-dashed text-center text-sm text-muted-foreground">
+                    لا توجد حركات شراء كافية لرسم التقرير.
+                  </div>
+                )}
               </CardContent>
             </Card>
             <Card>
@@ -104,17 +126,21 @@ export default async function ReportsPage({ searchParams }: { searchParams: Sear
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {movements.slice(0, 8).map((movement) => (
-                      <TableRow key={movement.id}>
-                        <TableCell>{new Date(movement.createdAt).toLocaleDateString("ar-PS")}</TableCell>
-                        <TableCell className="font-medium">{movement.itemName}</TableCell>
-                        <TableCell>{movement.branchName}</TableCell>
-                        <TableCell>{movement.movementType}</TableCell>
-                        <TableCell>
-                          <Badge tone={movement.quantity > 0 ? "success" : "warning"}>{formatNumber(movement.quantity)}</Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {movements.length > 0 ? (
+                      movements.slice(0, 8).map((movement) => (
+                        <TableRow key={movement.id}>
+                          <TableCell>{new Date(movement.createdAt).toLocaleDateString("ar-PS")}</TableCell>
+                          <TableCell className="font-medium">{movement.itemName}</TableCell>
+                          <TableCell>{movement.branchName}</TableCell>
+                          <TableCell>{movement.movementType}</TableCell>
+                          <TableCell>
+                            <Badge tone={movement.quantity > 0 ? "success" : "warning"}>{formatNumber(movement.quantity)}</Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <EmptyTableRow colSpan={5} message="لا توجد حركات مخزون ضمن نطاق التقرير." />
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -140,16 +166,20 @@ export default async function ReportsPage({ searchParams }: { searchParams: Sear
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {damagedLogs.map((log) => (
-                    <TableRow key={log.id}>
-                      <TableCell>{new Date(log.loggedAt).toLocaleDateString("ar-PS")}</TableCell>
-                      <TableCell>{log.branchName}</TableCell>
-                      <TableCell className="font-bold">{log.itemName}</TableCell>
-                      <TableCell>{formatNumber(log.quantity)}</TableCell>
-                      <TableCell>{formatCurrency(log.cost)}</TableCell>
-                      <TableCell>{log.notes || "-"}</TableCell>
-                    </TableRow>
-                  ))}
+                  {damagedLogs.length > 0 ? (
+                    damagedLogs.map((log) => (
+                      <TableRow key={log.id}>
+                        <TableCell>{new Date(log.loggedAt).toLocaleDateString("ar-PS")}</TableCell>
+                        <TableCell>{log.branchName}</TableCell>
+                        <TableCell className="font-bold">{log.itemName}</TableCell>
+                        <TableCell>{formatNumber(log.quantity)}</TableCell>
+                        <TableCell>{formatCurrency(log.cost)}</TableCell>
+                        <TableCell>{log.notes || "-"}</TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <EmptyTableRow colSpan={6} message="لا توجد سجلات تالف لهذا النطاق." />
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
@@ -174,16 +204,20 @@ export default async function ReportsPage({ searchParams }: { searchParams: Sear
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {burnsLogs.map((log) => (
-                    <TableRow key={log.id}>
-                      <TableCell>{new Date(log.loggedAt).toLocaleDateString("ar-PS")}</TableCell>
-                      <TableCell>{log.branchName}</TableCell>
-                      <TableCell className="font-bold">{log.itemName}</TableCell>
-                      <TableCell>{formatNumber(log.quantity)}</TableCell>
-                      <TableCell>{formatCurrency(log.cost)}</TableCell>
-                      <TableCell>{log.notes || "-"}</TableCell>
-                    </TableRow>
-                  ))}
+                  {burnsLogs.length > 0 ? (
+                    burnsLogs.map((log) => (
+                      <TableRow key={log.id}>
+                        <TableCell>{new Date(log.loggedAt).toLocaleDateString("ar-PS")}</TableCell>
+                        <TableCell>{log.branchName}</TableCell>
+                        <TableCell className="font-bold">{log.itemName}</TableCell>
+                        <TableCell>{formatNumber(log.quantity)}</TableCell>
+                        <TableCell>{formatCurrency(log.cost)}</TableCell>
+                        <TableCell>{log.notes || "-"}</TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <EmptyTableRow colSpan={6} message="لا توجد سجلات محاريق لهذا النطاق." />
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
@@ -208,21 +242,25 @@ export default async function ReportsPage({ searchParams }: { searchParams: Sear
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {purchaseOrders.map((order) => {
-                    const toBranchName = order.notes?.match(/\[إلى:\s*([^\]]+)\]/)?.[1] || "المخزن الرئيسي";
-                    return (
-                      <TableRow key={order.id}>
-                        <TableCell>{order.orderDate}</TableCell>
-                        <TableCell className="font-bold text-xs truncate max-w-28" title={order.id}>{order.id.slice(0, 8)}</TableCell>
-                        <TableCell>{order.branchName}</TableCell>
-                        <TableCell>{toBranchName}</TableCell>
-                        <TableCell>{formatCurrency(order.total)}</TableCell>
-                        <TableCell>
-                          <Badge tone="default">{order.status}</Badge>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
+                  {purchaseOrders.length > 0 ? (
+                    purchaseOrders.map((order) => {
+                      const toBranchName = order.notes?.match(/\[إلى:\s*([^\]]+)\]/)?.[1] || "المخزن الرئيسي";
+                      return (
+                        <TableRow key={order.id}>
+                          <TableCell>{order.orderDate}</TableCell>
+                          <TableCell className="max-w-28 truncate text-xs font-bold" title={order.id}>{order.id.slice(0, 8)}</TableCell>
+                          <TableCell>{order.branchName}</TableCell>
+                          <TableCell>{toBranchName}</TableCell>
+                          <TableCell>{formatCurrency(order.total)}</TableCell>
+                          <TableCell>
+                            <Badge tone="default">{order.status}</Badge>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  ) : (
+                    <EmptyTableRow colSpan={6} message="لا توجد طلبيات أقسام مسجلة." />
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
@@ -244,17 +282,21 @@ export default async function ReportsPage({ searchParams }: { searchParams: Sear
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {suppliers.map((supplier) => (
-                    <TableRow key={supplier.id}>
-                      <TableCell className="font-medium">{supplier.name}</TableCell>
-                      <TableCell>
-                        <Badge tone={supplier.priceRisk > 15 ? "danger" : supplier.priceRisk > 8 ? "warning" : "success"}>
-                          {supplier.priceRisk}%
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{supplier.priceRisk > 15 ? "مراجعة المورد" : "مراقبة الفاتورة القادمة"}</TableCell>
-                    </TableRow>
-                  ))}
+                  {suppliers.length > 0 ? (
+                    suppliers.map((supplier) => (
+                      <TableRow key={supplier.id}>
+                        <TableCell className="font-medium">{supplier.name}</TableCell>
+                        <TableCell>
+                          <Badge tone={supplier.priceRisk > 15 ? "danger" : supplier.priceRisk > 8 ? "warning" : "success"}>
+                            {supplier.priceRisk}%
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{supplier.priceRisk > 15 ? "مراجعة المورد" : "مراقبة الفاتورة القادمة"}</TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <EmptyTableRow colSpan={3} message="لا توجد بيانات أسعار موردين كافية لحساب التذبذب." />
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
@@ -285,16 +327,20 @@ export default async function ReportsPage({ searchParams }: { searchParams: Sear
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {expiryRows.map(([item, department, date, status]) => (
-                    <TableRow key={`${item}-${date}`}>
-                      <TableCell className="font-medium">{item}</TableCell>
-                      <TableCell>{department}</TableCell>
-                      <TableCell>{date}</TableCell>
-                      <TableCell>
-                        <Badge tone={status === "قريب" ? "danger" : "warning"}>{status}</Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {expiryAlerts.length > 0 ? (
+                    expiryAlerts.map((item) => (
+                      <TableRow key={item.id}>
+                        <TableCell className="font-medium">{item.name}</TableCell>
+                        <TableCell>{item.warehouse === "kitchen" ? "مستودع المطبخ" : "المستودع العام"}</TableCell>
+                        <TableCell>-</TableCell>
+                        <TableCell>
+                          <Badge tone="warning">بحاجة لمراجعة</Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <EmptyTableRow colSpan={4} message="لا توجد مواد قريبة من انتهاء الصلاحية في البيانات الحالية." />
+                  )}
                 </TableBody>
               </Table>
             </CardContent>

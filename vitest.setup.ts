@@ -19,10 +19,11 @@ vi.mock("next/cache", () => ({
   revalidateTag: vi.fn(),
 }));
 
-// Mock environment variables
-process.env.NEXT_PUBLIC_SUPABASE_URL = "https://test.supabase.co";
-process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = "test-publishable-key";
-process.env.SUPABASE_SERVICE_ROLE_KEY = "test-service-role-key";
+// Keep unit tests in demo mode and prevent accidental Supabase network calls.
+delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+delete process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+process.env.RAWAQ_DEMO_MODE = "true";
 
 // Silence console.error in tests unless explicitly needed
 const originalError = console.error;

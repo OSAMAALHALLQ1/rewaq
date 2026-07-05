@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { authenticateDepartmentDevice } from "@/lib/department/auth";
-import { postCustomerInvoiceJournal } from "@/lib/accounting/posting";
-import { createKitchenTicketForInvoice } from "@/lib/kitchen/tickets";
-import { ensureOpenSalesShift, registerShiftSale } from "@/lib/sales/shift-posting";
+import { authenticateDepartmentDevice, requireDepartmentDeviceCapability } from "@/lib/department/auth";
 import { 
   demoBranchStock, 
   demoStockMovements, 
@@ -12,7 +9,7 @@ import {
   demoCatalogItems
 } from "@/lib/demo-data";
 import { demoEntries } from "@/server/queries/accounting";
-import { hasSupabaseAdminEnv } from "@/lib/supabase/env";
+import { canUseDemoFallback } from "@/lib/supabase/env";
 
 const checkoutItemSchema = z.object({
   catalogItemId: z.string().uuid(),
@@ -22,8 +19,35 @@ const checkoutItemSchema = z.object({
 const checkoutSchema = z.object({
   paymentMethod: z.enum(["cash", "card"]).default("cash"),
   customerName: z.string().optional(),
+  idempotencyKey: z.string().trim().min(8).max(120).optional(),
   items: z.array(checkoutItemSchema).min(1),
 });
+
+type PosCheckoutAtomicResult = {
+  idempotent?: boolean;
+  invoiceId: string;
+  invoiceNumber: string;
+  kitchenTicketId: string | null;
+  shiftId: string;
+  total: number | string;
+  costTotal?: number | string;
+};
+
+type PosCheckoutRpcClient = {
+  rpc(
+    fn: "pos_checkout_atomic",
+    args: {
+      p_org_id: string;
+      p_branch_id: string;
+      p_device_key_id: string;
+      p_device_name: string;
+      p_customer_name: string;
+      p_payment_method: "cash" | "card";
+      p_idempotency_key: string;
+      p_items: Array<{ catalog_item_id: string; quantity: number }>;
+    },
+  ): Promise<{ data: PosCheckoutAtomicResult | null; error: { message: string } | null }>;
+};
 
 async function resolveBranchId(auth: Awaited<ReturnType<typeof authenticateDepartmentDevice>>) {
   if (!auth.ok) return null;
@@ -48,7 +72,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
   }
 
-  const parsed = checkoutSchema.safeParse(await request.json().catch(() => ({})));
+  const body = await request.json().catch(() => ({}));
+  const parsed = checkoutSchema.safeParse(body);
 
   if (!parsed.success) {
     return NextResponse.json(
@@ -62,9 +87,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: "لا يوجد فرع مربوط بجهاز الكاشير." }, { status: 400 });
   }
 
+  const capability = requireDepartmentDeviceCapability(auth, "pos_write", branchId);
+  if (!capability.ok) {
+    return NextResponse.json({ success: false, error: capability.error }, { status: capability.status });
+  }
+
+  const idempotencyKey =
+    parsed.data.idempotencyKey?.trim() || request.headers.get("x-idempotency-key")?.trim() || null;
+
   const invoiceNumber = `POS-${new Date().toISOString().replace(/\D/g, "").slice(0, 14)}-${crypto.randomUUID().slice(0, 6).toUpperCase()}`;
 
-  if (!hasSupabaseAdminEnv()) {
+  if (canUseDemoFallback()) {
     // ----------------------------------------------------
     // DEMO / SIMULATION MODE CHECKOUT
     // ----------------------------------------------------
@@ -171,219 +204,47 @@ export async function POST(request: Request) {
       kitchenTicketId: `kticket-demo-${Date.now()}`,
       shiftId: "shift-demo-01",
       total,
+      costTotal: 0,
     });
   }
 
-  const shift = await ensureOpenSalesShift(auth.admin, {
-    organizationId: auth.device.organizationId,
-    branchId,
-    deviceKeyId: auth.device.id,
-    cashierName: auth.device.deviceName,
-    openingCash: 0,
-  });
-
-  const catalogIds = parsed.data.items.map((item) => item.catalogItemId);
-  const { data: catalogRows, error: catalogError } = await auth.admin
-    .from("catalog_items")
-    .select("id, name, menu_item_id, main_unit, retail_price, tax_rate, status")
-    .eq("organization_id", auth.device.organizationId)
-    .in("id", catalogIds);
-
-  if (catalogError) {
-    return NextResponse.json({ success: false, error: catalogError.message }, { status: 500 });
+  if (!idempotencyKey || idempotencyKey.length < 8 || idempotencyKey.length > 120) {
+    return NextResponse.json(
+      { success: false, error: "مفتاح منع التكرار مطلوب لفواتير الكاشير." },
+      { status: 400 },
+    );
   }
 
-  const catalogMap = new Map((catalogRows ?? []).map((item) => [item.id, item]));
-  const lines = [];
-
-  for (const item of parsed.data.items) {
-    const catalog = catalogMap.get(item.catalogItemId);
-    if (!catalog || catalog.status !== "active") {
-      return NextResponse.json(
-        { success: false, error: "يوجد صنف غير نشط أو غير معروف في السلة." },
-        { status: 400 },
-      );
-    }
-
-    const unitPrice = Number(catalog.retail_price ?? 0);
-    const taxRate = Number(catalog.tax_rate ?? 0);
-    const subtotal = unitPrice * item.quantity;
-
-    lines.push({
-      catalog,
+  const { data, error: rpcError } = await (auth.admin as unknown as PosCheckoutRpcClient).rpc("pos_checkout_atomic", {
+    p_org_id: auth.device.organizationId,
+    p_branch_id: branchId,
+    p_device_key_id: auth.device.id,
+    p_device_name: auth.device.deviceName,
+    p_customer_name: parsed.data.customerName?.trim() || "عميل سفري سريع",
+    p_payment_method: parsed.data.paymentMethod,
+    p_idempotency_key: idempotencyKey,
+    p_items: parsed.data.items.map((item) => ({
+      catalog_item_id: item.catalogItemId,
       quantity: item.quantity,
-      unitPrice,
-      taxRate,
-      subtotal,
-      tax: subtotal * (taxRate / 100),
-    });
-  }
-
-  const subtotal = lines.reduce((sum, line) => sum + line.subtotal, 0);
-  const taxTotal = lines.reduce((sum, line) => sum + line.tax, 0);
-  const total = subtotal + taxTotal;
-
-  const { data: invoice, error: invoiceError } = await auth.admin
-    .from("customer_invoices")
-    .insert({
-      organization_id: auth.device.organizationId,
-      branch_id: branchId,
-      invoice_number: invoiceNumber,
-      customer_name: parsed.data.customerName?.trim() || "عميل سفري سريع",
-      status: "paid",
-      payment_method: parsed.data.paymentMethod,
-      channel: "pickup",
-      subtotal,
-      discount: 0,
-      tax_total: taxTotal,
-      total,
-      shift_id: shift.id,
-      notes: `فاتورة من جهاز ${auth.device.deviceName}`,
-    })
-    .select("id, invoice_number")
-    .single();
-
-  if (invoiceError || !invoice) {
-    return NextResponse.json({ success: false, error: invoiceError?.message ?? "تعذر حفظ الفاتورة." }, { status: 500 });
-  }
-
-  const { error: itemsError } = await auth.admin.from("customer_invoice_items").insert(
-    lines.map((line) => ({
-      organization_id: auth.device.organizationId,
-      customer_invoice_id: invoice.id,
-      catalog_item_id: line.catalog.id,
-      menu_item_id: line.catalog.menu_item_id,
-      name: line.catalog.name,
-      quantity: line.quantity,
-      unit_price: line.unitPrice,
-      unit_name: line.catalog.main_unit ?? "قطعة",
-      unit_factor: 1,
-      discount: 0,
-      tax_rate: line.taxRate,
-      cost_total: 0,
-      gross_profit: line.subtotal,
-    })),
-  );
-
-  if (itemsError) {
-    return NextResponse.json({ success: false, error: itemsError.message }, { status: 500 });
-  }
-
-  const { error: paymentError } = await auth.admin.from("customer_invoice_payments").insert({
-    organization_id: auth.device.organizationId,
-    customer_invoice_id: invoice.id,
-    payment_method: parsed.data.paymentMethod,
-    amount: total,
-  });
-
-  if (paymentError) {
-    return NextResponse.json({ success: false, error: paymentError.message }, { status: 500 });
-  }
-
-  await registerShiftSale(auth.admin, {
-    organizationId: auth.device.organizationId,
-    branchId,
-    shiftId: shift.id,
-    invoiceId: invoice.id,
-    amount: total,
-    paymentMethod: parsed.data.paymentMethod,
-  });
-
-  await postCustomerInvoiceJournal(auth.admin, {
-    organizationId: auth.device.organizationId,
-    branchId,
-    invoiceId: invoice.id,
-    invoiceNumber: invoice.invoice_number,
-    paymentMethod: parsed.data.paymentMethod,
-    subtotal,
-    taxTotal,
-    total,
-    costTotal: 0,
-    createdBy: null,
-  });
-
-  // DB-side Recipe Stock Deduction Loop
-  for (const line of lines) {
-    if (line.catalog.menu_item_id) {
-      const { data: mappings } = await auth.admin
-        .from("menu_item_recipe_mapping")
-        .select("recipe_id, portion_multiplier")
-        .eq("menu_item_id", line.catalog.menu_item_id);
-
-      for (const mapping of mappings ?? []) {
-        const { data: ingredients } = await auth.admin
-          .from("recipe_ingredients")
-          .select("item_id, quantity, unit_cost")
-          .eq("recipe_id", mapping.recipe_id);
-
-        for (const ingredient of ingredients ?? []) {
-          const deductQty = Number(ingredient.quantity) * Number(mapping.portion_multiplier) * line.quantity;
-
-          // Deduct quantity from branch_stock for item_id
-          const { data: stockRow } = await auth.admin
-            .from("branch_stock")
-            .select("id, quantity")
-            .eq("branch_id", branchId)
-            .eq("item_id", ingredient.item_id)
-            .maybeSingle();
-
-          if (stockRow) {
-            await auth.admin
-              .from("branch_stock")
-              .update({ quantity: Math.max(0, Number(stockRow.quantity) - deductQty) })
-              .eq("id", stockRow.id);
-          } else {
-            await auth.admin
-              .from("branch_stock")
-              .insert({
-                organization_id: auth.device.organizationId,
-                branch_id: branchId,
-                item_id: ingredient.item_id,
-                quantity: -deductQty,
-                reserved_quantity: 0,
-              });
-          }
-
-          // Insert stock movement record
-          await auth.admin.from("stock_movements").insert({
-            organization_id: auth.device.organizationId,
-            branch_id: branchId,
-            item_id: ingredient.item_id,
-            movement_type: "sale_usage",
-            quantity: -deductQty,
-            unit_cost: ingredient.unit_cost,
-            total_cost: deductQty * Number(ingredient.unit_cost),
-            reference: invoice.invoice_number,
-            notes: `خصم تلقائي للمبيعات - فاتورة ${invoice.invoice_number}`,
-          });
-        }
-      }
-    }
-  }
-
-  const kitchenTicket = await createKitchenTicketForInvoice(auth.admin, {
-    organizationId: auth.device.organizationId,
-    branchId,
-    invoiceId: invoice.id,
-    shiftId: shift.id,
-    invoiceNumber: invoice.invoice_number,
-    customerName: parsed.data.customerName?.trim() || "عميل سفري سريع",
-    channel: "pickup",
-    notes: `تذكرة مطبخ من جهاز ${auth.device.deviceName}`,
-    lines: lines.map((line) => ({
-      catalogItemId: line.catalog.id,
-      menuItemId: line.catalog.menu_item_id,
-      name: line.catalog.name,
-      quantity: line.quantity,
     })),
   });
+
+  if (rpcError) {
+    return NextResponse.json({ success: false, error: rpcError.message }, { status: 500 });
+  }
+
+  if (!data) {
+    return NextResponse.json({ success: false, error: "لم يرجع مسار الدفع نتيجة من قاعدة البيانات." }, { status: 500 });
+  }
 
   return NextResponse.json({
     success: true,
-    invoiceId: invoice.id,
-    invoiceNumber: invoice.invoice_number,
-    kitchenTicketId: kitchenTicket?.id ?? null,
-    shiftId: shift.id,
-    total,
+    idempotent: data.idempotent || false,
+    invoiceId: data.invoiceId,
+    invoiceNumber: data.invoiceNumber,
+    kitchenTicketId: data.kitchenTicketId,
+    shiftId: data.shiftId,
+    total: Number(data.total),
+    costTotal: Number(data.costTotal ?? 0),
   });
 }

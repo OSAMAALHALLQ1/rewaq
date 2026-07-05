@@ -203,21 +203,21 @@ export function canManageInventory(role: Role): boolean {
  * Check if user can perform purchasing operations
  */
 export function canManagePurchasing(role: Role): boolean {
-  return hasRoleLevel(role, "purchasing_manager");
+  return ["super_admin", "organization_owner", "branch_manager", "purchasing_manager"].includes(role);
 }
 
 /**
  * Check if user can manage marketing
  */
 export function canManageMarketing(role: Role): boolean {
-  return hasRoleLevel(role, "marketing_manager");
+  return ["super_admin", "organization_owner", "marketing_manager"].includes(role);
 }
 
 /**
  * Check if user can view financial reports
  */
 export function canViewFinancialReports(role: Role): boolean {
-  return hasRoleLevel(role, "accountant");
+  return ["super_admin", "organization_owner", "accountant"].includes(role);
 }
 
 /**

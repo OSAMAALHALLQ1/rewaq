@@ -220,10 +220,10 @@ export async function generateFoodCostReport(
   // Fetch sales summaries for the period
   let salesQuery = admin
     .from("sales_daily_summaries")
-    .select("date, total_sales, food_cost_amount")
+    .select("date:summary_date, total_sales:sales_total, food_cost_amount:ingredient_cost_total")
     .eq("organization_id", organizationId)
-    .gte("date", startDate)
-    .lte("date", endDate);
+    .gte("summary_date", startDate)
+    .lte("summary_date", endDate);
 
   if (branchId) {
     salesQuery = salesQuery.eq("branch_id", branchId);

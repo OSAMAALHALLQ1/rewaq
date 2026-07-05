@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createHash, randomBytes } from "crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOptionalSession } from "@/lib/auth/session";
+import { ForbiddenError, requireSensitiveActionCapability } from "@/lib/auth/require-auth";
 
 const allowedRoles = new Set(["chef", "cashier", "inventory_manager", "staff"]);
 const allowedModuleKeys = new Set(["inventory", "recipes", "purchasing", "waste", "pos", "reports"]);
@@ -39,13 +40,6 @@ export async function POST(request: Request) {
       );
     }
 
-    if (session.role !== "organization_owner" && session.role !== "super_admin") {
-      return NextResponse.json(
-        { success: false, error: "فقط مدير المطعم يمكنه إنشاء مفاتيح وصول جديدة." },
-        { status: 403 }
-      );
-    }
-
     const body = await request.json();
     const { deviceName, branchId, role, allowedModules } = body;
     const normalizedRole = typeof role === "string" && allowedRoles.has(role) ? role : "staff";
@@ -62,6 +56,13 @@ export async function POST(request: Request) {
         { success: false, error: "اسم الجهاز مطلوب." },
         { status: 400 }
       );
+    }
+
+    try {
+      requireSensitiveActionCapability(session, "device_write", branchId || null);
+    } catch (error) {
+      const message = error instanceof ForbiddenError ? error.message : "فقط مالك المؤسسة يستطيع إنشاء مفاتيح وصول جديدة.";
+      return NextResponse.json({ success: false, error: message }, { status: 403 });
     }
 
     if (normalizedModules.length === 0) {

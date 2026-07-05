@@ -1,0 +1,24 @@
+{
+  "name": "تكة - نظام إدارة المطعم",
+  "short_name": "تكة",
+  "description": "نظام إدارة طلبات وطاولات وفواتير لمطعم ومقهى تكة.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "dir": "rtl",
+  "lang": "ar",
+  "orientation": "portrait-primary",
+  "theme_color": "#0f0f10",
+  "background_color": "#0f0f10",
+  "categories": ["business", "food", "utilities"],
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": []
+}

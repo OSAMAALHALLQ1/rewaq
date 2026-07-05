@@ -172,12 +172,14 @@ export function mapInvoice(
   supplierMap: Map<string, NamedLookup>,
   branchMap: Map<string, NamedLookup>,
 ): Invoice {
+  const invoiceNumber = optionalText(row.invoice_number) ?? String(row.id ?? "").slice(0, 8);
+
   return {
     id: String(row.id ?? ""),
     organizationId: String(row.organization_id ?? ""),
     supplierName: String(supplierMap.get(String(row.supplier_id ?? ""))?.name ?? "مورد غير معروف"),
     branchName: String(branchMap.get(String(row.branch_id ?? ""))?.name ?? "فرع غير معروف"),
-    invoiceNumber: String(row.invoice_number ?? row.id ?? "").slice(0, 24),
+    invoiceNumber,
     status: oneOf(String(row.status ?? ""), ["draft", "matched", "paid", "flagged"] as const, "draft"),
     total: numberValue(row.total),
     issuedAt: String(row.issued_at ?? ""),
