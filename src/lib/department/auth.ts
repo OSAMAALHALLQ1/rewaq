@@ -19,7 +19,14 @@ export type DepartmentAuthResult =
   | { ok: false; status: number; error: string };
 
 const DEPARTMENT_CAPABILITY_ROLES = {
+  // الكاشير يبيع فقط؛ الإرجاع والخصم وتعديل السعر للمدير.
   pos_write: new Set(["cashier", "manager"]),
+  pos_refund: new Set(["manager"]),
+  pos_discount: new Set(["manager"]),
+  pos_price_edit: new Set(["manager"]),
+  pos_shift: new Set(["cashier", "manager"]),
+  pos_hold: new Set(["cashier", "manager"]),
+  pos_read: new Set(["cashier", "manager", "staff"]),
   kitchen_write: new Set(["chef", "kitchen", "manager"]),
   inventory_write: new Set(["inventory_manager", "manager"]),
 } as const;

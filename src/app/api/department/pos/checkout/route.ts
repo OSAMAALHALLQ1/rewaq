@@ -19,6 +19,7 @@ const checkoutItemSchema = z.object({
 const checkoutSchema = z.object({
   paymentMethod: z.enum(["cash", "card"]).default("cash"),
   customerName: z.string().optional(),
+  notes: z.string().max(300).optional(),
   idempotencyKey: z.string().trim().min(8).max(120).optional(),
   items: z.array(checkoutItemSchema).min(1),
 });
@@ -90,6 +91,31 @@ export async function POST(request: Request) {
   const capability = requireDepartmentDeviceCapability(auth, "pos_write", branchId);
   if (!capability.ok) {
     return NextResponse.json({ success: false, error: capability.error }, { status: capability.status });
+  }
+
+  // التحقق من إلزام الوردية المفتوحة قبل البيع (إن كان مفعّلاً في الإعدادات)
+  if (!canUseDemoFallback()) {
+    const { data: posSettings } = await auth.admin
+      .from("pos_settings")
+      .select("require_shift")
+      .eq("organization_id", auth.device.organizationId)
+      .maybeSingle();
+    const requireShift = posSettings?.require_shift ?? true;
+    if (requireShift) {
+      const { data: openShift } = await auth.admin
+        .from("sales_shifts")
+        .select("id")
+        .eq("organization_id", auth.device.organizationId)
+        .eq("device_key_id", auth.device.id)
+        .eq("status", "open")
+        .maybeSingle();
+      if (!openShift) {
+        return NextResponse.json(
+          { success: false, error: "يجب فتح وردية قبل بدء البيع." },
+          { status: 400 },
+        );
+      }
+    }
   }
 
   const idempotencyKey =
