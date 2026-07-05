@@ -27,6 +27,33 @@ export type AuthenticatedUser = {
   branchId?: string;
 };
 
+type CapabilitySubject = Pick<AuthenticatedUser, "role" | "branchId">;
+
+export type SensitiveCapability =
+  | "sales_write"
+  | "shift_close"
+  | "inventory_catalog_write"
+  | "inventory_movement_write"
+  | "purchasing_write"
+  | "recipe_write"
+  | "menu_write"
+  | "staff_write"
+  | "device_write"
+  | "branch_write";
+
+const CAPABILITY_ROLES: Record<SensitiveCapability, readonly Role[]> = {
+  sales_write: ["super_admin", "organization_owner", "branch_manager", "cashier", "accountant"],
+  shift_close: ["super_admin", "organization_owner", "branch_manager", "cashier"],
+  inventory_catalog_write: ["super_admin", "organization_owner", "branch_manager", "inventory_manager"],
+  inventory_movement_write: ["super_admin", "organization_owner", "branch_manager", "inventory_manager"],
+  purchasing_write: ["super_admin", "organization_owner", "branch_manager", "purchasing_manager", "accountant"],
+  recipe_write: ["super_admin", "organization_owner", "branch_manager", "chef"],
+  menu_write: ["super_admin", "organization_owner", "branch_manager", "chef"],
+  staff_write: ["super_admin", "organization_owner", "branch_manager"],
+  device_write: ["super_admin", "organization_owner"],
+  branch_write: ["super_admin", "organization_owner"],
+};
+
 function getApprovalStatus(user: { app_metadata?: Record<string, unknown>; user_metadata?: Record<string, unknown> }) {
   const appStatus = user.app_metadata?.approval_status;
   if (typeof appStatus === "string") {
@@ -111,6 +138,8 @@ export async function requireAuthOrRedirect(redirectTo = "/login"): Promise<Auth
 }
 
 /**
+
+/**
  * Get current user without throwing. Returns null if not authenticated.
  * Use for optional auth checks where the action can proceed without a user.
  */
@@ -119,5 +148,49 @@ export async function getOptionalUser(): Promise<AuthenticatedUser | null> {
     return await requireAuth();
   } catch {
     return null;
+  }
+}
+
+/**
+ * Require user to have specific role capabilities.
+ * Throws ForbiddenError if user doesn't have required role.
+ */
+export function requireRoleCapability(user: CapabilitySubject, allowedRoles: readonly Role[]) {
+  if (!allowedRoles.includes(user.role)) {
+    throw new ForbiddenError("ليس لديك الصلاحية الكافية لإتمام هذه العملية.");
+  }
+}
+
+/**
+ * Require user to have access to specific branch.
+ * Throws ForbiddenError if user has a scoped branch and it doesn't match the requested branch.
+ */
+export function requireBranchCapability(user: CapabilitySubject, targetBranchId: string | null) {
+  if (user.role === "super_admin" || user.role === "organization_owner") {
+    // Owners and Super Admins can access any branch
+    return;
+  }
+
+  if (!targetBranchId) {
+    throw new ForbiddenError("هذه العملية تحتاج فرعًا محددًا ضمن صلاحياتك.");
+  }
+
+  if (!user.branchId || user.branchId !== targetBranchId) {
+    throw new ForbiddenError("لا تملك الصلاحية لإجراء عمليات خارج فرعك المخصص.");
+  }
+}
+
+/**
+ * Require role capability and, when provided, branch scope for sensitive writes.
+ */
+export function requireSensitiveActionCapability(
+  user: CapabilitySubject,
+  capability: SensitiveCapability,
+  targetBranchId?: string | null,
+) {
+  requireRoleCapability(user, CAPABILITY_ROLES[capability]);
+
+  if (targetBranchId !== undefined) {
+    requireBranchCapability(user, targetBranchId);
   }
 }

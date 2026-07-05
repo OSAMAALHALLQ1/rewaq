@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createHash } from "crypto";
+import { canUseDemoFallback, hasSupabaseAdminEnv } from "@/lib/supabase/env";
 
 function getSupabaseAdmin() {
   return createClient(
@@ -21,9 +22,18 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      // Demo/Simulation mode bypass!
-      return NextResponse.json({
+    if (!hasSupabaseAdminEnv()) {
+      if (!canUseDemoFallback()) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "إعدادات Supabase الإنتاجية غير مكتملة. تم إيقاف تسجيل دخول الأجهزة بدلاً من إنشاء جلسة تجريبية.",
+          },
+          { status: 503 },
+        );
+      }
+
+      const response = NextResponse.json({
         success: true,
         token: normalizedKey,
         organizationId: "00000000-0000-4000-8000-000000000001",
@@ -32,6 +42,16 @@ export async function POST(request: Request) {
         allowedModules: ["pos", "inventory", "recipes", "waste"],
         deviceName: "جهاز كاشير تجريبي",
       });
+
+      response.cookies.set("rwq_dept_token", normalizedKey, {
+        httpOnly: true,
+        secure: false,
+        sameSite: "lax",
+        path: "/",
+        maxAge: 43200,
+      });
+
+      return response;
     }
 
     // 1. Hash the key using SHA-256 for secure database lookup
@@ -74,7 +94,7 @@ export async function POST(request: Request) {
       .eq("id", keyData.id);
 
     // 4. Return successful metadata to the client
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       token: normalizedKey, // The raw key acts as a client-side session token
       organizationId: keyData.organization_id,
@@ -83,6 +103,16 @@ export async function POST(request: Request) {
       allowedModules: keyData.allowed_modules,
       deviceName: keyData.device_name,
     });
+
+    response.cookies.set("rwq_dept_token", normalizedKey, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 43200, // 12 hours short TTL
+    });
+
+    return response;
   } catch (err: any) {
     console.error("Department login error:", err);
     return NextResponse.json(

@@ -1,0 +1,96 @@
+/* ==========================================================================
+   BottomNavigation.module.css – Floating Bottom Navigation Bar
+   تصميم عصري عائم – متوافق مع Material Design 3 و iOS HIG
+   ========================================================================== */
+
+.container {
+  position: fixed;
+  bottom: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  left: 16px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  height: 70px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 20px;
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.08);
+  z-index: 999;
+  direction: rtl;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+/* ── Each Nav Button ── */
+.navItem {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  min-height: 44px;
+  min-width: 44px;
+  transition: all 0.25s ease;
+  border-radius: 12px;
+  position: relative;
+  -webkit-tap-highlight-color: transparent;
+  color: #9CA3AF;               /* Inactive icon colour */
+  font-family: var(--font-arabic), 'Cairo', sans-serif;
+  user-select: none;
+}
+
+.navItem:active {
+  transform: scale(0.95);
+}
+
+/* ── The 44×44 touch-friendly wrapper around the icon ── */
+.iconWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;         /* Pill shape for active state */
+  transition: all 0.25s ease;
+}
+
+/* Active pill background – light red capsule */
+.iconWrapperActive {
+  background: rgba(211, 47, 47, 0.1);
+}
+
+/* ── Label below the icon ── */
+.label {
+  font-size: 10pt;
+  font-weight: 400;
+  color: #9CA3AF;
+  line-height: 1.2;
+  transition: color 0.25s ease;
+}
+
+/* Active label – red + semibold */
+.labelActive {
+  font-weight: 600;
+  color: #D32F2F;
+}
+
+/* ── Active state drives the icon colour (inherits currentColor) ── */
+.navItem:global(.active) {
+  color: #D32F2F;
+}
+
+/* ── Tablet/Desktop – hide the mobile bar ── */
+@media (min-width: 768px) {
+  .container {
+    display: none;
+  }
+}

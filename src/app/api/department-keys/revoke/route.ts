@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOptionalSession } from "@/lib/auth/session";
+import { ForbiddenError, requireSensitiveActionCapability } from "@/lib/auth/require-auth";
 
 export async function PATCH(request: Request) {
   try {
@@ -15,13 +16,6 @@ export async function PATCH(request: Request) {
     if (!session.organizationId) {
       return NextResponse.json(
         { success: false, error: "حسابك مسجل دخول لكنه غير مربوط بأي مؤسسة." },
-        { status: 403 }
-      );
-    }
-
-    if (session.role !== "organization_owner" && session.role !== "super_admin") {
-      return NextResponse.json(
-        { success: false, error: "فقط مدير المطعم يمكنه إلغاء تنشيط المفاتيح." },
         { status: 403 }
       );
     }
@@ -41,7 +35,7 @@ export async function PATCH(request: Request) {
     // Verify the key belongs to this organization
     const { data: existing } = await (admin as any)
       .from("department_api_keys")
-      .select("id, organization_id, is_active")
+      .select("id, organization_id, branch_id, is_active")
       .eq("id", keyId)
       .single();
 
@@ -57,6 +51,13 @@ export async function PATCH(request: Request) {
         { success: false, error: "لا يمكنك تعديل هذا المفتاح." },
         { status: 403 }
       );
+    }
+
+    try {
+      requireSensitiveActionCapability(session, "device_write", existing.branch_id);
+    } catch (error) {
+      const message = error instanceof ForbiddenError ? error.message : "فقط مالك المؤسسة يستطيع إلغاء تنشيط المفاتيح.";
+      return NextResponse.json({ success: false, error: message }, { status: 403 });
     }
 
     if (!existing.is_active) {

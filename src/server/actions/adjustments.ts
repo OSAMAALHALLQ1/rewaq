@@ -3,7 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createAdminClientWithContext, hasSupabaseAdminEnv } from "@/lib/supabase/admin";
-import { requireAuth } from "@/lib/auth/require-auth";
+import { requireAuth, requireSensitiveActionCapability } from "@/lib/auth/require-auth";
+import { postInventoryWriteOffJournal } from "@/lib/accounting/posting";
+import { logAuditEvent } from "@/lib/audit/log";
 
 type ActionState = {
   ok: boolean;
@@ -37,6 +39,7 @@ export async function saveManualAdjustmentAction(formData: FormData): Promise<Ac
 
   try {
     const auth = await requireAuth();
+    requireSensitiveActionCapability(auth, "inventory_movement_write", parsed.data.branchId);
     const admin = createAdminClientWithContext("adjustments.ts/saveManualAdjustmentAction");
     
     // Find organization membership
@@ -69,62 +72,56 @@ export async function saveManualAdjustmentAction(formData: FormData): Promise<Ac
 
     const unitCost = Number(item.average_cost ?? 0);
 
-    // 1. Fetch current stock
-    const { data: stock } = await admin
-      .from("branch_stock")
-      .select("id, quantity")
-      .eq("organization_id", organizationId)
-      .eq("branch_id", branchId)
-      .eq("item_id", itemId)
-      .maybeSingle();
+    // Adjust stock atomically using the apply_stock_movement RPC
+    const idempotencyKey = crypto.randomUUID();
+    const { data: rpcResult, error: rpcError } = await (admin as any).rpc("apply_stock_movement", {
+      p_org_id: organizationId,
+      p_branch_id: branchId,
+      p_item_id: itemId,
+      p_movement_type: parsed.data.movementType,
+      p_quantity: quantity,
+      p_unit_cost: unitCost,
+      p_reference: "manual_adjustment",
+      p_idempotency_key: idempotencyKey,
+      p_notes: parsed.data.notes || "تعديل مخزون يدوي",
+      p_created_by: auth.id,
+    });
 
-    // 2. Update stock quantity
-    const newQty = Number(stock?.quantity ?? 0) + quantity;
-    if (stock?.id) {
-      const { error: updateError } = await admin
-        .from("branch_stock")
-        .update({ quantity: newQty })
-        .eq("id", stock.id);
-      if (updateError) return { ok: false, message: updateError.message };
-    } else {
-      const { error: insertError } = await admin
-        .from("branch_stock")
-        .insert({
-          organization_id: organizationId,
-          branch_id: branchId,
-          item_id: itemId,
-          quantity: newQty,
-          reserved_quantity: 0,
-          created_by: auth.id,
-        });
-      if (insertError) return { ok: false, message: insertError.message };
+    if (rpcError) {
+      return { ok: false, message: rpcError.message };
     }
 
-    // 3. Create stock movement record
-    const { error: movementError } = await admin
-      .from("stock_movements")
-      .insert({
-        organization_id: organizationId,
-        branch_id: branchId,
-        item_id: itemId,
-        movement_type: parsed.data.movementType,
-        quantity: quantity,
-        unit_cost: unitCost,
-        source_doc_type: "manual_adjustment",
-        source_doc_id: null,
-        idempotency_key: crypto.randomUUID(),
-        notes: parsed.data.notes || "تعديل مخزون يدوي",
-        created_by: auth.id,
-      });
+    const result = rpcResult as { success: boolean; movement_id?: string; new_quantity?: number };
+    const movementId = result.movement_id;
 
-    if (movementError) {
-      // Rollback stock update
-      if (stock?.id) {
-        await admin.from("branch_stock").update({ quantity: Number(stock.quantity) }).eq("id", stock.id);
-      } else {
-        await admin.from("branch_stock").delete().eq("organization_id", organizationId).eq("branch_id", branchId).eq("item_id", itemId);
-      }
-      return { ok: false, message: movementError.message };
+    if (movementId && Math.abs(quantity * unitCost) > 0) {
+      await postInventoryWriteOffJournal(admin, {
+        organizationId,
+        branchId,
+        sourceDocType: "inventory_adjustment",
+        sourceDocId: movementId,
+        label: `تسوية مخزون يدوية - صنف ${item.name} (${parsed.data.movementType})`,
+        totalCost: Math.abs(quantity * unitCost),
+        createdBy: auth.id,
+      });
+    }
+
+    if (movementId) {
+      await logAuditEvent({
+        organizationId,
+        branchId,
+        userId: auth.id,
+        action: "manual_stock_override",
+        entityType: "branch_stock",
+        entityId: movementId,
+        oldData: null,
+        newData: {
+          itemId,
+          quantity,
+          movementType: parsed.data.movementType,
+          idempotencyKey,
+        },
+      });
     }
 
   } catch (error) {

@@ -15,7 +15,8 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { hasSupabaseEnv } from "@/lib/supabase/env";
 import { createAdminClient, createAdminClientWithContext, hasSupabaseAdminEnv } from "@/lib/supabase/admin";
-import { requireAuth } from "@/lib/auth/require-auth";
+import { requireAuth, requireSensitiveActionCapability } from "@/lib/auth/require-auth";
+import { logAuditEvent } from "@/lib/audit/log";
 import {
   postCashVarianceJournal,
   postCustomerInvoiceJournal,
@@ -97,7 +98,7 @@ async function resolveMutationScope() {
 
   // Use the user's org from auth (populated by requireAuth via membership lookup)
   if (auth.organizationId) {
-    return { admin, organizationId: auth.organizationId, userId: auth.id };
+    return { admin, organizationId: auth.organizationId, userId: auth.id, auth };
   }
 
   // Fallback: direct membership lookup
@@ -110,7 +111,7 @@ async function resolveMutationScope() {
     .maybeSingle();
 
   if (membership?.organization_id) {
-    return { admin, organizationId: membership.organization_id, userId: auth.id };
+    return { admin, organizationId: membership.organization_id, userId: auth.id, auth };
   }
 
   // Super-admin can access any org
@@ -123,7 +124,7 @@ async function resolveMutationScope() {
       .maybeSingle();
 
     if (firstOrg?.id) {
-      return { admin, organizationId: firstOrg.id, userId: auth.id };
+      return { admin, organizationId: firstOrg.id, userId: auth.id, auth };
     }
   }
 
@@ -456,7 +457,8 @@ export async function issueCustomerInvoiceAction(input: unknown) {
   if (!parsed.success) return invalid(parsed.error.issues[0]?.message ?? "بيانات الفاتورة غير صحيحة");
 
   try {
-    const { admin, organizationId, userId } = await resolveMutationScope();
+    const { admin, organizationId, userId, auth } = await resolveMutationScope();
+    requireSensitiveActionCapability(auth, "sales_write", parsed.data.branchId);
     const branch = await getScopedBranch(admin, organizationId, parsed.data.branchId);
     if (!branch?.id) return invalid("الفرع المختار غير موجود في المؤسسة الحالية.");
 
@@ -741,7 +743,8 @@ export async function saveInventoryItemAction(_prevState: ActionState, formData:
   }
 
   try {
-    const { admin, organizationId, userId } = await resolveMutationScope();
+    const { admin, organizationId, userId, auth } = await resolveMutationScope();
+    requireSensitiveActionCapability(auth, "inventory_catalog_write");
 
     const supplierResult = parsed.data.primarySupplierId
       ? await admin
@@ -826,7 +829,8 @@ export async function saveSupplierAction(_prevState: ActionState, formData: Form
   }
 
   try {
-    const { admin, organizationId, userId } = await resolveMutationScope();
+    const { admin, organizationId, userId, auth } = await resolveMutationScope();
+    requireSensitiveActionCapability(auth, "purchasing_write");
     const { error } = await admin.from("suppliers").insert({
       organization_id: organizationId,
       name: parsed.data.name,
@@ -870,7 +874,8 @@ export async function saveSupplyInvoiceAction(_prevState: ActionState, formData:
   }
 
   try {
-    const { admin, organizationId, userId } = await resolveMutationScope();
+    const { admin, organizationId, userId, auth } = await resolveMutationScope();
+    requireSensitiveActionCapability(auth, "purchasing_write", parsed.data.branchId);
     const [supplierResult, branch, item] = await Promise.all([
       admin
         .from("suppliers")
@@ -916,6 +921,15 @@ export async function saveSupplyInvoiceAction(_prevState: ActionState, formData:
     });
 
     if (itemError) return invalid(itemError.message);
+
+    await postSupplierInvoiceJournal(admin, {
+      organizationId,
+      branchId: parsed.data.branchId,
+      invoiceId: invoice.id,
+      invoiceNumber: parsed.data.invoiceNumber,
+      total: invoiceTotal,
+      createdBy: userId,
+    });
   } catch (error) {
     return invalid(error instanceof Error ? error.message : "تعذر حفظ فاتورة التوريد في Supabase.");
   }
@@ -940,7 +954,8 @@ export async function saveSalesReturnAction(_prevState: ActionState, formData: F
   }
 
   try {
-    const { admin, organizationId, userId } = await resolveMutationScope();
+    const { admin, organizationId, userId, auth } = await resolveMutationScope();
+    requireSensitiveActionCapability(auth, "inventory_movement_write", parsed.data.branchId);
     const [branch, item] = await Promise.all([
       getScopedBranch(admin, organizationId, parsed.data.branchId),
       getScopedInventoryItem(admin, organizationId, parsed.data.itemId),
@@ -991,7 +1006,8 @@ export async function savePurchaseOrderAction(_prevState: ActionState, formData:
   }
 
   try {
-    const { admin, organizationId, userId } = await resolveMutationScope();
+    const { admin, organizationId, userId, auth } = await resolveMutationScope();
+    requireSensitiveActionCapability(auth, "purchasing_write", parsed.data.branchId);
     const [branch, supplierResult] = await Promise.all([
       getScopedBranch(admin, organizationId, parsed.data.branchId),
       admin
@@ -1044,7 +1060,8 @@ export async function receivePurchaseOrderAction(_prevState: ActionState, formDa
   }
 
   try {
-    const { admin, organizationId, userId } = await resolveMutationScope();
+    const { admin, organizationId, userId, auth } = await resolveMutationScope();
+    requireSensitiveActionCapability(auth, "purchasing_write");
     const { data: order, error: orderError } = await admin
       .from("purchase_orders")
       .select("*")
@@ -1053,6 +1070,8 @@ export async function receivePurchaseOrderAction(_prevState: ActionState, formDa
       .maybeSingle();
 
     if (orderError) return invalid(orderError.message);
+    if (!order) return invalid("طلب الشراء غير موجود.");
+    requireSensitiveActionCapability(auth, "purchasing_write", order.branch_id);
     if (!order) return invalid("طلب الشراء غير موجود في المؤسسة الحالية.");
 
     const { data: orderItems, error: itemsError } = await admin
@@ -1165,7 +1184,8 @@ export async function saveRecipeAction(_prevState: ActionState, formData: FormDa
   }
 
   try {
-    const { admin, organizationId, userId } = await resolveMutationScope();
+    const { admin, organizationId, userId, auth } = await resolveMutationScope();
+    requireSensitiveActionCapability(auth, "recipe_write");
     const servings = parsed.data.servings;
     const { error } = await admin.from("recipes").insert({
       organization_id: organizationId,
@@ -1206,7 +1226,8 @@ export async function saveMenuItemAction(_prevState: ActionState, formData: Form
   }
 
   try {
-    const { admin, organizationId, userId } = await resolveMutationScope();
+    const { admin, organizationId, userId, auth } = await resolveMutationScope();
+    requireSensitiveActionCapability(auth, "menu_write", parsed.data.branchId ?? null);
     const [{ data: recipe, error: recipeError }, branch] = await Promise.all([
       admin
         .from("recipes")
@@ -1287,7 +1308,9 @@ export async function saveProductionOrderAction(_prevState: ActionState, formDat
   }
 
   try {
-    const { admin, organizationId, userId } = await resolveMutationScope();
+    const { admin, organizationId, userId, auth } = await resolveMutationScope();
+    requireSensitiveActionCapability(auth, "inventory_movement_write", parsed.data.branchId);
+    requireSensitiveActionCapability(auth, "inventory_movement_write", parsed.data.sourceBranchId);
     const db = admin as any;
 
     const [recipeResult, branchResult, sourceBranchResult, ingredientResult] = await Promise.all([
@@ -1492,7 +1515,8 @@ export async function saveWasteLogAction(_prevState: ActionState, formData: Form
   }
 
   try {
-    const { admin, organizationId, userId } = await resolveMutationScope();
+    const { admin, organizationId, userId, auth } = await resolveMutationScope();
+    requireSensitiveActionCapability(auth, "inventory_movement_write", parsed.data.branchId);
     const [branch, item] = await Promise.all([
       getScopedBranch(admin, organizationId, parsed.data.branchId),
       getScopedInventoryItem(admin, organizationId, parsed.data.itemId),
@@ -1584,7 +1608,8 @@ export async function saveStockCountAction(_prevState: ActionState, formData: Fo
   }
 
   try {
-    const { admin, organizationId, userId } = await resolveMutationScope();
+    const { admin, organizationId, userId, auth } = await resolveMutationScope();
+    requireSensitiveActionCapability(auth, "inventory_movement_write", parsed.data.branchId);
     const branch = await getScopedBranch(admin, organizationId, parsed.data.branchId);
     if (!branch?.id) return invalid("الفرع المختار غير موجود في المؤسسة الحالية.");
 
@@ -1738,7 +1763,8 @@ export async function saveCatalogItemAction(_prevState: ActionState, formData: F
   }
 
   try {
-    const { admin, organizationId, userId } = await resolveMutationScope();
+    const { admin, organizationId, userId, auth } = await resolveMutationScope();
+    requireSensitiveActionCapability(auth, "inventory_catalog_write");
 
     const { data: createdItem, error: itemError } = await admin
       .from("catalog_items")
@@ -1801,7 +1827,8 @@ export async function saveInvoiceAction(_prevState: ActionState, formData: FormD
   }
 
   try {
-    const { admin, organizationId, userId } = await resolveMutationScope();
+    const { admin, organizationId, userId, auth } = await resolveMutationScope();
+    requireSensitiveActionCapability(auth, "purchasing_write", parsed.data.branchId);
 
     const [supplier, branch, item] = await Promise.all([
       admin.from("suppliers").select("id").eq("id", parsed.data.supplierId).eq("organization_id", organizationId).maybeSingle(),
@@ -1932,7 +1959,9 @@ export async function saveTransferAction(_prevState: ActionState, formData: Form
   }
 
   try {
-    const { admin, organizationId, userId } = await resolveMutationScope();
+    const { admin, organizationId, userId, auth } = await resolveMutationScope();
+    requireSensitiveActionCapability(auth, "inventory_movement_write", parsed.data.fromBranchId);
+    requireSensitiveActionCapability(auth, "inventory_movement_write", parsed.data.toBranchId);
 
     const [fromBranch, toBranch, item] = await Promise.all([
       admin.from("branches").select("id").eq("id", parsed.data.fromBranchId).eq("organization_id", organizationId).maybeSingle(),
@@ -2048,7 +2077,8 @@ export async function saveReturnAction(_prevState: ActionState, formData: FormDa
   }
 
   try {
-    const { admin, organizationId, userId } = await resolveMutationScope();
+    const { admin, organizationId, userId, auth } = await resolveMutationScope();
+    requireSensitiveActionCapability(auth, "inventory_movement_write", parsed.data.branchId);
 
     const [branch, item] = await Promise.all([
       admin.from("branches").select("id").eq("id", parsed.data.branchId).eq("organization_id", organizationId).maybeSingle(),
@@ -2111,7 +2141,8 @@ export async function saveBranchAction(_prevState: ActionState, formData: FormDa
   }
 
   try {
-    const { admin, organizationId, userId } = await resolveMutationScope();
+    const { admin, organizationId, userId, auth } = await resolveMutationScope();
+    requireSensitiveActionCapability(auth, "branch_write");
 
     const { error } = await admin.from("branches").insert({
       organization_id: organizationId,
@@ -2151,7 +2182,8 @@ export async function closeSalesShiftAction(_prevState: ActionState, formData: F
   }
 
   try {
-    const { admin, organizationId, userId } = await resolveMutationScope();
+    const { admin, organizationId, userId, auth } = await resolveMutationScope();
+    requireSensitiveActionCapability(auth, "shift_close");
     const { data: shift, error: shiftError } = await (admin as any)
       .from("sales_shifts")
       .select("*")
@@ -2162,6 +2194,7 @@ export async function closeSalesShiftAction(_prevState: ActionState, formData: F
     if (shiftError || !shift) {
       return invalid(shiftError?.message ?? "لم يتم العثور على الوردية.");
     }
+    requireSensitiveActionCapability(auth, "shift_close", shift.branch_id);
 
     if (shift.status === "closed") {
       return invalid("هذه الوردية مغلقة مسبقاً.");
@@ -2206,6 +2239,17 @@ export async function closeSalesShiftAction(_prevState: ActionState, formData: F
       shiftLabel: shift.cashier_name ?? shift.id,
       difference,
       createdBy: userId,
+    });
+
+    await logAuditEvent({
+      organizationId,
+      branchId: shift.branch_id,
+      userId,
+      action: "close_shift",
+      entityType: "sales_shift",
+      entityId: shift.id,
+      oldData: { expectedCash: shift.expected_cash, status: shift.status },
+      newData: { actualCash, difference, status: "closed" },
     });
   } catch (error) {
     return invalid(error instanceof Error ? error.message : "تعذر إغلاق الوردية.");

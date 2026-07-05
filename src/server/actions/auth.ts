@@ -9,6 +9,7 @@ import { hasSupabaseEnv } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/auth/require-auth";
 import { requireAdminSession } from "@/lib/auth/admin-session";
+import { logAuditEvent } from "@/lib/audit/log";
 import type { Json } from "@/types/database";
 
 export type ActionState = {
@@ -259,6 +260,21 @@ export async function inviteTeamMemberAction(_prevState: ActionState, formData: 
     }
   }
 
+  await logAuditEvent({
+    organizationId: user.organizationId,
+    branchId: parsed.data.branchId || null,
+    userId: user.id,
+    action: "invite_user",
+    entityType: "team_invite",
+    entityId: null,
+    oldData: null,
+    newData: {
+      email: parsed.data.email,
+      role: parsed.data.role,
+      inviteCode,
+    },
+  });
+
   return {
     ok: true,
     message: `تم تجهيز الدعوة. أرسل الكود ${inviteCode} إلى ${parsed.data.email} ليكمل إنشاء حسابه حسب الصلاحية.`,
@@ -407,6 +423,17 @@ export async function approveAccountRequestAction(_prevState: ActionState, formD
     if (error) {
       return { ok: false, message: error.message };
     }
+
+    await logAuditEvent({
+      organizationId,
+      branchId: null,
+      userId: authUser.id,
+      action: "approve_request",
+      entityType: "account_request",
+      entityId: requestId,
+      oldData: { status: "pending" },
+      newData: { status: "approved", organizationId },
+    });
 
     const { data: magicLinkData, error: magicLinkError } = await admin.auth.admin.generateLink({
       type: "magiclink",

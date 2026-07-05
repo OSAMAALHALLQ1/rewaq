@@ -11,6 +11,17 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
+type QueuedInvoice = {
+  id: string;
+  idempotencyKey: string;
+  paymentMethod: "cash" | "card";
+  customerName: string;
+  items: Array<{ catalogItemId: string; quantity: number }>;
+  total: number;
+  timestamp: number;
+};
+
+
 type CartItem = {
   id: string;
   catalogItemId: string;
@@ -49,7 +60,78 @@ export default function CashierPOSWorkspace() {
   const [menuItems, setMenuItems] = useState<PosCatalogItem[]>([]);
   const [statusMessage, setStatusMessage] = useState("تحميل أصناف الكاشير...");
   const [checkoutBusy, setCheckoutBusy] = useState(false);
+  const [isOnline, setIsOnline] = useState(true);
+  const [syncQueue, setSyncQueue] = useState<QueuedInvoice[]>([]);
+  const [lastReceipt, setLastReceipt] = useState<any>(null);
   const activeShift = "الوردية الصباحية - نشطة";
+
+  useEffect(() => {
+    setIsOnline(navigator.onLine);
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    const queued = localStorage.getItem("rwq_pos_queue");
+    if (queued) {
+      try {
+        setSyncQueue(JSON.parse(queued));
+      } catch (e) {}
+    }
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isOnline && syncQueue.length > 0) {
+      syncPendingInvoices();
+    }
+  }, [isOnline, syncQueue.length]);
+
+  const syncPendingInvoices = async () => {
+    if (checkoutBusy || syncQueue.length === 0) return;
+    setCheckoutBusy(true);
+    setStatusMessage("جاري مزامنة الفواتير المعلقة...");
+    
+    let currentQueue = [...syncQueue];
+    const failedQueue: QueuedInvoice[] = [];
+
+    for (const invoice of currentQueue) {
+      try {
+        const response = await fetch("/api/department/pos/checkout", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "x-department-key": device.token,
+          },
+          body: JSON.stringify({
+            paymentMethod: invoice.paymentMethod,
+            customerName: invoice.customerName,
+            idempotencyKey: invoice.idempotencyKey,
+            items: invoice.items,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error("فشل المزامنة");
+        }
+      } catch (err) {
+        failedQueue.push(invoice);
+      }
+    }
+
+    setSyncQueue(failedQueue);
+    localStorage.setItem("rwq_pos_queue", JSON.stringify(failedQueue));
+    setCheckoutBusy(false);
+    if (failedQueue.length === 0) {
+      setStatusMessage("تمت المزامنة بنجاح");
+    } else {
+      setStatusMessage(`تبقت ${failedQueue.length} فواتير معلقة`);
+    }
+  };
 
   useEffect(() => {
     // 1. Session verification
@@ -114,6 +196,48 @@ export default function CashierPOSWorkspace() {
   const handleCheckout = async (method: "cash" | "card") => {
     if (cart.length === 0) return;
 
+    const idempotencyKey = crypto.randomUUID();
+    const invoiceTotal = cart.reduce((sum, item) => sum + item.price * item.qty * (1 + item.taxRate / 100), 0);
+    
+    const payloadBody = {
+      paymentMethod: method,
+      customerName: "عميل سفري سريع",
+      idempotencyKey,
+      items: cart.map((item) => ({
+        catalogItemId: item.catalogItemId,
+        quantity: item.qty,
+      })),
+    };
+
+    const newReceipt = {
+      invoiceNumber: "PENDING-" + idempotencyKey.slice(0, 6).toUpperCase(),
+      date: new Date().toLocaleString("ar-SA"),
+      cashier: device.name,
+      items: cart,
+      subtotal: cart.reduce((sum, item) => sum + item.price * item.qty, 0),
+      tax: cart.reduce((sum, item) => sum + item.price * item.qty * (item.taxRate / 100), 0),
+      total: invoiceTotal,
+      method: method === "cash" ? "نقدي" : "شبكة"
+    };
+
+    if (!isOnline) {
+      const queuedInvoice: QueuedInvoice = {
+        id: crypto.randomUUID(),
+        ...payloadBody,
+        total: invoiceTotal,
+        timestamp: Date.now(),
+      };
+      const newQueue = [...syncQueue, queuedInvoice];
+      setSyncQueue(newQueue);
+      localStorage.setItem("rwq_pos_queue", JSON.stringify(newQueue));
+      setStatusMessage("تم الحفظ محلياً (بدون إنترنت)");
+      
+      setLastReceipt(newReceipt);
+      setCart([]);
+      setTimeout(() => window.print(), 500);
+      return;
+    }
+
     try {
       setCheckoutBusy(true);
       const response = await fetch("/api/department/pos/checkout", {
@@ -122,14 +246,7 @@ export default function CashierPOSWorkspace() {
           "content-type": "application/json",
           "x-department-key": device.token,
         },
-        body: JSON.stringify({
-          paymentMethod: method,
-          customerName: "عميل سفري سريع",
-          items: cart.map((item) => ({
-            catalogItemId: item.catalogItemId,
-            quantity: item.qty,
-          })),
-        }),
+        body: JSON.stringify(payloadBody),
       });
       const payload = await response.json();
 
@@ -138,13 +255,30 @@ export default function CashierPOSWorkspace() {
       }
 
       setStatusMessage(`تم حفظ الفاتورة ${payload.invoiceNumber} في Supabase`);
-      alert(`تم إصدار الفاتورة ${payload.invoiceNumber} بنجاح.\nالمجموع: ${Number(payload.total).toFixed(2)} ر.س\nطريقة الدفع: ${method === "cash" ? "نقدي" : "شبكة"}`);
+      
+      setLastReceipt({
+        ...newReceipt,
+        invoiceNumber: payload.invoiceNumber
+      });
       
       setCart([]);
+      setTimeout(() => window.print(), 500);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "خطأ في إصدار الفاتورة";
-      setStatusMessage(message);
-      alert(message);
+      // Fallback to queue if fetch failed due to network
+      const queuedInvoice: QueuedInvoice = {
+        id: crypto.randomUUID(),
+        ...payloadBody,
+        total: invoiceTotal,
+        timestamp: Date.now(),
+      };
+      const newQueue = [...syncQueue, queuedInvoice];
+      setSyncQueue(newQueue);
+      localStorage.setItem("rwq_pos_queue", JSON.stringify(newQueue));
+      setStatusMessage("تم الحفظ في الطابور (حدث خطأ في الشبكة)");
+      
+      setLastReceipt(newReceipt);
+      setCart([]);
+      setTimeout(() => window.print(), 500);
     } finally {
       setCheckoutBusy(false);
     }
@@ -181,7 +315,11 @@ export default function CashierPOSWorkspace() {
             <Receipt className="h-5.5 w-5.5" />
           </span>
           <div>
-            <h1 className="font-bold text-sm tracking-wide">شاشة البيع السريع والكاشير (POS)</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="font-bold text-sm tracking-wide">شاشة البيع السريع والكاشير (POS)</h1>
+              {!isOnline && <Badge variant="destructive" className="text-[10px] h-5">غير متصل</Badge>}
+              {syncQueue.length > 0 && <Badge variant="secondary" className="text-[10px] h-5 bg-amber-500/20 text-amber-500 hover:bg-amber-500/20 border-0">{syncQueue.length} معلقة</Badge>}
+            </div>
             <p className="text-[10px] text-slate-400 mt-0.5">{activeShift} | جهاز: {device.name} | {statusMessage}</p>
           </div>
         </div>
@@ -328,6 +466,54 @@ export default function CashierPOSWorkspace() {
           </div>
         </div>
       </div>
+
+      {/* Hidden Print Receipt Template */}
+      <div className="hidden print:block absolute inset-0 bg-white text-black p-4 text-right" style={{ width: '58mm', fontSize: '12px', fontFamily: 'monospace' }}>
+        {lastReceipt && (
+          <div className="flex flex-col items-center">
+            <h2 className="font-bold text-lg mb-1">رواق الطلبات</h2>
+            <p className="text-xs mb-2">فاتورة ضريبية مبسطة</p>
+            <div className="w-full border-b border-dashed border-black mb-2"></div>
+            
+            <div className="w-full text-xs mb-2 space-y-1">
+              <div className="flex justify-between"><span>رقم الفاتورة:</span> <span>{lastReceipt.invoiceNumber}</span></div>
+              <div className="flex justify-between"><span>التاريخ:</span> <span>{lastReceipt.date}</span></div>
+              <div className="flex justify-between"><span>الكاشير:</span> <span>{lastReceipt.cashier}</span></div>
+            </div>
+            
+            <div className="w-full border-b border-dashed border-black mb-2"></div>
+            <table className="w-full text-xs mb-2">
+              <thead>
+                <tr className="border-b border-black">
+                  <th className="text-right">الصنف</th>
+                  <th className="text-center">الكمية</th>
+                  <th className="text-left">السعر</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lastReceipt.items.map((item: any, i: number) => (
+                  <tr key={i}>
+                    <td className="text-right py-1">{item.name}</td>
+                    <td className="text-center py-1">{item.qty}</td>
+                    <td className="text-left py-1">{(item.price * item.qty).toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            
+            <div className="w-full border-b border-dashed border-black mb-2"></div>
+            <div className="w-full text-xs space-y-1 font-bold">
+              <div className="flex justify-between"><span>المجموع الفرعي:</span> <span>{lastReceipt.subtotal.toFixed(2)} ر.س</span></div>
+              <div className="flex justify-between"><span>الضريبة:</span> <span>{lastReceipt.tax.toFixed(2)} ر.س</span></div>
+              <div className="flex justify-between text-sm mt-1"><span>الإجمالي:</span> <span>{lastReceipt.total.toFixed(2)} ر.س</span></div>
+              <div className="flex justify-between mt-1"><span>طريقة الدفع:</span> <span>{lastReceipt.method}</span></div>
+            </div>
+            <div className="w-full border-b border-dashed border-black my-2"></div>
+            <p className="text-xs text-center">شكراً لزيارتكم!</p>
+          </div>
+        )}
+      </div>
+
     </div>
   );
 }

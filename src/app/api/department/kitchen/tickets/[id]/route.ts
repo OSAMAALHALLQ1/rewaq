@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { authenticateDepartmentDevice } from "@/lib/department/auth";
+import { authenticateDepartmentDevice, requireDepartmentDeviceCapability } from "@/lib/department/auth";
 
 const statusSchema = z.object({
   status: z.enum(["pending", "preparing", "ready", "served", "cancelled"]),
@@ -31,6 +31,18 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     );
   }
 
+  if (!auth.device.branchId) {
+    return NextResponse.json(
+      { success: false, error: "لا يمكن تحديث تذكرة مطبخ بدون ربط الجهاز بفرع محدد." },
+      { status: 403 },
+    );
+  }
+
+  const capability = requireDepartmentDeviceCapability(auth, "kitchen_write", auth.device.branchId);
+  if (!capability.ok) {
+    return NextResponse.json({ success: false, error: capability.error }, { status: capability.status });
+  }
+
   const updates: Record<string, string | null> = {
     status: parsed.data.status,
     updated_at: new Date().toISOString(),
@@ -45,6 +57,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     .update(updates)
     .eq("id", id)
     .eq("organization_id", auth.device.organizationId)
+    .eq("branch_id", auth.device.branchId)
     .select("id, status, started_at, ready_at, served_at")
     .single();
 
