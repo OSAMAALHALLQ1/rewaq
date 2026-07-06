@@ -39,7 +39,11 @@ export type SensitiveCapability =
   | "menu_write"
   | "staff_write"
   | "device_write"
-  | "branch_write";
+  | "branch_write"
+  | "accounting_write"
+  | "expense_write"
+  | "period_close"
+  | "accounting_settings_write";
 
 const CAPABILITY_ROLES: Record<SensitiveCapability, readonly Role[]> = {
   sales_write: ["super_admin", "organization_owner", "branch_manager", "cashier", "accountant"],
@@ -52,6 +56,12 @@ const CAPABILITY_ROLES: Record<SensitiveCapability, readonly Role[]> = {
   staff_write: ["super_admin", "organization_owner", "branch_manager"],
   device_write: ["super_admin", "organization_owner"],
   branch_write: ["super_admin", "organization_owner"],
+  // ERP layer: journal entries, chart of accounts, cost centers — never cashiers.
+  accounting_write: ["super_admin", "organization_owner", "accountant"],
+  expense_write: ["super_admin", "organization_owner", "accountant", "branch_manager"],
+  period_close: ["super_admin", "organization_owner", "accountant"],
+  // Core accounting configuration stays with the owner/admin per the ERP strategy.
+  accounting_settings_write: ["super_admin", "organization_owner"],
 };
 
 function getApprovalStatus(user: { app_metadata?: Record<string, unknown>; user_metadata?: Record<string, unknown> }) {

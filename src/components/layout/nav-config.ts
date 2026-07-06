@@ -25,6 +25,10 @@ import {
   Tablet,
   Warehouse,
   Scale,
+  BookOpenCheck,
+  FileSpreadsheet,
+  Coins,
+  Calendar,
 } from "lucide-react";
 
 export const appNav = [
@@ -33,7 +37,6 @@ export const appNav = [
     items: [
       { title: "محاسبة التكاليف والريسبي", href: "/dashboard/cost-accounting", icon: Calculator },
       { title: "تحليل تكلفة الطعام", href: "/dashboard/food-cost", icon: BarChart3 },
-      { title: "دفتر الأستاذ والقيود", href: "/dashboard/accounting/ledger", icon: Scale },
       { title: "الوصفات وكروت الإنتاج", href: "/dashboard/recipes", icon: ChefHat },
       { title: "أوامر الإنتاج وصرف المطبخ", href: "/dashboard/production", icon: Factory },
       { title: "النشر عبر السوشيال ميديا", href: "/dashboard/social-publishing", icon: Megaphone },
@@ -63,6 +66,20 @@ export const appNav = [
   },
 ];
 
+export const accountingNav = {
+  title: "المحاسبة",
+  items: [
+    { title: "لوحة المحاسبة", href: "/dashboard/accounting", icon: Gauge, roles: ["super_admin", "organization_owner", "accountant", "branch_manager"] },
+    { title: "دليل الحسابات", href: "/dashboard/accounting/accounts", icon: BookOpenCheck, roles: ["super_admin", "organization_owner", "accountant"] },
+    { title: "دفتر الأستاذ", href: "/dashboard/accounting/ledger", icon: Scale, roles: ["super_admin", "organization_owner", "accountant"] },
+    { title: "ميزان المراجعة", href: "/dashboard/accounting/trial-balance", icon: FileSpreadsheet, roles: ["super_admin", "organization_owner", "accountant"] },
+    { title: "المصروفات", href: "/dashboard/accounting/expenses", icon: WalletCards, roles: ["super_admin", "organization_owner", "accountant", "branch_manager"] },
+    { title: "مراكز التكلفة", href: "/dashboard/accounting/cost-centers", icon: Coins, roles: ["super_admin", "organization_owner", "accountant"] },
+    { title: "الإقفال الشهري", href: "/dashboard/accounting/closing", icon: Calendar, roles: ["super_admin", "organization_owner", "accountant"] },
+    { title: "إعدادات المحاسبة", href: "/dashboard/accounting/settings", icon: Settings, roles: ["super_admin", "organization_owner"] },
+  ],
+};
+
 export const adminNav = [
   { title: "لوحة الأدمن", href: "/admin", icon: Shield },
   { title: "طلبات التسجيل", href: "/admin/account-requests", icon: UserCheck },
@@ -73,3 +90,4 @@ export const adminNav = [
   { title: "سجلات النظام", href: "/admin/system-logs", icon: FileText },
   { title: "تذاكر الدعم", href: "/admin/support-tickets", icon: Bell },
 ];
+

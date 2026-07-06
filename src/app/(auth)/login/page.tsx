@@ -3,6 +3,7 @@ import { ActionForm } from "@/components/action-form";
 import { AuthCard } from "@/components/auth/auth-card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DemoLoginButton } from "@/components/auth/demo-login-button";
 import { loginAction } from "@/server/actions/auth";
 
 export default async function LoginPage({
@@ -48,6 +49,17 @@ export default async function LoginPage({
           صاحب الحساب يستطيع بعد الدخول دعوة الكاشير وأمين المخزن بالإيميل وكود دعوة، وكل شخص يدخل بلوحته وصلاحيته.
         </div>
       </ActionForm>
+
+      <div className="relative my-5">
+        <div className="absolute inset-0 flex items-center">
+          <span className="w-full border-t border-slate-200" />
+        </div>
+        <div className="relative flex justify-center text-xs uppercase">
+          <span className="bg-white px-3 text-slate-400 font-bold">أو تجربة سريعة للنظام</span>
+        </div>
+      </div>
+
+      <DemoLoginButton />
     </AuthCard>
   );
 }

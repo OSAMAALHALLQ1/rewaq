@@ -2399,7 +2399,18 @@ export async function saveJournalEntryAction(_prevState: ActionState, formData: 
   }
 
   try {
-    const { admin, organizationId, userId } = await resolveMutationScope();
+    const { admin, organizationId, userId, auth } = await resolveMutationScope();
+    requireSensitiveActionCapability(auth, "accounting_write");
+
+    // Closed accounting periods reject new entries (also enforced by DB trigger).
+    const { data: periodClosed } = await (admin as any).rpc("is_accounting_period_closed", {
+      target_org_id: organizationId,
+      target_date: entryDate,
+    });
+    if (periodClosed === true) {
+      return invalid("هذه الفترة المحاسبية مقفلة. أعد فتحها من صفحة الإقفال الشهري قبل تسجيل قيود فيها.");
+    }
+
     const entryNumber = await nextJournalEntryNumber(admin, organizationId);
 
     const { data: entry, error: entryError } = await (admin as any)

@@ -13,10 +13,16 @@ export async function GET(request: Request) {
   const dateFilter = url.searchParams.get("date") || new Date().toISOString().slice(0, 10);
   const limitParam = parseInt(url.searchParams.get("limit") || "50", 10);
   const limit = Math.min(Math.max(limitParam, 1), 200);
+  const statusFilter = url.searchParams.get("status")?.trim();
+  const numberFilter = url.searchParams.get("invoiceNumber")?.trim().toLowerCase();
+  const shiftFilter = url.searchParams.get("shiftId")?.trim();
 
   if (canUseDemoFallback()) {
     const todayInvoices = demoCustomerInvoices
       .filter((inv: any) => (inv.issuedAt ?? inv.issued_at ?? "").slice(0, 10) === dateFilter)
+      .filter((inv: any) => !statusFilter || (inv.status ?? "paid") === statusFilter)
+      .filter((inv: any) => !numberFilter || String(inv.invoiceNumber ?? inv.invoice_number ?? "").toLowerCase().includes(numberFilter))
+      .filter((inv: any) => !shiftFilter || (inv.shiftId ?? inv.shift_id) === shiftFilter)
       .slice(0, limit)
       .map((inv: any) => ({
         id: inv.id,
@@ -30,6 +36,7 @@ export async function GET(request: Request) {
         total: Number(inv.total ?? 0),
         issuedAt: inv.issuedAt ?? inv.issued_at,
         itemCount: Array.isArray(inv.items) ? inv.items.length : 0,
+        shiftId: inv.shiftId ?? inv.shift_id ?? null,
       }));
 
     return NextResponse.json({
@@ -44,13 +51,19 @@ export async function GET(request: Request) {
   const startOfDay = `${dateFilter}T00:00:00.000Z`;
   const endOfDay = `${dateFilter}T23:59:59.999Z`;
 
-  const { data: invoiceRows, error: invError } = await auth.admin
+  let query = auth.admin
     .from("customer_invoices")
-    .select("id, invoice_number, customer_name, status, payment_method, subtotal, discount, tax_total, total, issued_at")
+    .select("id, invoice_number, customer_name, status, payment_method, subtotal, discount, tax_total, total, issued_at, shift_id")
     .eq("organization_id", auth.device.organizationId)
     .eq("branch_id", auth.device.branchId)
     .gte("issued_at", startOfDay)
-    .lte("issued_at", endOfDay)
+    .lte("issued_at", endOfDay);
+
+  if (statusFilter) query = query.eq("status", statusFilter);
+  if (numberFilter) query = query.ilike("invoice_number", `%${numberFilter}%`);
+  if (shiftFilter) query = query.eq("shift_id", shiftFilter);
+
+  const { data: invoiceRows, error: invError } = await query
     .order("issued_at", { ascending: false })
     .limit(limit);
 
@@ -69,6 +82,7 @@ export async function GET(request: Request) {
     taxTotal: Number(row.tax_total ?? 0),
     total: Number(row.total ?? 0),
     issuedAt: row.issued_at,
+    shiftId: row.shift_id ?? null,
   }));
 
   return NextResponse.json({

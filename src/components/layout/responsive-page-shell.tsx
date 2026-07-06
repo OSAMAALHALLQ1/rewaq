@@ -54,6 +54,7 @@ export function ResponsivePageShell({
       {mobileMenuOpen && (
         <MobileMenu 
           mode={mode} 
+          role={session.role}
           onClose={() => setMobileMenuOpen(false)} 
         />
       )}
@@ -65,6 +66,7 @@ export function ResponsivePageShell({
         <div className="hidden md:flex shrink-0 w-64 xl:w-72 border-s border-border bg-white">
           <AppSidebar 
             mode={mode} 
+            role={session.role}
           />
         </div>
 

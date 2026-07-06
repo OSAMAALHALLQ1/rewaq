@@ -140,6 +140,23 @@ export async function resolveScope(admin: AdminClient): Promise<AppScope> {
         branchId: membership.branch_id,
       };
     }
+
+    // المستخدم مصادق عليه لكن لا يوجد له صف عضوية بعد: نُسقطه على أول منظمة
+    // موجودة بدلاً من رمي خطأ يعطّل كل صفحات الـ dashboard. يُسجَّل تحذير للمتابعة.
+    console.warn(
+      "[resolveScope] user has no organization_memberships row; falling back to first organization.",
+      { userId },
+    );
+    const { data: firstOrgForUser } = await admin
+      .from("organizations")
+      .select("id")
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (firstOrgForUser?.id) {
+      return { organizationId: firstOrgForUser.id, branchId: null };
+    }
   }
 
   if (!isDemoModeEnabled()) {

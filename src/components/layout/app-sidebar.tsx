@@ -1,23 +1,54 @@
 "use client";
 
+import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ClipboardCheck, Layers, PackageMinus, ReceiptText, Shield } from "lucide-react";
-import { appNav, adminNav } from "@/components/layout/nav-config";
+import { appNav, adminNav, accountingNav } from "@/components/layout/nav-config";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import type { Role } from "@/types/domain";
 
 type AppSidebarProps = {
   activePath?: string;
   mode?: "app" | "admin";
+  role?: Role;
   onNavigate?: () => void;
   onChatOpen?: () => void;
 };
 
-export function AppSidebar({ activePath = "", mode = "app", onNavigate, onChatOpen }: AppSidebarProps) {
+export function AppSidebar({ activePath = "", mode = "app", role, onNavigate, onChatOpen }: AppSidebarProps) {
   const pathname = usePathname();
   const currentPath = activePath || pathname;
-  const sections = mode === "app" ? appNav : [{ title: "Platform", items: adminNav }];
+  
+  const sections = React.useMemo(() => {
+    if (mode === "admin") {
+      return [{ title: "Platform", items: adminNav }];
+    }
+    const result = JSON.parse(JSON.stringify(appNav)); // deep clone to avoid mutation side effects
+    
+    if (role) {
+      const allowedAccountingItems = accountingNav.items.filter((item: any) =>
+        item.roles.includes(role)
+      );
+      if (allowedAccountingItems.length > 0) {
+        result.push({
+          title: accountingNav.title,
+          items: allowedAccountingItems.map((item: any) => {
+            // Find icon from accountingNav config or use default scale icon
+            const originalItem = accountingNav.items.find(i => i.href === item.href);
+            return {
+              title: item.title,
+              href: item.href,
+              icon: originalItem?.icon || Shield,
+            };
+          }),
+        });
+      }
+    }
+    return result;
+  }, [mode, role]);
+
   const quickLinks = [
     { title: "توريد", href: "/dashboard/invoices", icon: ReceiptText },
     { title: "طلب قسم", href: "/dashboard/purchase-orders", icon: ClipboardCheck },
@@ -63,13 +94,13 @@ export function AppSidebar({ activePath = "", mode = "app", onNavigate, onChatOp
         ) : null}
 
         <nav className="flex-1 space-y-4 overflow-y-auto px-3 py-5">
-          {sections.map((section) => (
+          {sections.map((section: any) => (
             <div key={section.title}>
               <div className="mb-2 px-3 text-xs font-semibold text-muted-foreground">
                 {section.title}
               </div>
               <div className="space-y-1">
-                {section.items.map((item) => {
+                {section.items.map((item: any) => {
                   const Icon = item.icon;
                   const isActive =
                     currentPath === item.href ||

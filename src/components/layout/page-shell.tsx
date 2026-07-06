@@ -50,7 +50,7 @@ export function PageShellClient({
           <X className="h-5 w-5" />
         </button>
 
-        <AppSidebar mode={mode} onNavigate={() => setSidebarOpen(false)} />
+        <AppSidebar mode={mode} role={session.role} onNavigate={() => setSidebarOpen(false)} />
       </div>
 
       {/* Main Content */}

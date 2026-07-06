@@ -65,7 +65,7 @@ type JournalLineDraft = {
 
 type BalancedJournalInput = {
   organizationId: string;
-  branchId: string;
+  branchId: string | null;
   sourceDocType: string;
   sourceDocId: string;
   memo: string;
@@ -157,7 +157,7 @@ async function postBalancedJournal(admin: AdminClient, input: BalancedJournalInp
     .from("journal_entries")
     .insert({
       organization_id: input.organizationId,
-      branch_id: input.branchId,
+      branch_id: input.branchId || null,
       entry_number: entryNumber,
       entry_date: new Date().toISOString().slice(0, 10),
       source_doc_type: input.sourceDocType,
@@ -176,7 +176,7 @@ async function postBalancedJournal(admin: AdminClient, input: BalancedJournalInp
       organization_id: input.organizationId,
       journal_entry_id: entry.id,
       account_id: accounts.get(line.systemKey),
-      branch_id: input.branchId,
+      branch_id: input.branchId || null,
       debit: roundMoney(line.debit ?? 0),
       credit: roundMoney(line.credit ?? 0),
       memo: line.memo,
@@ -340,6 +340,129 @@ export async function postPurchaseReceiptJournal(admin: AdminClient, input: Purc
       },
     ],
   });
+}
+
+type ExpensePostingInput = {
+  organizationId: string;
+  branchId: string | null;
+  expenseId: string;
+  category: string;
+  amount: number;
+  paymentMethod: "cash" | "bank";
+  costCenterId?: string | null;
+  createdBy?: string | null;
+};
+
+export async function postExpenseJournal(admin: AdminClient, input: ExpensePostingInput) {
+  const amount = roundMoney(input.amount);
+  if (amount <= 0) return null;
+
+  const entryId = await postBalancedJournal(admin, {
+    organizationId: input.organizationId,
+    branchId: input.branchId,
+    sourceDocType: "expense",
+    sourceDocId: input.expenseId,
+    memo: `قيد مصروف: ${input.category}`,
+    createdBy: input.createdBy,
+    lines: [
+      {
+        systemKey: "operating_expense",
+        debit: amount,
+        memo: `مصروف ${input.category}`,
+      },
+      {
+        systemKey: input.paymentMethod === "cash" ? "cash" : "bank",
+        credit: amount,
+        memo: `سداد مصروف ${input.category}`,
+      },
+    ],
+  });
+
+  if (input.costCenterId) {
+    await (admin as any)
+      .from("journal_lines")
+      .update({ cost_center_id: input.costCenterId })
+      .eq("journal_entry_id", entryId)
+      .eq("organization_id", input.organizationId);
+  }
+
+  return entryId;
+}
+
+type ReverseJournalInput = {
+  organizationId: string;
+  entryId: string;
+  reason: string;
+  createdBy?: string | null;
+};
+
+/**
+ * Creates a reversal entry (never deletes): each debit becomes a credit and
+ * vice versa. Idempotent via the (source_doc_type, source_doc_id) uniqueness.
+ */
+export async function reverseJournalEntry(admin: AdminClient, input: ReverseJournalInput) {
+  const { data: original, error: originalError } = await (admin as any)
+    .from("journal_entries")
+    .select("id, entry_number, branch_id, status, source_doc_type, reversal_of_entry_id, journal_lines(account_id, debit, credit, memo, cost_center_id)")
+    .eq("organization_id", input.organizationId)
+    .eq("id", input.entryId)
+    .maybeSingle();
+
+  if (originalError) throw new Error(originalError.message);
+  if (!original) throw new Error("القيد المطلوب عكسه غير موجود.");
+  if (original.reversal_of_entry_id) throw new Error("لا يمكن عكس قيد هو نفسه قيد عكسي.");
+  if (original.source_doc_type === "journal_reversal") throw new Error("لا يمكن عكس قيد عكسي.");
+
+  const { data: existingReversal } = await (admin as any)
+    .from("journal_entries")
+    .select("id")
+    .eq("organization_id", input.organizationId)
+    .eq("source_doc_type", "journal_reversal")
+    .eq("source_doc_id", input.entryId)
+    .maybeSingle();
+
+  if (existingReversal?.id) throw new Error("هذا القيد معكوس مسبقاً.");
+
+  const lines = (original.journal_lines ?? []) as Array<{ account_id: string; debit: number; credit: number; memo: string | null; cost_center_id: string | null }>;
+  if (lines.length === 0) throw new Error("القيد لا يحتوي على أسطر.");
+
+  const entryNumber = await nextJournalNumber(admin, input.organizationId);
+
+  const { data: reversal, error: reversalError } = await (admin as any)
+    .from("journal_entries")
+    .insert({
+      organization_id: input.organizationId,
+      branch_id: original.branch_id,
+      entry_number: entryNumber,
+      entry_date: new Date().toISOString().slice(0, 10),
+      source_doc_type: "journal_reversal",
+      source_doc_id: input.entryId,
+      memo: `عكس قيد ${original.entry_number}: ${input.reason}`,
+      status: "posted",
+      reversal_of_entry_id: input.entryId,
+      created_by: input.createdBy ?? null,
+    })
+    .select("id")
+    .single();
+
+  if (reversalError || !reversal) throw new Error(reversalError?.message ?? "تعذر إنشاء القيد العكسي.");
+
+  const { error: lineError } = await (admin as any).from("journal_lines").insert(
+    lines.map((line) => ({
+      organization_id: input.organizationId,
+      journal_entry_id: reversal.id,
+      account_id: line.account_id,
+      branch_id: original.branch_id,
+      debit: roundMoney(Number(line.credit) || 0),
+      credit: roundMoney(Number(line.debit) || 0),
+      memo: line.memo ? `عكس: ${line.memo}` : `عكس قيد ${original.entry_number}`,
+      cost_center_id: line.cost_center_id,
+    })),
+  );
+
+  if (lineError) throw new Error(lineError.message);
+
+  return reversal.id as string;
 }
 
 export async function postInventoryWriteOffJournal(admin: AdminClient, input: InventoryWriteOffPostingInput) {
