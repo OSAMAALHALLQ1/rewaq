@@ -25,7 +25,10 @@ export function AppSidebar({ activePath = "", mode = "app", role, onNavigate, on
     if (mode === "admin") {
       return [{ title: "Platform", items: adminNav }];
     }
-    const result = JSON.parse(JSON.stringify(appNav)); // deep clone to avoid mutation side effects
+    const result = appNav.map((section: any) => ({
+      title: section.title,
+      items: section.items.map((item: any) => ({ ...item })),
+    }));
     
     if (role) {
       const allowedAccountingItems = accountingNav.items.filter((item: any) =>

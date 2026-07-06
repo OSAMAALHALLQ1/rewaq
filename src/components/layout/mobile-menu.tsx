@@ -23,7 +23,10 @@ export function MobileMenu({ mode = "app", role, onClose, onChatOpen }: MobileMe
     if (mode === "admin") {
       return [{ title: "Platform", items: adminNav }];
     }
-    const result = JSON.parse(JSON.stringify(appNav)); // deep clone
+    const result = appNav.map((section: any) => ({
+      title: section.title,
+      items: section.items.map((item: any) => ({ ...item })),
+    }));
     
     if (role) {
       const allowedAccountingItems = accountingNav.items.filter((item: any) =>
