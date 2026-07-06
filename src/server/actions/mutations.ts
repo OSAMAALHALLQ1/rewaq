@@ -52,7 +52,11 @@ const issueCustomerInvoiceSchema = z.object({
   branchId: z.string().uuid(),
   customerName: z.string().default("عميل نقدي"),
   customerPhone: z.string().nullable().optional(),
-  paymentMethod: z.enum(["cash", "card", "bank_transfer", "delivery_app"]).default("cash"),
+  paymentMethod: z.enum(["cash", "card", "bank_transfer", "delivery_app", "receivable", "wallet", "gift_card"]).default("cash"),
+  payments: z.array(z.object({
+    method: z.string(),
+    amount: z.coerce.number().nonnegative(),
+  })).optional(),
   channel: z.enum(["dine_in", "delivery", "pickup"]).default("dine_in"),
   items: z.array(saleInvoiceItemSchema).min(1),
   invoiceDiscount: z.coerce.number().nonnegative().default(0),
@@ -682,15 +686,29 @@ export async function issueCustomerInvoiceAction(input: unknown) {
       if (error && !error.message.includes("duplicate key")) return invalid(error.message);
     }
 
-    const { error: paymentError } = await admin.from("customer_invoice_payments").insert({
-      organization_id: organizationId,
-      customer_invoice_id: invoice.id,
-      payment_method: parsed.data.paymentMethod,
-      amount: total,
-      created_by: userId,
-    });
-
-    if (paymentError) return invalid(paymentError.message);
+    if (parsed.data.payments && parsed.data.payments.length > 0) {
+      for (const pay of parsed.data.payments) {
+        if (pay.amount > 0) {
+          const { error: paymentError } = await admin.from("customer_invoice_payments").insert({
+            organization_id: organizationId,
+            customer_invoice_id: invoice.id,
+            payment_method: pay.method,
+            amount: pay.amount,
+            created_by: userId,
+          });
+          if (paymentError) return invalid(paymentError.message);
+        }
+      }
+    } else {
+      const { error: paymentError } = await admin.from("customer_invoice_payments").insert({
+        organization_id: organizationId,
+        customer_invoice_id: invoice.id,
+        payment_method: parsed.data.paymentMethod,
+        amount: total,
+        created_by: userId,
+      });
+      if (paymentError) return invalid(paymentError.message);
+    }
 
     await postCustomerInvoiceJournal(admin, {
       organizationId,
@@ -698,10 +716,14 @@ export async function issueCustomerInvoiceAction(input: unknown) {
       invoiceId: invoice.id,
       invoiceNumber,
       paymentMethod: parsed.data.paymentMethod,
-      subtotal: total - taxTotal,
+      payments: parsed.data.payments,
+      subtotal,
       taxTotal,
       total,
       costTotal,
+      discount: parsed.data.invoiceDiscount,
+      serviceFee: parsed.data.serviceFee,
+      deliveryFee: parsed.data.deliveryFee,
       createdBy: userId,
     });
 

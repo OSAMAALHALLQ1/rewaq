@@ -42,10 +42,10 @@ export type AccountingLedgerData = {
 };
 
 const demoAccounts: LedgerAccount[] = [
-  { id: "acc-cash", code: "1010", name: "الصندوق", accountType: "asset", normalBalance: "debit", systemKey: "cash" },
-  { id: "acc-bank", code: "1020", name: "البنك / بطاقات", accountType: "asset", normalBalance: "debit", systemKey: "bank" },
+  { id: "acc-cash", code: "1010", name: "الصندوق", accountType: "asset", normalBalance: "debit", systemKey: "cash_on_hand" },
+  { id: "acc-bank", code: "1020", name: "البنك / بطاقات", accountType: "asset", normalBalance: "debit", systemKey: "bank_card" },
   { id: "acc-inventory", code: "1300", name: "المخزون", accountType: "asset", normalBalance: "debit", systemKey: "inventory" },
-  { id: "acc-tax", code: "2100", name: "ضريبة مبيعات مستحقة", accountType: "liability", normalBalance: "credit", systemKey: "sales_tax_payable" },
+  { id: "acc-tax", code: "2100", name: "ضريبة مبيعات مستحقة", accountType: "liability", normalBalance: "credit", systemKey: "output_tax_payable" },
   { id: "acc-sales", code: "4100", name: "مبيعات المطعم", accountType: "revenue", normalBalance: "credit", systemKey: "sales_revenue" },
   { id: "acc-cogs", code: "5100", name: "تكلفة البضاعة المباعة", accountType: "cogs", normalBalance: "debit", systemKey: "cogs" },
   { id: "acc-cash-diff", code: "5900", name: "فروقات الصندوق", accountType: "expense", normalBalance: "debit", systemKey: "cash_over_short" },

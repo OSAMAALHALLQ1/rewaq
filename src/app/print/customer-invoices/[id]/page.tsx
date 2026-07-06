@@ -20,6 +20,9 @@ const paymentLabels: Record<CustomerInvoice["paymentMethod"], string> = {
   card: "بطاقة",
   bank_transfer: "حوالة",
   delivery_app: "تطبيق توصيل",
+  receivable: "ذمم عملاء",
+  wallet: "المحفظة الإلكترونية",
+  gift_card: "بطاقة هدايا",
 };
 
 const statusLabels: Record<CustomerInvoice["status"], string> = {
@@ -27,6 +30,8 @@ const statusLabels: Record<CustomerInvoice["status"], string> = {
   issued: "صادرة",
   paid: "مدفوعة",
   void: "ملغاة",
+  refunded: "مرجعة",
+  partially_refunded: "مرجعة جزئياً",
 };
 
 function readValue(value: string | string[] | undefined) {

@@ -113,4 +113,106 @@ describe("Checkout and Stock Concurrency Tests", () => {
       expect(res1.data.invoiceId).toBe(res2.data.invoiceId);
     });
   });
+
+  describe("5. pos_checkout_atomic with discounts, fees, and split payments", () => {
+    it("should accept optional discount, service/delivery fees and split payments array", async () => {
+      mockSupabase.rpc.mockResolvedValueOnce({
+        data: {
+          invoiceId: "inv-fees-123",
+          invoiceNumber: "POS-FEES-123",
+          total: 105.0,
+          costTotal: 40.0,
+        },
+        error: null,
+      });
+
+      const response = await mockSupabase.rpc("pos_checkout_atomic", {
+        p_org_id: "org-1",
+        p_branch_id: "branch-1",
+        p_device_key_id: "dev-1",
+        p_items: [{ catalog_item_id: "item-1", quantity: 2 }],
+        p_discount: 10,
+        p_service_fee: 5,
+        p_delivery_fee: 10,
+        p_payments: [
+          { method: "cash", amount: 50 },
+          { method: "card", amount: 55 }
+        ]
+      });
+
+      expect(response.error).toBeNull();
+      expect(response.data.total).toBe(105.0);
+      expect(mockSupabase.rpc).toHaveBeenCalledWith("pos_checkout_atomic", expect.objectContaining({
+        p_discount: 10,
+        p_service_fee: 5,
+        p_delivery_fee: 10,
+        p_payments: expect.arrayContaining([
+          { method: "cash", amount: 50 },
+          { method: "card", amount: 55 }
+        ])
+      }));
+    });
+  });
+
+  describe("6. pos_refund_atomic (Reversing Ledger, Stock Return, Partial Return)", () => {
+    it("should process a full refund successfully returning stock and reversing financial ledger entries", async () => {
+      mockSupabase.rpc.mockResolvedValueOnce({
+        data: {
+          success: true,
+          refundNumber: "RFD-123",
+          invoiceId: "inv-123",
+          refundTotal: 150.0,
+          reason: "Customer return"
+        },
+        error: null,
+      });
+
+      const response = await mockSupabase.rpc("pos_refund_atomic", {
+        p_org_id: "org-1",
+        p_branch_id: "branch-1",
+        p_invoice_id: "inv-123",
+        p_reason: "Customer return",
+        p_user_id: "dev-1",
+        p_items: null // Full refund
+      });
+
+      expect(response.error).toBeNull();
+      expect(response.data.success).toBe(true);
+      expect(response.data.refundTotal).toBe(150.0);
+      expect(mockSupabase.rpc).toHaveBeenCalledWith("pos_refund_atomic", expect.objectContaining({
+        p_invoice_id: "inv-123",
+        p_items: null
+      }));
+    });
+
+    it("should process a partial refund successfully returning specific items only", async () => {
+      mockSupabase.rpc.mockResolvedValueOnce({
+        data: {
+          success: true,
+          refundNumber: "RFD-456",
+          invoiceId: "inv-123",
+          refundTotal: 50.0,
+          reason: "Damaged item"
+        },
+        error: null,
+      });
+
+      const response = await mockSupabase.rpc("pos_refund_atomic", {
+        p_org_id: "org-1",
+        p_branch_id: "branch-1",
+        p_invoice_id: "inv-123",
+        p_reason: "Damaged item",
+        p_user_id: "dev-1",
+        p_items: [{ catalog_item_id: "item-1", quantity: 1 }] // Partial refund
+      });
+
+      expect(response.error).toBeNull();
+      expect(response.data.success).toBe(true);
+      expect(response.data.refundTotal).toBe(50.0);
+      expect(mockSupabase.rpc).toHaveBeenCalledWith("pos_refund_atomic", expect.objectContaining({
+        p_invoice_id: "inv-123",
+        p_items: [{ catalog_item_id: "item-1", quantity: 1 }]
+      }));
+    });
+  });
 });

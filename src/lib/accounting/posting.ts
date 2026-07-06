@@ -4,18 +4,22 @@ import type { createAdminClient } from "@/lib/supabase/admin";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 
-type PaymentMethod = "cash" | "card" | "bank_transfer" | "delivery_app";
+type PaymentMethod = "cash" | "card" | "bank_transfer" | "delivery_app" | "receivable" | "wallet" | "gift_card";
 
 type CustomerInvoicePostingInput = {
   organizationId: string;
   branchId: string;
   invoiceId: string;
   invoiceNumber: string;
-  paymentMethod: PaymentMethod;
+  paymentMethod?: PaymentMethod;
+  payments?: Array<{ method: string; amount: number }>;
   subtotal: number;
   taxTotal: number;
   total: number;
   costTotal: number;
+  discount?: number;
+  serviceFee?: number;
+  deliveryFee?: number;
   createdBy?: string | null;
 };
 
@@ -61,6 +65,7 @@ type JournalLineDraft = {
   debit?: number;
   credit?: number;
   memo: string;
+  costCenterId?: string | null;
 };
 
 type BalancedJournalInput = {
@@ -77,8 +82,10 @@ function roundMoney(value: number) {
   return Math.round((Number(value) || 0) * 10000) / 10000;
 }
 
-function cashAccountKey(paymentMethod: PaymentMethod) {
-  return paymentMethod === "cash" ? "cash" : "bank";
+function paymentMethodToSystemKey(method: string) {
+  if (method === "cash") return "cash_on_hand";
+  if (method === "receivable") return "accounts_receivable";
+  return "bank_card";
 }
 
 async function nextJournalNumber(admin: AdminClient, organizationId: string) {
@@ -180,6 +187,7 @@ async function postBalancedJournal(admin: AdminClient, input: BalancedJournalInp
       debit: roundMoney(line.debit ?? 0),
       credit: roundMoney(line.credit ?? 0),
       memo: line.memo,
+      cost_center_id: line.costCenterId ?? null,
     })),
   );
 
@@ -189,37 +197,88 @@ async function postBalancedJournal(admin: AdminClient, input: BalancedJournalInp
 }
 
 export async function postCustomerInvoiceJournal(admin: AdminClient, input: CustomerInvoicePostingInput) {
-  const lines: JournalLineDraft[] = [
-    {
-      systemKey: cashAccountKey(input.paymentMethod),
+  const lines: JournalLineDraft[] = [];
+
+  // 1. Debits: Payments (Asset or Receivable)
+  if (input.payments && input.payments.length > 0) {
+    for (const pay of input.payments) {
+      const amt = roundMoney(pay.amount);
+      if (amt > 0) {
+        lines.push({
+          systemKey: paymentMethodToSystemKey(pay.method),
+          debit: amt,
+          memo: `تحصيل دفعة ${pay.method} فاتورة ${input.invoiceNumber}`,
+        });
+      }
+    }
+  } else {
+    const method = input.paymentMethod || "cash";
+    lines.push({
+      systemKey: paymentMethodToSystemKey(method),
       debit: roundMoney(input.total),
       memo: `تحصيل فاتورة ${input.invoiceNumber}`,
-    },
-    {
-      systemKey: "sales_revenue",
-      credit: roundMoney(input.subtotal),
-      memo: `مبيعات فاتورة ${input.invoiceNumber}`,
-    },
-  ];
+    });
+  }
 
-  if (roundMoney(input.taxTotal) > 0) {
+  // 2. Debits: Discount (Contra-Revenue)
+  const discount = roundMoney(input.discount ?? 0);
+  if (discount > 0) {
     lines.push({
-      systemKey: "sales_tax_payable",
-      credit: roundMoney(input.taxTotal),
+      systemKey: "sales_discounts",
+      debit: discount,
+      memo: `خصم فاتورة ${input.invoiceNumber}`,
+    });
+  }
+
+  // 3. Credits: Sales Revenue
+  lines.push({
+    systemKey: "sales_revenue",
+    credit: roundMoney(input.subtotal),
+    memo: `مبيعات فاتورة ${input.invoiceNumber}`,
+  });
+
+  // 4. Credits: Sales Tax (Liability)
+  const taxTotal = roundMoney(input.taxTotal);
+  if (taxTotal > 0) {
+    lines.push({
+      systemKey: "output_tax_payable",
+      credit: taxTotal,
       memo: `ضريبة فاتورة ${input.invoiceNumber}`,
     });
   }
 
-  if (roundMoney(input.costTotal) > 0) {
+  // 5. Credits: Service Fee Revenue
+  const serviceFee = roundMoney(input.serviceFee ?? 0);
+  if (serviceFee > 0) {
+    lines.push({
+      systemKey: "service_fee_revenue",
+      credit: serviceFee,
+      memo: `رسوم خدمة فاتورة ${input.invoiceNumber}`,
+    });
+  }
+
+  // 6. Credits: Delivery Fee Revenue
+  const deliveryFee = roundMoney(input.deliveryFee ?? 0);
+  if (deliveryFee > 0) {
+    lines.push({
+      systemKey: "delivery_revenue",
+      credit: deliveryFee,
+      memo: `رسوم توصيل فاتورة ${input.invoiceNumber}`,
+    });
+  }
+
+  // 7. COGS & Inventory (Asset adjustment)
+  const costTotal = roundMoney(input.costTotal);
+  if (costTotal > 0) {
     lines.push(
       {
         systemKey: "cogs",
-        debit: roundMoney(input.costTotal),
+        debit: costTotal,
         memo: `تكلفة بضاعة فاتورة ${input.invoiceNumber}`,
       },
       {
         systemKey: "inventory",
-        credit: roundMoney(input.costTotal),
+        credit: costTotal,
         memo: `خصم مخزون فاتورة ${input.invoiceNumber}`,
       },
     );
@@ -261,14 +320,14 @@ export async function postCashVarianceJournal(admin: AdminClient, input: CashVar
             memo: `عجز صندوق وردية ${input.shiftLabel}`,
           },
           {
-            systemKey: "cash",
+            systemKey: "cash_on_hand",
             credit: amount,
             memo: `تسوية عجز صندوق وردية ${input.shiftLabel}`,
           },
         ]
       : [
           {
-            systemKey: "cash",
+            systemKey: "cash_on_hand",
             debit: amount,
             memo: `زيادة صندوق وردية ${input.shiftLabel}`,
           },
@@ -342,6 +401,18 @@ export async function postPurchaseReceiptJournal(admin: AdminClient, input: Purc
   });
 }
 
+function expenseCategoryToSystemKey(category: string): string {
+  const cat = category.toLowerCase().trim();
+  if (cat.includes("rent") || cat.includes("إيجار") || cat.includes("ايجار")) return "rent_expense";
+  if (cat.includes("salary") || cat.includes("salaries") || cat.includes("راتب") || cat.includes("رواتب") || cat.includes("أجور") || cat.includes("اجور")) return "salaries_expense";
+  if (cat.includes("utility") || cat.includes("utilities") || cat.includes("كهرباء") || cat.includes("مياه") || cat.includes("هاتف") || cat.includes("اتصالات")) return "utilities_expense";
+  if (cat.includes("maintenance") || cat.includes("صيانة") || cat.includes("اصلاح")) return "maintenance_expense";
+  if (cat.includes("marketing") || cat.includes("advertising") || cat.includes("تسويق") || cat.includes("إعلان") || cat.includes("اعلان")) return "marketing_expense";
+  if (cat.includes("commission") || cat.includes("delivery_platform") || cat.includes("عمولات") || cat.includes("عمولة")) return "delivery_platform_commission_expense";
+  if (cat.includes("cleaning") || cat.includes("supplies") || cat.includes("تنظيف") || cat.includes("منظفات")) return "cleaning_supplies_expense";
+  return "operating_expense_other";
+}
+
 type ExpensePostingInput = {
   organizationId: string;
   branchId: string | null;
@@ -357,7 +428,10 @@ export async function postExpenseJournal(admin: AdminClient, input: ExpensePosti
   const amount = roundMoney(input.amount);
   if (amount <= 0) return null;
 
-  const entryId = await postBalancedJournal(admin, {
+  const debitSystemKey = expenseCategoryToSystemKey(input.category);
+  const creditSystemKey = input.paymentMethod === "cash" ? "cash_on_hand" : "bank_card";
+
+  return postBalancedJournal(admin, {
     organizationId: input.organizationId,
     branchId: input.branchId,
     sourceDocType: "expense",
@@ -366,27 +440,18 @@ export async function postExpenseJournal(admin: AdminClient, input: ExpensePosti
     createdBy: input.createdBy,
     lines: [
       {
-        systemKey: "operating_expense",
+        systemKey: debitSystemKey,
         debit: amount,
         memo: `مصروف ${input.category}`,
+        costCenterId: input.costCenterId ?? null,
       },
       {
-        systemKey: input.paymentMethod === "cash" ? "cash" : "bank",
+        systemKey: creditSystemKey,
         credit: amount,
         memo: `سداد مصروف ${input.category}`,
       },
     ],
   });
-
-  if (input.costCenterId) {
-    await (admin as any)
-      .from("journal_lines")
-      .update({ cost_center_id: input.costCenterId })
-      .eq("journal_entry_id", entryId)
-      .eq("organization_id", input.organizationId);
-  }
-
-  return entryId;
 }
 
 type ReverseJournalInput = {
@@ -478,7 +543,7 @@ export async function postInventoryWriteOffJournal(admin: AdminClient, input: In
     createdBy: input.createdBy,
     lines: [
       {
-        systemKey: "operating_expense",
+        systemKey: "operating_expense_other",
         debit: totalCost,
         memo: input.label,
       },

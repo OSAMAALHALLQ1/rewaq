@@ -16,6 +16,9 @@ const paymentLabels: Record<CustomerInvoice["paymentMethod"], string> = {
   card: "بطاقة",
   bank_transfer: "حوالة",
   delivery_app: "تطبيق توصيل",
+  receivable: "ذمم عملاء",
+  wallet: "المحفظة الإلكترونية",
+  gift_card: "بطاقة هدايا",
 };
 
 export default async function CustomerInvoicesPage() {

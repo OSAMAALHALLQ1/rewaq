@@ -32,6 +32,9 @@ export const ACCOUNT_TYPE_LABELS: Record<string, string> = {
 export const PAYMENT_METHOD_LABELS: Record<string, string> = {
   cash: "نقدي (الصندوق)",
   bank: "بنك / بطاقة",
+  receivable: "ذمم عملاء",
+  wallet: "المحفظة الإلكترونية",
+  gift_card: "بطاقة هدايا",
 };
 
 /**

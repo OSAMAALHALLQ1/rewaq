@@ -232,8 +232,8 @@ export async function getAccountingDashboardData(): Promise<AccountingDashboardD
       monthExpenses,
       monthCogs,
       monthNetProfit: monthRevenue - monthCogs - monthExpenses,
-      cashBalance: systemBalance(allAccounts, "cash"),
-      bankBalance: systemBalance(allAccounts, "bank"),
+      cashBalance: systemBalance(allAccounts, "cash_on_hand"),
+      bankBalance: systemBalance(allAccounts, "bank_card"),
       supplierPayable: systemBalance(allAccounts, "accounts_payable"),
       customerReceivable: systemBalance(allAccounts, "accounts_receivable"),
       inventoryValue: systemBalance(allAccounts, "inventory"),
@@ -263,8 +263,8 @@ export type ChartOfAccountsData = {
 };
 
 const demoChartAccounts: AccountWithBalance[] = [
-  { id: "acc-cash", code: "1010", name: "الصندوق", accountType: "asset", normalBalance: "debit", systemKey: "cash", isActive: true, debitTotal: 8200, creditTotal: 1800, balance: 6400 },
-  { id: "acc-bank", code: "1020", name: "البنك / بطاقات", accountType: "asset", normalBalance: "debit", systemKey: "bank", isActive: true, debitTotal: 4300, creditTotal: 0, balance: 4300 },
+  { id: "acc-cash", code: "1010", name: "الصندوق", accountType: "asset", normalBalance: "debit", systemKey: "cash_on_hand", isActive: true, debitTotal: 8200, creditTotal: 1800, balance: 6400 },
+  { id: "acc-bank", code: "1020", name: "البنك / بطاقات", accountType: "asset", normalBalance: "debit", systemKey: "bank_card", isActive: true, debitTotal: 4300, creditTotal: 0, balance: 4300 },
   { id: "acc-inventory", code: "1300", name: "المخزون", accountType: "asset", normalBalance: "debit", systemKey: "inventory", isActive: true, debitTotal: 9100, creditTotal: 4000, balance: 5100 },
   { id: "acc-ap", code: "2200", name: "ذمم الموردين", accountType: "liability", normalBalance: "credit", systemKey: "accounts_payable", isActive: true, debitTotal: 0, creditTotal: 2750, balance: 2750 },
   { id: "acc-sales", code: "4100", name: "مبيعات المطعم", accountType: "revenue", normalBalance: "credit", systemKey: "sales_revenue", isActive: true, debitTotal: 0, creditTotal: 23800, balance: 23800 },
@@ -390,7 +390,7 @@ export async function getGeneralLedgerData(accountId?: string): Promise<GeneralL
 
     const selected = accountId
       ? accounts.find((account) => account.id === accountId)
-      : accounts.find((account) => account.systemKey === "cash") ?? accounts[0];
+      : accounts.find((account) => account.systemKey === "cash_on_hand") ?? accounts[0];
 
     if (!selected) {
       return { accounts: accountOptions, lines: [], closingBalance: 0 };

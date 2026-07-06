@@ -165,8 +165,8 @@ export type CustomerInvoice = {
   customerName: string;
   customerPhone?: string;
   customerTaxNumber?: string;
-  status: "draft" | "issued" | "paid" | "void";
-  paymentMethod: "cash" | "card" | "bank_transfer" | "delivery_app";
+  status: "draft" | "issued" | "paid" | "void" | "refunded" | "partially_refunded";
+  paymentMethod: "cash" | "card" | "bank_transfer" | "delivery_app" | "receivable" | "wallet" | "gift_card";
   issuedAt: string;
   notes?: string;
   subtotal: number;
@@ -175,6 +175,9 @@ export type CustomerInvoice = {
   taxTotal: number;
   total: number;
   items: CustomerInvoiceItem[];
+  serviceFee?: number;
+  deliveryFee?: number;
+  costTotal?: number;
 };
 
 export type SalesDocumentType =
