@@ -1028,7 +1028,7 @@ export default function CashierPOSWorkspace() {
 
   if (needShiftGate) {
     return (
-      <div dir="rtl" className="h-screen flex items-center justify-center bg-[#f0f2f5] select-none">
+      <div dir="rtl" className="h-screen flex items-center justify-center bg-[#f0f2f5] text-gray-900 select-none">
         <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
           <div className="bg-[#3d3d6b] text-white px-6 py-5">
             <h1 className="font-bold text-lg flex items-center gap-2"><Clock className="h-5 w-5" /> فتح وردية جديدة</h1>
@@ -1107,7 +1107,7 @@ export default function CashierPOSWorkspace() {
 
   // ─────────────────── RENDER ───────────────────
   return (
-    <div dir="rtl" className="h-screen flex flex-col overflow-hidden bg-[#f0f2f5] select-none">
+    <div dir="rtl" className="h-screen flex flex-col overflow-hidden bg-[#f0f2f5] text-gray-900 select-none">
 
       {/* ═══════════ TOP HEADER ═══════════ */}
       <header className="h-14 shrink-0 bg-[#3d3d6b] text-white flex items-center px-3 gap-2 shadow-lg z-20 print:hidden">
