@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 type OrderItem = {
   name: string;
   qty: number;
+  modifierSummary?: string;
 };
 
 type DeviceSession = {
@@ -40,6 +41,7 @@ type KitchenTicketApiItem = {
   name: string;
   quantity: string | number;
   notes: string | null;
+  modifier_summary: string | null;
   status: string;
 };
 
@@ -79,6 +81,7 @@ function mapTicketToOrder(ticket: KitchenTicketApiRow): Order {
     items: (ticket.kitchen_ticket_items ?? []).map((item) => ({
       name: item.name,
       qty: Number(item.quantity ?? 0),
+      modifierSummary: item.modifier_summary ?? undefined,
     })),
     status: ticket.status,
     minutes: minutesSince(ticket.opened_at),
@@ -290,11 +293,16 @@ export default function KitchenKDSWorkspace() {
                   {/* Order items list */}
                   <ul className="space-y-2.5">
                     {order.items.map((item, idx) => (
-                      <li key={idx} className="flex justify-between items-center text-xs font-semibold">
+                      <li key={idx} className="relative flex justify-between items-center text-xs font-semibold pb-2">
                         <span className="text-slate-100">{item.name}</span>
                         <span className="h-6 w-6 rounded-full bg-slate-950 flex items-center justify-center text-teal-400 border border-slate-800 text-[11px]">
                           x{item.qty}
                         </span>
+                        {item.modifierSummary && (
+                          <span className="absolute inset-x-0 -bottom-3.5 text-[9px] text-amber-300/90 text-center px-2 truncate">
+                            {item.modifierSummary}
+                          </span>
+                        )}
                       </li>
                     ))}
                   </ul>

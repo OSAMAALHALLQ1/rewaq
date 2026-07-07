@@ -51,6 +51,7 @@ export async function GET(request: Request) {
         quantity,
         notes,
         status,
+        modifier_summary,
         menu_item_id,
         catalog_item_id
       )

@@ -14,6 +14,9 @@ import { canUseDemoFallback } from "@/lib/supabase/env";
 const checkoutItemSchema = z.object({
   catalogItemId: z.string().uuid(),
   quantity: z.coerce.number().positive(),
+  unitPrice: z.coerce.number().min(0).optional(),
+  modifierOptionIds: z.array(z.string()).optional(),
+  modifierSummary: z.string().max(400).optional(),
 });
 
 const checkoutSchema = z.object({
@@ -68,7 +71,13 @@ type PosCheckoutRpcClient = {
       p_customer_name: string;
       p_payment_method: string;
       p_idempotency_key: string;
-      p_items: Array<{ catalog_item_id: string; quantity: number }>;
+      p_items: Array<{
+        catalog_item_id: string;
+        quantity: number;
+        unit_price?: number;
+        modifier_option_ids?: string[] | null;
+        modifier_summary?: string | null;
+      }>;
       p_discount?: number;
       p_service_fee?: number;
       p_delivery_fee?: number;
@@ -164,7 +173,8 @@ export async function POST(request: Request) {
       if (!catalogItem) {
         return NextResponse.json({ success: false, error: "الصنف غير موجود في كتالوج المحاكاة." }, { status: 400 });
       }
-      const itemSubtotal = catalogItem.retailPrice * item.quantity;
+      const lineUnitPrice = Number(item.unitPrice ?? catalogItem.retailPrice);
+      const itemSubtotal = lineUnitPrice * item.quantity;
       subtotal += itemSubtotal;
 
       itemsList.push({
@@ -172,8 +182,10 @@ export async function POST(request: Request) {
         menuItemId: catalogItem.id,
         name: catalogItem.name,
         quantity: item.quantity,
-        unitPrice: catalogItem.retailPrice,
+        unitPrice: lineUnitPrice,
         total: itemSubtotal,
+        modifierOptionIds: item.modifierOptionIds ?? null,
+        modifierSummary: item.modifierSummary ?? null,
       });
 
       kitchenTicketLines.push({
@@ -181,6 +193,7 @@ export async function POST(request: Request) {
         menuItemId: catalogItem.id,
         name: catalogItem.name,
         quantity: item.quantity,
+        modifierSummary: item.modifierSummary ?? null,
       });
 
       // Recipe stock deduction simulation
@@ -401,6 +414,9 @@ export async function POST(request: Request) {
     p_items: parsed.data.items.map((item) => ({
       catalog_item_id: item.catalogItemId,
       quantity: item.quantity,
+      unit_price: item.unitPrice,
+      modifier_option_ids: item.modifierOptionIds ?? null,
+      modifier_summary: item.modifierSummary ?? null,
     })),
     p_discount: parsed.data.discount,
     p_service_fee: parsed.data.serviceFee,

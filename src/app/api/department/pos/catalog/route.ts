@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { authenticateDepartmentDevice, requireDepartmentDeviceCapability } from "@/lib/department/auth";
-import { demoCatalogItems } from "@/lib/demo-data";
+import { demoCatalogItems, demoCatalogModifiers } from "@/lib/demo-data";
 import { canUseDemoFallback } from "@/lib/supabase/env";
 
 export async function GET(request: Request) {
@@ -26,6 +26,7 @@ export async function GET(request: Request) {
         barcodes: item.barcodes ?? [],
         stockQuantity: Number(item.stockQuantity ?? 0),
         imageUrl: item.imagePath ?? null,
+        modifierGroups: demoCatalogModifiers[item.id] ?? [],
       })),
     });
   }
@@ -84,6 +85,45 @@ export async function GET(request: Request) {
     }
   }
 
+  // مجموعات الإضافات (Modifiers) المرتبطة بأصناف الكتالوج
+  const modifierRows = (itemIds.length
+    ? await auth.admin
+        .from("catalog_item_modifier_groups")
+        .select(
+          "catalog_item_id, modifier_groups!inner(id, name, selection_type, min_select, max_select, is_required, display_order, status, modifier_options(id, name, price_delta, is_default, is_available, display_order))",
+        )
+        .eq("organization_id", auth.device.organizationId)
+        .in("catalog_item_id", itemIds)
+        .eq("modifier_groups.status", "active")
+    : { data: [] }) as { data: any[] | null };
+
+  const modifiersByItem = new Map<string, any[]>();
+  for (const row of modifierRows.data ?? []) {
+    const groups = (row.modifier_groups ?? []) as any[];
+    const cleaned = groups
+      .map((g) => ({
+        id: g.id,
+        name: g.name,
+        selectionType: g.selection_type,
+        minSelect: g.min_select,
+        maxSelect: g.max_select,
+        isRequired: g.is_required,
+        displayOrder: Number(g.display_order ?? 0),
+        options: (g.modifier_options ?? [])
+          .filter((o: any) => o.is_available)
+          .sort((a: any, b: any) => a.display_order - b.display_order)
+          .map((o: any) => ({
+            id: o.id,
+            name: o.name,
+            priceDelta: Number(o.price_delta ?? 0),
+            isDefault: o.is_default,
+          })),
+      }))
+      .filter((g) => g.options.length > 0)
+      .sort((a, b) => a.displayOrder - b.displayOrder);
+    if (cleaned.length) modifiersByItem.set(row.catalog_item_id, cleaned);
+  }
+
   return NextResponse.json({
     success: true,
     device: auth.device,
@@ -101,6 +141,7 @@ export async function GET(request: Request) {
         ? stockByInventoryItem.get(item.inventory_item_id) ?? 0
         : null,
       imageUrl: item.image_url ?? item.image_path ?? null,
+      modifierGroups: modifiersByItem.get(item.id) ?? [],
     })),
   });
 }

@@ -41,6 +41,7 @@ type CartItem = {
   qty: number;
   discount: number; // % per item
   note?: string;
+  selectedModifiers: ModifierOption[];
 };
 
 type DeviceSession = {
@@ -49,6 +50,23 @@ type DeviceSession = {
   orgId: string;
   branchId: string;
   role: string;
+};
+
+type ModifierOption = {
+  id: string;
+  name: string;
+  priceDelta: number;
+  isDefault?: boolean;
+};
+
+type ModifierGroup = {
+  id: string;
+  name: string;
+  selectionType: "single" | "multiple";
+  minSelect: number;
+  maxSelect: number;
+  isRequired: boolean;
+  options: ModifierOption[];
 };
 
 type PosCatalogItem = {
@@ -60,6 +78,7 @@ type PosCatalogItem = {
   price: number;
   taxRate: number;
   barcodes: string[];
+  modifierGroups: ModifierGroup[];
 };
 
 type Shift = {
@@ -293,6 +312,11 @@ export default function CashierPOSWorkspace() {
   const [addItemBusy, setAddItemBusy] = useState(false);
   const [addItemError, setAddItemError] = useState("");
 
+  // ── modifier picker modal ──
+  const [modifierTarget, setModifierTarget] = useState<PosCatalogItem | null>(null);
+  const [modifierSelections, setModifierSelections] = useState<Record<string, string[]>>({});
+  const [modifierError, setModifierError] = useState("");
+
   // ── settings modal ──
   const [showSettings, setShowSettings] = useState(false);
   const [settingsTab, setSettingsTab] = useState<"design" | "system">("design");
@@ -459,12 +483,91 @@ export default function CashierPOSWorkspace() {
 
   // ─────────────────── Cart helpers ───────────────────
   const handleAddToCart = (item: PosCatalogItem) => {
+    // items with modifiers open the picker; otherwise add directly
+    if (item.modifierGroups && item.modifierGroups.length > 0) {
+      openModifierPicker(item);
+      return;
+    }
     setCart((prev) => {
       const ex = prev.find((i) => i.id === item.id);
       if (ex) return prev.map((i) => i.id === item.id ? { ...i, qty: i.qty + 1 } : i);
-      return [...prev, { id: item.id, catalogItemId: item.id, name: item.name, price: item.price, taxRate: item.taxRate, qty: 1, discount: 0 }];
+      return [...prev, { id: item.id, catalogItemId: item.id, name: item.name, price: item.price, taxRate: item.taxRate, qty: 1, discount: 0, selectedModifiers: [] }];
     });
     setSelectedItemId(item.id);
+  };
+
+  const openModifierPicker = (item: PosCatalogItem) => {
+    const initial: Record<string, string[]> = {};
+    for (const g of item.modifierGroups) {
+      const def = g.options.filter((o) => o.isDefault).map((o) => o.id);
+      initial[g.id] = def;
+    }
+    setModifierTarget(item);
+    setModifierSelections(initial);
+    setModifierError("");
+  };
+
+  const toggleModifierOption = (groupId: string, optionId: string, multiple: boolean, max: number) => {
+    setModifierSelections((prev) => {
+      const cur = prev[groupId] ?? [];
+      if (multiple) {
+        if (cur.includes(optionId)) return { ...prev, [groupId]: cur.filter((id) => id !== optionId) };
+        if (cur.length >= max) return prev;
+        return { ...prev, [groupId]: [...cur, optionId] };
+      }
+      return { ...prev, [groupId]: cur.includes(optionId) ? [] : [optionId] };
+    });
+  };
+
+  const modifierPriceDelta = (item: PosCatalogItem) => {
+    let delta = 0;
+    for (const g of item.modifierGroups) {
+      for (const optId of modifierSelections[g.id] ?? []) {
+        const opt = g.options.find((o) => o.id === optId);
+        if (opt) delta += opt.priceDelta;
+      }
+    }
+    return delta;
+  };
+
+  const confirmModifiers = () => {
+    if (!modifierTarget) return;
+    // validate required / min / max
+    for (const g of modifierTarget.modifierGroups) {
+      const sel = (modifierSelections[g.id] ?? []).length;
+      if (g.isRequired && sel < Math.max(1, g.minSelect)) {
+        setModifierError(`يجب اختيار ${g.name} على الأقل`);
+        return;
+      }
+      if (sel < g.minSelect || sel > g.maxSelect) {
+        setModifierError(`عدد اختيارات ${g.name} غير صحيح (من ${g.minSelect} إلى ${g.maxSelect})`);
+        return;
+      }
+    }
+    const selected: ModifierOption[] = [];
+    for (const g of modifierTarget.modifierGroups) {
+      for (const optId of modifierSelections[g.id] ?? []) {
+        const opt = g.options.find((o) => o.id === optId);
+        if (opt) selected.push(opt);
+      }
+    }
+    setCart((prev) => [
+      ...prev,
+      {
+        id: crypto.randomUUID(),
+        catalogItemId: modifierTarget.id,
+        name: modifierTarget.name,
+        price: modifierTarget.price,
+        taxRate: modifierTarget.taxRate,
+        qty: 1,
+        discount: 0,
+        selectedModifiers: selected,
+      },
+    ]);
+    setSelectedItemId(modifierTarget.id);
+    setModifierTarget(null);
+    setModifierSelections({});
+    setModifierError("");
   };
 
   const updateQty = (id: string, delta: number) => {
@@ -483,7 +586,9 @@ export default function CashierPOSWorkspace() {
 
   const selectedItem = cart.find((i) => i.id === selectedItemId);
 
-  const itemGross = (item: CartItem) => item.price * item.qty;
+  const lineUnitPrice = (item: CartItem) =>
+    item.price + item.selectedModifiers.reduce((s, m) => s + m.priceDelta, 0);
+  const itemGross = (item: CartItem) => lineUnitPrice(item) * item.qty;
   const itemNet = (item: CartItem) => itemGross(item) * (1 - item.discount / 100);
   const itemTax = (item: CartItem) => itemNet(item) * (item.taxRate / 100);
 
@@ -660,6 +765,7 @@ export default function CashierPOSWorkspace() {
       setCart(order.items.map((i) => ({
         id: i.catalogItemId, catalogItemId: i.catalogItemId, name: i.name,
         price: i.price, taxRate: i.taxRate, qty: i.qty, discount: i.discount,
+        selectedModifiers: [],
       })));
       setCustomerName(order.customerName || "عميل سريع");
       setShowHeldPanel(false);
@@ -767,7 +873,13 @@ export default function CashierPOSWorkspace() {
       customerName,
       notes: buildOrderNote(),
       idempotencyKey,
-      items: cart.map((i) => ({ catalogItemId: i.catalogItemId, quantity: i.qty })),
+      items: cart.map((i) => ({
+        catalogItemId: i.catalogItemId,
+        quantity: i.qty,
+        unitPrice: +lineUnitPrice(i).toFixed(2),
+        modifierOptionIds: i.selectedModifiers.map((m) => m.id),
+        modifierSummary: i.selectedModifiers.map((m) => m.name).join(" + ") || undefined,
+      })),
       discount: +discountTotal.toFixed(2),
       serviceFee: +serviceFee.toFixed(2),
       deliveryFee: +deliveryFee.toFixed(2),
@@ -1350,8 +1462,13 @@ export default function CashierPOSWorkspace() {
                           {item.note && (
                             <p className="text-[10px] text-amber-600 truncate">📝 {item.note}</p>
                           )}
+                          {item.selectedModifiers.length > 0 && (
+                            <p className="text-[10px] text-[#3d3d6b]/70 truncate">
+                              {item.selectedModifiers.map((m) => m.name).join(" + ")}
+                            </p>
+                          )}
                           <p className="text-[10px] text-gray-400 mt-0.5">
-                            {cur} {item.price.toFixed(2)} × {item.qty}
+                            {cur} {lineUnitPrice(item).toFixed(2)} × {item.qty}
                             {item.taxRate > 0 && <span className="mr-1 text-amber-500">+ض {item.taxRate}%</span>}
                           </p>
                         </div>
@@ -1988,6 +2105,67 @@ export default function CashierPOSWorkspace() {
         </div>
       )}
 
+      {/* ═══════════ MODIFIER PICKER MODAL ═══════════ */}
+      {modifierTarget && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 print:hidden">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden max-h-[92vh] flex flex-col">
+            <div className="bg-[#3d3d6b] text-white px-5 py-4 flex items-center justify-between shrink-0">
+              <h2 className="font-bold text-base flex items-center gap-2"><ChefHat className="h-5 w-5" /> تخصيص {modifierTarget.name}</h2>
+              <button onClick={() => { setModifierTarget(null); setModifierSelections({}); }} className="hover:bg-white/20 p-1 rounded transition-colors">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="p-5 space-y-4 overflow-y-auto">
+              {modifierTarget.modifierGroups.map((g) => (
+                <div key={g.id} className="border border-gray-100 rounded-xl p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-bold text-gray-800">{g.name}</p>
+                    <span className="text-[10px] text-gray-400 bg-gray-100 rounded px-2 py-0.5">
+                      {g.selectionType === "single" ? (g.isRequired ? "إلزامي" : "اختيار واحد") : `حتى ${g.maxSelect}`}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {g.options.map((o) => {
+                      const selected = (modifierSelections[g.id] ?? []).includes(o.id);
+                      return (
+                        <button
+                          key={o.id}
+                          onClick={() => toggleModifierOption(g.id, o.id, g.selectionType === "multiple", g.maxSelect)}
+                          className={`h-12 rounded-xl border-2 px-2 text-xs font-semibold flex items-center justify-between transition-all ${
+                            selected
+                              ? "border-[#3d3d6b] bg-[#3d3d6b] text-white"
+                              : "border-gray-200 text-gray-700 hover:border-[#3d3d6b]/40"
+                          }`}
+                        >
+                          <span className="truncate">{o.name}</span>
+                          {o.priceDelta > 0 && <span className={selected ? "text-white/80" : "text-[#3d3d6b]"}>+{cur}{o.priceDelta.toFixed(2)}</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+              {modifierError && <p className="text-xs text-red-600 bg-red-50 rounded-lg p-2.5">{modifierError}</p>}
+            </div>
+            <div className="px-5 pb-5 pt-2 grid grid-cols-2 gap-2 shrink-0">
+              <button
+                onClick={() => { setModifierTarget(null); setModifierSelections({}); }}
+                className="h-13 min-h-[52px] rounded-xl border-2 border-gray-200 text-gray-600 text-sm font-semibold hover:bg-gray-50 transition-colors"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={confirmModifiers}
+                className="h-13 min-h-[52px] rounded-xl bg-[#00a650] hover:bg-[#008a42] text-white text-sm font-bold transition-colors flex items-center justify-center gap-1"
+              >
+                <Plus className="h-4 w-4" />
+                إضافة · {cur} {(modifierTarget.price + modifierPriceDelta(modifierTarget)).toFixed(2)}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ═══════════ SETTINGS MODAL ═══════════ */}
       {showSettings && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 print:hidden">
@@ -2327,21 +2505,31 @@ export default function CashierPOSWorkspace() {
                 )}
               </div>
               <div style={sep} className="mb-2">
-                {lastReceipt.items.map((item: any, i: number) => (
-                  <div key={i} className="py-0.5">
-                    <div className="flex justify-between">
-                      <span>{item.name} x{item.qty}</span>
-                      <span>{cur} {(item.price * item.qty).toFixed(2)}</span>
-                    </div>
-                    {design.showDiscounts && item.discount > 0 && (
-                      <div className="flex justify-between" style={small}>
-                        <span> خصم {item.discount}%</span>
-                        <span>- {cur} {(item.price * item.qty * item.discount / 100).toFixed(2)}</span>
+                {lastReceipt.items.map((item: any, i: number) => {
+                  const mods: ModifierOption[] = item.selectedModifiers ?? [];
+                  const unit = (item.price ?? 0) + mods.reduce((s, m) => s + (m.priceDelta ?? 0), 0);
+                  return (
+                    <div key={i} className="py-0.5">
+                      <div className="flex justify-between">
+                        <span>{item.name} x{item.qty}</span>
+                        <span>{cur} {(unit * item.qty).toFixed(2)}</span>
                       </div>
-                    )}
-                    {design.showItemNotes && item.note && <div style={small}> * {item.note}</div>}
-                  </div>
-                ))}
+                      {mods.length > 0 && (
+                        <div className="flex justify-between" style={small}>
+                          <span style={{ color: "#555" }}>  {mods.map((m) => m.name).join(" + ")}</span>
+                          <span>{cur} {(mods.reduce((s, m) => s + (m.priceDelta ?? 0), 0) * item.qty).toFixed(2)}</span>
+                        </div>
+                      )}
+                      {design.showDiscounts && item.discount > 0 && (
+                        <div className="flex justify-between" style={small}>
+                          <span> خصم {item.discount}%</span>
+                          <span>- {cur} {(unit * item.qty * item.discount / 100).toFixed(2)}</span>
+                        </div>
+                      )}
+                      {design.showItemNotes && item.note && <div style={small}> * {item.note}</div>}
+                    </div>
+                  );
+                })}
               </div>
               <div style={sep} className="space-y-0.5">
                 <div className="flex justify-between"><span>المجموع الفرعي:</span><span>{cur} {lastReceipt.subtotal.toFixed(2)}</span></div>

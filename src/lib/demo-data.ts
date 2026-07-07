@@ -1448,6 +1448,51 @@ export const demoCatalogItems: CatalogItem[] = [
   },
 ];
 
+// مجموعات الإضافات التجريبية (Modifiers) المربوطة ببعض أصناف المحاكاة
+export const demoCatalogModifiers: Record<string, any[]> = {
+  "catalog-burger": [
+    {
+      id: "demo-mod-size",
+      name: "الحجم",
+      selectionType: "single",
+      minSelect: 1,
+      maxSelect: 1,
+      isRequired: true,
+      options: [
+        { id: "demo-opt-regular", name: "عادي", priceDelta: 0, isDefault: true },
+        { id: "demo-opt-large", name: "كبير +", priceDelta: 4, isDefault: false },
+      ],
+    },
+    {
+      id: "demo-mod-add",
+      name: "إضافات",
+      selectionType: "multiple",
+      minSelect: 0,
+      maxSelect: 5,
+      isRequired: false,
+      options: [
+        { id: "demo-opt-cheese", name: "جبنة إضافية", priceDelta: 2, isDefault: false },
+        { id: "demo-opt-fries", name: "بطاطا", priceDelta: 3, isDefault: false },
+        { id: "demo-opt-drink", name: "مشروب", priceDelta: 3, isDefault: false },
+      ],
+    },
+  ],
+  "catalog-thai-chicken": [
+    {
+      id: "demo-mod-spice",
+      name: "مستوى الحرارة",
+      selectionType: "single",
+      minSelect: 1,
+      maxSelect: 1,
+      isRequired: true,
+      options: [
+        { id: "demo-opt-mild", name: "وسط", priceDelta: 0, isDefault: true },
+        { id: "demo-opt-hot", name: "حار", priceDelta: 1, isDefault: false },
+      ],
+    },
+  ],
+};
+
 export const demoSalesShift: SalesShift = {
   id: "shift-001",
   branchName: demoBranches[0].name,

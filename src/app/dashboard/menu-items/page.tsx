@@ -22,6 +22,11 @@ export default async function MenuItemsPage() {
         title="أطباق القائمة"
         description="ربط أطباق البيع بالوصفات لحساب الربحية ونسبة تكلفة الطعام تلقائيًا."
       />
+      <div className="mb-4">
+        <Link href="/dashboard/modifiers" className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline">
+          <Plus className="h-4 w-4" /> إدارة مجموعات الإضافات (Modifiers) للأصناف
+        </Link>
+      </div>
       <div className="grid gap-4 xl:grid-cols-[1fr_360px]">
         <Card>
           <CardHeader>
