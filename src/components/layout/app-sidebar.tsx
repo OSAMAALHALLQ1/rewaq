@@ -71,7 +71,7 @@ export function AppSidebar({ activePath = "", mode = "app", role, onNavigate, on
           </span>
           <span>
             <span className="block text-xl font-bold text-primary">رواق</span>
-            <span className="text-xs text-muted-foreground">نظام إدارة مخزن</span>
+            <span className="text-xs text-muted-foreground">ERP المطاعم والكافيهات</span>
           </span>
         </Link>
 
@@ -143,10 +143,10 @@ export function AppSidebar({ activePath = "", mode = "app", role, onNavigate, on
               عزل البيانات جاهز
             </div>
             <p className="mt-1 text-xs leading-5 text-muted-foreground">
-              بيانات كل قسم منفصلة، والصلاحيات تظهر لكل مستخدم ما يخصه فقط.
+              بيانات كل مؤسسة منفصلة، والصلاحيات تظهر لكل مستخدم ما يخصه فقط.
             </p>
             <Badge className="mt-3" tone="success">
-              مخزني فقط
+              مبيعات · مخزون · محاسبة
             </Badge>
           </div>
         </div>

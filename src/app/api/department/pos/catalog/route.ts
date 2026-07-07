@@ -150,10 +150,12 @@ export async function GET(request: Request) {
 const createItemSchema = z.object({
   name: z.string().trim().min(2, "اسم الصنف مطلوب (حرفان على الأقل)").max(120),
   price: z.coerce.number().min(0, "السعر يجب أن يكون صفرًا أو أكثر"),
+  cost: z.coerce.number().min(0).default(0),
   category: z.string().trim().max(60).optional(),
   unit: z.string().trim().max(30).optional(),
   taxRate: z.coerce.number().min(0).max(100).default(0),
   barcode: z.string().trim().max(64).optional(),
+  linkInventory: z.boolean().default(true),
 });
 
 export async function POST(request: Request) {
@@ -176,7 +178,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const { name, price, category, unit, taxRate, barcode } = parsed.data;
+  const { name, price, cost, category, unit, taxRate, barcode, linkInventory } = parsed.data;
   const code = `POS-${Date.now().toString(36).toUpperCase()}`;
 
   if (canUseDemoFallback()) {
@@ -236,6 +238,41 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 
+  // ربط الصنف بالمخزن: إنشاء صنف مخزون وربطه برصيد الفرع ليظهر في المخزون ويبقى دائمًا
+  let inventoryItemId: string | null = null;
+  if (linkInventory) {
+    const { data: inv, error: invErr } = await auth.admin
+      .from("inventory_items")
+      .insert({
+        organization_id: auth.device.organizationId,
+        name,
+        last_purchase_price: cost,
+        average_cost: cost,
+        minimum_quantity: 0,
+        status: "active",
+      })
+      .select("id")
+      .single();
+    if (!invErr && inv) {
+      inventoryItemId = inv.id;
+      await auth.admin
+        .from("catalog_items")
+        .update({ inventory_item_id: inv.id })
+        .eq("id", created.id);
+      if (auth.device.branchId) {
+        await auth.admin
+          .from("branch_stock")
+          .insert({
+            organization_id: auth.device.organizationId,
+            branch_id: auth.device.branchId,
+            item_id: inv.id,
+            quantity: 0,
+            reserved_quantity: 0,
+          });
+      }
+    }
+  }
+
   if (barcode) {
     await auth.admin.from("item_barcodes").insert({
       organization_id: auth.device.organizationId,
@@ -255,7 +292,8 @@ export async function POST(request: Request) {
       price: Number(created.retail_price ?? 0),
       taxRate: Number(created.tax_rate ?? 0),
       barcodes: barcode ? [barcode] : [],
-      stockQuantity: null,
+      stockQuantity: inventoryItemId ? 0 : null,
+      inventoryItemId,
       imageUrl: null,
     },
   });

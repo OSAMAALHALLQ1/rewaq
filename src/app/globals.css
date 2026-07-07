@@ -1,9 +1,9 @@
+/* Import mobile-responsive design system (يجب أن يسبق أي قواعد أخرى) */
+@import './mobile-responsive.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* Import mobile-responsive design system */
-@import './mobile-responsive.css';
 
 :root {
   --background: #f6f8fc;

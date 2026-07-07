@@ -53,6 +53,7 @@ drop policy if exists "journal lines accountant write" on public.journal_lines;
 
 -- Chart accounts are financial master data. Disable accounts with is_active=false
 -- instead of deleting rows that may be referenced by journal history.
+drop policy if exists "coa owner insert" on public.chart_of_accounts;
 create policy "coa owner insert" on public.chart_of_accounts
   for insert to authenticated
   with check (
@@ -60,6 +61,7 @@ create policy "coa owner insert" on public.chart_of_accounts
     or public.is_super_admin()
   );
 
+drop policy if exists "coa owner update" on public.chart_of_accounts;
 create policy "coa owner update" on public.chart_of_accounts
   for update to authenticated
   using (
@@ -73,6 +75,7 @@ create policy "coa owner update" on public.chart_of_accounts
 
 -- Transfer headers are workflow records: update is allowed for lifecycle state,
 -- but delete is intentionally omitted.
+drop policy if exists "transfers branch insert" on public.transfers;
 create policy "transfers branch insert" on public.transfers
   for insert to authenticated
   with check (
@@ -80,6 +83,7 @@ create policy "transfers branch insert" on public.transfers
     or public.can_access_branch(organization_id, to_branch_id)
   );
 
+drop policy if exists "transfers branch update" on public.transfers;
 create policy "transfers branch update" on public.transfers
   for update to authenticated
   using (
@@ -93,40 +97,49 @@ create policy "transfers branch update" on public.transfers
 
 -- Transfer and purchase-order line items can be corrected while their parent
 -- workflows are still open, but they should not be deleted through client RLS.
+drop policy if exists "transfer_items org read" on public.transfer_items;
 create policy "transfer_items org read" on public.transfer_items
   for select to authenticated
   using (public.is_org_member(organization_id));
 
+drop policy if exists "transfer_items org insert" on public.transfer_items;
 create policy "transfer_items org insert" on public.transfer_items
   for insert to authenticated
   with check (public.is_org_member(organization_id));
 
+drop policy if exists "transfer_items org update" on public.transfer_items;
 create policy "transfer_items org update" on public.transfer_items
   for update to authenticated
   using (public.is_org_member(organization_id))
   with check (public.is_org_member(organization_id));
 
+drop policy if exists "purchase_order_items org read" on public.purchase_order_items;
 create policy "purchase_order_items org read" on public.purchase_order_items
   for select to authenticated
   using (public.is_org_member(organization_id));
 
+drop policy if exists "purchase_order_items org insert" on public.purchase_order_items;
 create policy "purchase_order_items org insert" on public.purchase_order_items
   for insert to authenticated
   with check (public.is_org_member(organization_id));
 
+drop policy if exists "purchase_order_items org update" on public.purchase_order_items;
 create policy "purchase_order_items org update" on public.purchase_order_items
   for update to authenticated
   using (public.is_org_member(organization_id))
   with check (public.is_org_member(organization_id));
 
+drop policy if exists "stock_count_items org read" on public.stock_count_items;
 create policy "stock_count_items org read" on public.stock_count_items
   for select to authenticated
   using (public.is_org_member(organization_id));
 
+drop policy if exists "stock_count_items org insert" on public.stock_count_items;
 create policy "stock_count_items org insert" on public.stock_count_items
   for insert to authenticated
   with check (public.is_org_member(organization_id));
 
+drop policy if exists "stock_count_items org update" on public.stock_count_items;
 create policy "stock_count_items org update" on public.stock_count_items
   for update to authenticated
   using (public.is_org_member(organization_id))
@@ -135,40 +148,49 @@ create policy "stock_count_items org update" on public.stock_count_items
 -- Supplier invoices, customer invoice lines, and payments are financial
 -- history. Corrections should be appended or represented by void/reversal
 -- records, so direct client update/delete is omitted.
+drop policy if exists "invoice_items org read" on public.invoice_items;
 create policy "invoice_items org read" on public.invoice_items
   for select to authenticated
   using (public.is_org_member(organization_id));
 
+drop policy if exists "invoice_items org insert" on public.invoice_items;
 create policy "invoice_items org insert" on public.invoice_items
   for insert to authenticated
   with check (public.is_org_member(organization_id));
 
+drop policy if exists "customer_invoice_items org read" on public.customer_invoice_items;
 create policy "customer_invoice_items org read" on public.customer_invoice_items
   for select to authenticated
   using (public.is_org_member(organization_id));
 
+drop policy if exists "customer_invoice_items org insert" on public.customer_invoice_items;
 create policy "customer_invoice_items org insert" on public.customer_invoice_items
   for insert to authenticated
   with check (public.is_org_member(organization_id));
 
+drop policy if exists "customer_invoice_payments org read" on public.customer_invoice_payments;
 create policy "customer_invoice_payments org read" on public.customer_invoice_payments
   for select to authenticated
   using (public.is_org_member(organization_id));
 
+drop policy if exists "customer_invoice_payments org insert" on public.customer_invoice_payments;
 create policy "customer_invoice_payments org insert" on public.customer_invoice_payments
   for insert to authenticated
   with check (public.is_org_member(organization_id));
 
+drop policy if exists "supplier_price_history org read" on public.supplier_price_history;
 create policy "supplier_price_history org read" on public.supplier_price_history
   for select to authenticated
   using (public.is_org_member(organization_id));
 
+drop policy if exists "supplier_price_history org insert" on public.supplier_price_history;
 create policy "supplier_price_history org insert" on public.supplier_price_history
   for insert to authenticated
   with check (public.is_org_member(organization_id));
 
 -- Accountants can create draft/posting records through approved workflows.
 -- Posted journal entries and lines are not mutable or deletable through RLS.
+drop policy if exists "journal entries accountant insert" on public.journal_entries;
 create policy "journal entries accountant insert" on public.journal_entries
   for insert to authenticated
   with check (
@@ -176,6 +198,7 @@ create policy "journal entries accountant insert" on public.journal_entries
     or public.is_super_admin()
   );
 
+drop policy if exists "journal entries accountant draft update" on public.journal_entries;
 create policy "journal entries accountant draft update" on public.journal_entries
   for update to authenticated
   using (
@@ -193,6 +216,7 @@ create policy "journal entries accountant draft update" on public.journal_entrie
     )
   );
 
+drop policy if exists "journal lines accountant insert" on public.journal_lines;
 create policy "journal lines accountant insert" on public.journal_lines
   for insert to authenticated
   with check (
@@ -200,6 +224,7 @@ create policy "journal lines accountant insert" on public.journal_lines
     or public.is_super_admin()
   );
 
+drop policy if exists "journal lines accountant draft update" on public.journal_lines;
 create policy "journal lines accountant draft update" on public.journal_lines
   for update to authenticated
   using (

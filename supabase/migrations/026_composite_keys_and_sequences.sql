@@ -49,8 +49,9 @@ CREATE TABLE IF NOT EXISTS public.document_sequences (
 -- Enable RLS for sequences
 ALTER TABLE public.document_sequences ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Allow select for org members" ON public.document_sequences;
 CREATE POLICY "Allow select for org members" ON public.document_sequences
-  FOR SELECT TO authenticated USING (organization_id = (SELECT auth.uid() IS NOT NULL)); -- fallback RLS
+  FOR SELECT TO authenticated USING (public.is_org_member(organization_id)); -- fallback RLS
 
 -- 4. Next sequence number function
 CREATE OR REPLACE FUNCTION public.get_next_sequence_number(

@@ -143,41 +143,61 @@ type OrderType = "dine_in" | "takeaway" | "delivery";
 
 // تصميم الفاتورة المطبوعة — يُخزن محليًا لكل جهاز كاشير
 type ReceiptDesign = {
+  template: "classic" | "modern" | "restaurant";
   fontSize: number;                       // 10–16 px
   font: "mono" | "sans";
   logoText: string;                       // نص/رمز أعلى الفاتورة
+  accentColor: string;                    // لون مميز (هكس)
   headerAlign: "center" | "right";
   separator: "dashed" | "solid" | "double";
+  showLogo: boolean;
+  showStoreName: boolean;
   showStoreAddress: boolean;
   showTaxNumber: boolean;
   showCashier: boolean;
   showCustomer: boolean;
   showOrderType: boolean;
+  showTable: boolean;
+  showTime: boolean;
   showItemNotes: boolean;
   showDiscounts: boolean;
   showPayments: boolean;
   showChange: boolean;
+  showQR: boolean;
+  showBarcode: boolean;
   boldTotal: boolean;
   extraFooter: string;                    // سطر إضافي أسفل الفاتورة (رقم هاتف، واتساب...)
+  headerText: string;                     // ترويسة مخصصة أعلى الفاتورة
+  footerText: string;                     // تذييل مخصص أسفل الفاتورة
 };
 
 const DEFAULT_DESIGN: ReceiptDesign = {
+  template: "classic",
   fontSize: 12,
   font: "mono",
   logoText: "",
+  accentColor: "#3d3d6b",
   headerAlign: "center",
   separator: "dashed",
+  showLogo: false,
+  showStoreName: true,
   showStoreAddress: true,
   showTaxNumber: true,
   showCashier: true,
   showCustomer: true,
   showOrderType: true,
+  showTable: true,
+  showTime: true,
   showItemNotes: true,
   showDiscounts: true,
   showPayments: true,
   showChange: true,
+  showQR: false,
+  showBarcode: false,
   boldTotal: true,
   extraFooter: "",
+  headerText: "",
+  footerText: "",
 };
 
 const SEPARATOR_STYLE: Record<ReceiptDesign["separator"], string> = {
@@ -185,6 +205,10 @@ const SEPARATOR_STYLE: Record<ReceiptDesign["separator"], string> = {
   solid: "1px solid #000",
   double: "3px double #000",
 };
+
+const sepStyle = (color: string, sep: ReceiptDesign["separator"]) => ({
+  borderTop: `${sep === "dashed" ? "1px dashed" : sep === "double" ? "3px double" : "1px solid"} ${color}`,
+});
 
 const DEFAULT_SETTINGS: PosSettings = {
   storeName: "رواق",
@@ -308,7 +332,8 @@ export default function CashierPOSWorkspace() {
 
   // ── add dish modal ──
   const [showAddItem, setShowAddItem] = useState(false);
-  const [newItem, setNewItem] = useState({ name: "", price: "", category: "", taxRate: "", barcode: "" });
+  const [newItem, setNewItem] = useState({ name: "", price: "", cost: "", category: "", taxRate: "", unit: "", barcode: "" });
+  const [linkInventory, setLinkInventory] = useState(true);
   const [addItemBusy, setAddItemBusy] = useState(false);
   const [addItemError, setAddItemError] = useState("");
 
@@ -339,6 +364,29 @@ export default function CashierPOSWorkspace() {
     "content-type": "application/json",
     "x-department-key": token ?? device.token,
   }), [device.token]);
+
+  // الأصناف التي يضيفها الكاشير تبقى محفوظة محليًا وتظهر دائمًا (مرتبطة بالكتالوج)
+  const EXTRA_CATALOG_KEY = "rwq_pos_catalog_extra";
+  const loadExtraCatalog = (): PosCatalogItem[] => {
+    try {
+      const raw = localStorage.getItem(EXTRA_CATALOG_KEY);
+      const list = raw ? JSON.parse(raw) : [];
+      return Array.isArray(list) ? list : [];
+    } catch { return []; }
+  };
+  const saveExtraCatalog = (item: PosCatalogItem) => {
+    const list = loadExtraCatalog();
+    if (!list.find((i) => i.id === item.id)) {
+      list.push(item);
+      localStorage.setItem(EXTRA_CATALOG_KEY, JSON.stringify(list));
+    }
+  };
+  const mergeExtraCatalog = (items: PosCatalogItem[]): PosCatalogItem[] => {
+    const map = new Map<string, PosCatalogItem>();
+    for (const i of items) map.set(i.id, i);
+    for (const i of loadExtraCatalog()) if (!map.has(i.id)) map.set(i.id, i);
+    return Array.from(map.values());
+  };
 
   // ── Online/offline tracking ──
   useEffect(() => {
@@ -415,12 +463,12 @@ export default function CashierPOSWorkspace() {
 
     // catalog
     fetch("/api/department/pos/catalog", { headers: { "x-department-key": token } })
-      .then(async (r) => {
-        const p = await r.json();
-        if (!r.ok || !p.success) throw new Error(p.error || "تعذر تحميل الكتالوج");
-        setMenuItems(p.items ?? []);
-        setStatusMessage(p.items?.length ? `${p.items.length} صنف متاح` : "لا توجد أصناف");
-      })
+        .then(async (r) => {
+          const p = await r.json();
+          if (!r.ok || !p.success) throw new Error(p.error || "تعذر تحميل الكتالوج");
+          setMenuItems(mergeExtraCatalog(p.items ?? []));
+          setStatusMessage(p.items?.length ? `${p.items.length} صنف متاح` : "لا توجد أصناف");
+        })
       .catch((e) => setStatusMessage(e instanceof Error ? e.message : "خطأ في التحميل"));
 
     // held orders
@@ -668,17 +716,22 @@ export default function CashierPOSWorkspace() {
         body: JSON.stringify({
           name: newItem.name.trim(),
           price: parseFloat(newItem.price) || 0,
+          cost: parseFloat(newItem.cost) || 0,
           category: newItem.category.trim() || undefined,
+          unit: newItem.unit.trim() || undefined,
           taxRate: parseFloat(newItem.taxRate) || 0,
           barcode: newItem.barcode.trim() || undefined,
+          linkInventory,
         }),
       });
       const p = await r.json();
       if (!r.ok || !p.success) throw new Error(p.error || "تعذر إضافة الصنف");
-      setMenuItems((prev) => [...prev, p.item]);
-      handleAddToCart(p.item);
+      const fullItem: PosCatalogItem = { ...p.item, modifierGroups: [] };
+      saveExtraCatalog(fullItem);
+      setMenuItems((prev) => [...prev, fullItem]);
+      handleAddToCart(fullItem);
       setShowAddItem(false);
-      setNewItem({ name: "", price: "", category: "", taxRate: "", barcode: "" });
+      setNewItem({ name: "", price: "", cost: "", category: "", taxRate: "", unit: "", barcode: "" });
       setStatusMessage(`✓ أُضيف الصنف ${p.item.name}`);
     } catch (e) {
       setAddItemError(e instanceof Error ? e.message : "تعذر إضافة الصنف");
@@ -2025,64 +2078,88 @@ export default function CashierPOSWorkspace() {
       {/* ═══════════ ADD DISH MODAL ═══════════ */}
       {showAddItem && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 print:hidden">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
-            <div className="bg-[#3d3d6b] text-white px-5 py-4 flex items-center justify-between">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[92vh] flex flex-col overflow-hidden">
+            <div className="bg-[#3d3d6b] text-white px-5 py-4 flex items-center justify-between shrink-0">
               <h2 className="font-bold text-base flex items-center gap-2"><ChefHat className="h-5 w-5" /> إضافة طبق جديد</h2>
               <button onClick={() => setShowAddItem(false)} className="hover:bg-white/20 p-1 rounded transition-colors">
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="p-5 space-y-3">
+            <div className="p-5 space-y-3 overflow-y-auto">
               <div>
-                <label className="text-xs text-gray-500 mb-1 block font-medium">اسم الطبق *</label>
+                <label className="text-xs text-gray-600 mb-1 block font-medium">اسم الطبق *</label>
                 <input
                   autoFocus type="text" value={newItem.name}
                   onChange={(e) => setNewItem((v) => ({ ...v, name: e.target.value }))}
                   placeholder="شاورما دجاج كبير..."
-                  className="w-full h-11 border-2 border-gray-200 rounded-xl px-3 text-right text-sm focus:outline-none focus:border-[#3d3d6b] transition-colors"
+                  className="w-full h-11 border-2 border-gray-200 rounded-xl px-3 text-right text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:border-[#3d3d6b] transition-colors"
                 />
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-xs text-gray-500 mb-1 block font-medium">السعر ({cur}) *</label>
+                  <label className="text-xs text-gray-600 mb-1 block font-medium">سعر البيع ({cur}) *</label>
                   <input
                     type="number" inputMode="decimal" value={newItem.price}
                     onChange={(e) => setNewItem((v) => ({ ...v, price: e.target.value }))}
                     placeholder="0.00"
-                    className="w-full h-11 border-2 border-gray-200 rounded-xl px-3 text-right text-sm font-bold focus:outline-none focus:border-[#3d3d6b] transition-colors"
+                    className="w-full h-11 border-2 border-gray-200 rounded-xl px-3 text-right text-sm font-bold text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:border-[#3d3d6b] transition-colors"
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500 mb-1 block font-medium">الضريبة %</label>
+                  <label className="text-xs text-gray-600 mb-1 block font-medium">التكلفة ({cur})</label>
+                  <input
+                    type="number" inputMode="decimal" value={newItem.cost}
+                    onChange={(e) => setNewItem((v) => ({ ...v, cost: e.target.value }))}
+                    placeholder="0.00"
+                    className="w-full h-11 border-2 border-gray-200 rounded-xl px-3 text-right text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:border-[#3d3d6b] transition-colors"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs text-gray-600 mb-1 block font-medium">الضريبة %</label>
                   <input
                     type="number" inputMode="decimal" value={newItem.taxRate}
                     onChange={(e) => setNewItem((v) => ({ ...v, taxRate: e.target.value }))}
                     placeholder="0"
-                    className="w-full h-11 border-2 border-gray-200 rounded-xl px-3 text-right text-sm focus:outline-none focus:border-[#3d3d6b] transition-colors"
+                    className="w-full h-11 border-2 border-gray-200 rounded-xl px-3 text-right text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:border-[#3d3d6b] transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-600 mb-1 block font-medium">الوحدة</label>
+                  <input
+                    type="text" value={newItem.unit}
+                    onChange={(e) => setNewItem((v) => ({ ...v, unit: e.target.value }))}
+                    placeholder="قطعة / حبة..."
+                    className="w-full h-11 border-2 border-gray-200 rounded-xl px-3 text-right text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:border-[#3d3d6b] transition-colors"
                   />
                 </div>
               </div>
               <div>
-                <label className="text-xs text-gray-500 mb-1 block font-medium">التصنيف</label>
+                <label className="text-xs text-gray-600 mb-1 block font-medium">التصنيف</label>
                 <input
                   type="text" value={newItem.category} list="pos-categories"
                   onChange={(e) => setNewItem((v) => ({ ...v, category: e.target.value }))}
                   placeholder="وجبات، مشروبات..."
-                  className="w-full h-11 border-2 border-gray-200 rounded-xl px-3 text-right text-sm focus:outline-none focus:border-[#3d3d6b] transition-colors"
+                  className="w-full h-11 border-2 border-gray-200 rounded-xl px-3 text-right text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:border-[#3d3d6b] transition-colors"
                 />
                 <datalist id="pos-categories">
                   {categories.filter((c) => c !== "الكل").map((c) => <option key={c} value={c} />)}
                 </datalist>
               </div>
               <div>
-                <label className="text-xs text-gray-500 mb-1 block font-medium">باركود (اختياري)</label>
+                <label className="text-xs text-gray-600 mb-1 block font-medium">باركود (اختياري)</label>
                 <input
                   type="text" value={newItem.barcode}
                   onChange={(e) => setNewItem((v) => ({ ...v, barcode: e.target.value }))}
                   placeholder="امسح أو اكتب الباركود"
-                  className="w-full h-11 border-2 border-gray-200 rounded-xl px-3 text-right text-sm focus:outline-none focus:border-[#3d3d6b] transition-colors"
+                  className="w-full h-11 border-2 border-gray-200 rounded-xl px-3 text-right text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:border-[#3d3d6b] transition-colors"
                 />
               </div>
+              <label className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 cursor-pointer">
+                <span className="text-xs text-gray-700 font-medium">ربط الصنف بالمخزن (يظهر في المخزون ويبقى دائمًا)</span>
+                <input type="checkbox" checked={linkInventory} onChange={(e) => setLinkInventory(e.target.checked)} className="h-4 w-4 accent-[#00a650]" />
+              </label>
               {addItemError && <p className="text-xs text-red-600 bg-red-50 rounded-lg p-2.5">{addItemError}</p>}
               <div className="grid grid-cols-2 gap-2 pt-1">
                 <button
@@ -2099,7 +2176,7 @@ export default function CashierPOSWorkspace() {
                   {addItemBusy ? <RotateCcw className="h-4 w-4 animate-spin" /> : <><Plus className="h-4 w-4" /> إضافة وبيع</>}
                 </button>
               </div>
-              <p className="text-[10px] text-gray-400 text-center">يُحفظ الطبق في الكتالوج ويُضاف للسلة مباشرة</p>
+              <p className="text-[10px] text-gray-400 text-center">يُحفظ الطبق في الكتالوج ويُربط بالمخزن ويُضاف للسلة مباشرة</p>
             </div>
           </div>
         </div>
@@ -2198,6 +2275,28 @@ export default function CashierPOSWorkspace() {
                 <div className="flex flex-col md:flex-row">
                   {/* Design controls */}
                   <div className="flex-1 p-5 space-y-4">
+                    {/* قوالب الفاتورة */}
+                    <div>
+                      <p className="text-xs text-gray-500 mb-2 font-medium">قالب الفاتورة</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        {([
+                          ["classic", "كلاسيكي", "حراري بسيط"],
+                          ["modern", "عصري", "بشريط لوني"],
+                          ["restaurant", "مطعم", "إطار فاخر"],
+                        ] as Array<[ReceiptDesign["template"], string, string]>).map(([tpl, label, desc]) => (
+                          <button
+                            key={tpl}
+                            onClick={() => updateDesign({ template: tpl })}
+                            className={`rounded-xl border-2 p-2 text-right transition-all ${design.template === tpl ? "border-[#3d3d6b] bg-[#3d3d6b]/5" : "border-gray-200 hover:border-[#3d3d6b]/40"}`}
+                          >
+                            <div className={`h-8 rounded mb-1 ${tpl === "modern" ? "bg-gradient-to-r from-[#3d3d6b] to-[#00a650]" : tpl === "restaurant" ? "border-2 border-[#3d3d6b]" : "bg-gray-200"}`} />
+                            <p className="text-xs font-bold text-gray-800">{label}</p>
+                            <p className="text-[9px] text-gray-400">{desc}</p>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="text-xs text-gray-500 mb-1 block font-medium">حجم الخط ({design.fontSize}px)</label>
@@ -2220,6 +2319,25 @@ export default function CashierPOSWorkspace() {
                         </div>
                       </div>
                     </div>
+
+                    {/* اللون المميز */}
+                    <div>
+                      <label className="text-xs text-gray-500 mb-1 block font-medium">اللون المميز</label>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <input
+                          type="color" value={design.accentColor}
+                          onChange={(e) => updateDesign({ accentColor: e.target.value })}
+                          className="h-9 w-12 rounded border border-gray-200 cursor-pointer bg-white"
+                        />
+                        {["#3d3d6b", "#00a650", "#e11d48", "#ea580c", "#0ea5e9", "#111827"].map((c) => (
+                          <button key={c} onClick={() => updateDesign({ accentColor: c })}
+                            className={`h-7 w-7 rounded-full border-2 ${design.accentColor === c ? "border-gray-900" : "border-white shadow"}`}
+                            style={{ background: c }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="text-xs text-gray-500 mb-1 block font-medium">شعار / رمز أعلى الفاتورة</label>
@@ -2242,16 +2360,38 @@ export default function CashierPOSWorkspace() {
                         </div>
                       </div>
                     </div>
-                    <div>
-                      <label className="text-xs text-gray-500 mb-1 block font-medium">محاذاة رأس الفاتورة</label>
-                      <div className="flex gap-1 bg-gray-100 rounded-lg p-1 max-w-[200px]">
-                        {(["center", "right"] as const).map((a) => (
-                          <button key={a} onClick={() => updateDesign({ headerAlign: a })}
-                            className={`flex-1 h-8 rounded-md text-xs font-semibold transition-colors ${design.headerAlign === a ? "bg-[#3d3d6b] text-white" : "text-gray-500"}`}>
-                            {a === "center" ? "وسط" : "يمين"}
-                          </button>
-                        ))}
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs text-gray-500 mb-1 block font-medium">محاذاة الرأس</label>
+                        <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+                          {(["center", "right"] as const).map((a) => (
+                            <button key={a} onClick={() => updateDesign({ headerAlign: a })}
+                              className={`flex-1 h-8 rounded-md text-xs font-semibold transition-colors ${design.headerAlign === a ? "bg-[#3d3d6b] text-white" : "text-gray-500"}`}>
+                              {a === "center" ? "وسط" : "يمين"}
+                            </button>
+                          ))}
+                        </div>
                       </div>
+                      <div>
+                        <label className="text-xs text-gray-500 mb-1 block font-medium">ترويسة مخصصة</label>
+                        <input
+                          type="text" value={design.headerText}
+                          onChange={(e) => updateDesign({ headerText: e.target.value })}
+                          placeholder="أهلاً بكم في مطعمنا"
+                          className="w-full h-10 border border-gray-200 rounded-lg px-3 text-right text-sm focus:outline-none focus:ring-1 focus:ring-[#3d3d6b]/40"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-xs text-gray-500 mb-1 block font-medium">تذييل مخصص أسفل الفاتورة</label>
+                      <input
+                        type="text" value={design.footerText}
+                        onChange={(e) => updateDesign({ footerText: e.target.value })}
+                        placeholder="شكرًا لزيارتكم — نتطلع لخدمتكم"
+                        className="w-full h-10 border border-gray-200 rounded-lg px-3 text-right text-sm focus:outline-none focus:ring-1 focus:ring-[#3d3d6b]/40"
+                      />
                     </div>
 
                     {/* Show/hide toggles */}
@@ -2259,15 +2399,21 @@ export default function CashierPOSWorkspace() {
                       <p className="text-xs text-gray-500 mb-2 font-medium">عناصر الفاتورة (إظهار / إخفاء)</p>
                       <div className="grid grid-cols-2 gap-1.5">
                         {([
+                          ["showLogo", "الشعار/الرمز"],
+                          ["showStoreName", "اسم المتجر"],
                           ["showStoreAddress", "عنوان المتجر"],
                           ["showTaxNumber", "الرقم الضريبي"],
                           ["showCashier", "اسم الكاشير"],
                           ["showCustomer", "اسم العميل"],
                           ["showOrderType", "نوع الطلب"],
+                          ["showTable", "رقم الطاولة"],
+                          ["showTime", "الوقت/التاريخ"],
                           ["showItemNotes", "ملاحظات الأصناف"],
                           ["showDiscounts", "تفاصيل الخصومات"],
                           ["showPayments", "تفاصيل الدفع"],
                           ["showChange", "المستلم والباقي"],
+                          ["showQR", "رمز QR"],
+                          ["showBarcode", "الباركود"],
                           ["boldTotal", "إجمالي بخط عريض"],
                         ] as Array<[keyof ReceiptDesign, string]>).map(([key, label]) => (
                           <button
@@ -2297,7 +2443,7 @@ export default function CashierPOSWorkspace() {
                     </div>
 
                     <div className="flex items-center justify-between pt-1">
-                      <p className="text-[10px] text-gray-400">يُحفظ التصميم تلقائيًا على هذا الجهاز</p>
+                      <p className="text-[10px] text-gray-400">يُحفظ التصميم تلقائيًا على هذا الجهاز وينطبق على كل الفواتير</p>
                       <button
                         onClick={() => { localStorage.removeItem("rwq_receipt_design"); setDesign(DEFAULT_DESIGN); }}
                         className="text-xs text-red-400 hover:text-red-600"
@@ -2308,47 +2454,68 @@ export default function CashierPOSWorkspace() {
                   </div>
 
                   {/* Live preview */}
-                  <div className="md:w-72 shrink-0 bg-gray-100 p-4 flex flex-col items-center border-t md:border-t-0 md:border-r border-gray-200">
+                  <div className="md:w-80 shrink-0 bg-gray-100 p-4 flex flex-col items-center border-t md:border-t-0 md:border-r border-gray-200">
                     <p className="text-xs text-gray-500 font-semibold mb-3 flex items-center gap-1"><Printer className="h-3.5 w-3.5" /> معاينة حية</p>
                     <div
                       dir="rtl"
-                      className="bg-white shadow-md rounded-sm p-3 w-full max-w-[240px] text-black overflow-hidden"
-                      style={{ fontSize: `${design.fontSize}px`, fontFamily: design.font === "mono" ? "monospace" : "inherit", lineHeight: 1.5 }}
+                      className={`bg-white shadow-md p-3 w-full max-w-[240px] text-black overflow-hidden ${
+                        design.template === "restaurant" ? "border-2 rounded-lg" : design.template === "modern" ? "rounded-xl" : "rounded-sm"
+                      }`}
+                      style={{
+                        fontSize: `${design.fontSize}px`,
+                        fontFamily: design.font === "mono" ? "monospace" : "inherit",
+                        lineHeight: 1.5,
+                        borderColor: design.template === "restaurant" ? design.accentColor : undefined,
+                      }}
                     >
+                      {design.template === "modern" && (
+                        <div style={{ height: 6, background: design.accentColor, borderRadius: 4, marginBottom: 8 }} />
+                      )}
                       <div style={{ textAlign: design.headerAlign }}>
-                        {design.logoText && <div style={{ fontSize: `${design.fontSize + 6}px` }}>{design.logoText}</div>}
-                        <div className="font-bold" style={{ fontSize: `${design.fontSize + 3}px` }}>{settings.storeName}</div>
+                        {design.showLogo && design.logoText && <div style={{ fontSize: `${design.fontSize + 8}px` }}>{design.logoText}</div>}
+                        {design.showStoreName && <div className="font-bold" style={{ fontSize: `${design.fontSize + 3}px`, color: design.accentColor }}>{settings.storeName}</div>}
                         {design.showStoreAddress && <div>{settings.storeAddress || "العنوان هنا"}</div>}
                         {design.showTaxNumber && <div>الرقم الضريبي: {settings.taxNumber || "123456"}</div>}
-                        {settings.receiptHeader && <div>{settings.receiptHeader}</div>}
+                        {design.headerText && <div>{design.headerText}</div>}
                       </div>
-                      <div style={{ borderTop: SEPARATOR_STYLE[design.separator], margin: "6px 0", paddingTop: "6px" }}>
+                      <div style={{ ...sepStyle(design.accentColor, design.separator), margin: "6px 0", paddingTop: "6px" }}>
                         <div className="flex justify-between"><span>الفاتورة:</span><span>POS-000123</span></div>
+                        {design.showTime && <div className="flex justify-between"><span>التاريخ:</span><span>2026-07-07</span></div>}
                         {design.showCashier && <div className="flex justify-between"><span>الكاشير:</span><span>{device.name}</span></div>}
                         {design.showCustomer && <div className="flex justify-between"><span>العميل:</span><span>عميل سريع</span></div>}
                         {design.showOrderType && <div className="flex justify-between"><span>النوع:</span><span>سفري</span></div>}
+                        {design.showTable && <div className="flex justify-between"><span>الطاولة:</span><span>12</span></div>}
                       </div>
-                      <div style={{ borderTop: SEPARATOR_STYLE[design.separator], margin: "6px 0", paddingTop: "6px" }}>
+                      <div style={{ ...sepStyle(design.accentColor, design.separator), margin: "6px 0", paddingTop: "6px" }}>
                         <div className="flex justify-between"><span>شاورما x2</span><span>{cur} 30.00</span></div>
+                        <div className="flex justify-between" style={{ fontSize: `${Math.max(9, design.fontSize - 2)}px` }}><span> كبير +</span><span>{cur} 8.00</span></div>
                         {design.showItemNotes && <div style={{ fontSize: `${Math.max(9, design.fontSize - 2)}px` }}> * بدون بصل</div>}
                         <div className="flex justify-between"><span>عصير x1</span><span>{cur} 8.00</span></div>
                       </div>
-                      <div style={{ borderTop: SEPARATOR_STYLE[design.separator], margin: "6px 0", paddingTop: "6px" }}>
-                        <div className="flex justify-between"><span>المجموع:</span><span>{cur} 38.00</span></div>
+                      <div style={{ ...sepStyle(design.accentColor, design.separator), margin: "6px 0", paddingTop: "6px" }}>
+                        <div className="flex justify-between"><span>المجموع الفرعي:</span><span>{cur} 46.00</span></div>
                         {design.showDiscounts && <div className="flex justify-between"><span>الخصم:</span><span>- {cur} 3.00</span></div>}
-                        <div className={`flex justify-between ${design.boldTotal ? "font-black" : ""}`} style={design.boldTotal ? { fontSize: `${design.fontSize + 2}px` } : undefined}>
-                          <span>الإجمالي:</span><span>{cur} 35.00</span>
+                        <div className={`flex justify-between ${design.boldTotal ? "font-black" : ""}`} style={design.boldTotal ? { fontSize: `${design.fontSize + 2}px`, color: design.accentColor } : undefined}>
+                          <span>الإجمالي:</span><span>{cur} 43.00</span>
                         </div>
-                        {design.showPayments && <div className="flex justify-between"><span>نقدي:</span><span>{cur} 35.00</span></div>}
+                        {design.showPayments && <div className="flex justify-between"><span>نقدي:</span><span>{cur} 50.00</span></div>}
                         {design.showChange && (
                           <>
                             <div className="flex justify-between"><span>المستلم:</span><span>{cur} 50.00</span></div>
-                            <div className="flex justify-between"><span>الباقي:</span><span>{cur} 15.00</span></div>
+                            <div className="flex justify-between"><span>الباقي:</span><span>{cur} 7.00</span></div>
                           </>
                         )}
                       </div>
-                      <div style={{ borderTop: SEPARATOR_STYLE[design.separator], marginTop: "6px", paddingTop: "6px", textAlign: "center" }}>
-                        <div>{settings.receiptFooter}</div>
+                      {design.showQR && (
+                        <div style={{ marginTop: 6, textAlign: "center" }}>
+                          <div style={{ width: 56, height: 56, margin: "0 auto", border: `2px solid ${design.accentColor}`, borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8 }}>QR</div>
+                        </div>
+                      )}
+                      {design.showBarcode && (
+                        <div style={{ marginTop: 4, textAlign: "center", fontFamily: "monospace", letterSpacing: 1 }}>||·|||·||·|</div>
+                      )}
+                      <div style={{ ...sepStyle(design.accentColor, design.separator), marginTop: "6px", paddingTop: "6px", textAlign: "center" }}>
+                        <div>{design.footerText || settings.receiptFooter}</div>
                         {design.extraFooter && <div>{design.extraFooter}</div>}
                       </div>
                     </div>
@@ -2480,27 +2647,31 @@ export default function CashierPOSWorkspace() {
         }}
       >
         {lastReceipt && (() => {
-          const sep = { borderTop: SEPARATOR_STYLE[design.separator], paddingTop: "6px", marginTop: "6px" };
+          const accent = design.accentColor;
+          const sep = { ...sepStyle(accent, design.separator), paddingTop: "6px", marginTop: "6px" };
           const small = { fontSize: `${Math.max(9, design.fontSize - 2)}px` };
           return (
-            <div>
+            <div style={{ border: design.template === "restaurant" ? `2px solid ${accent}` : undefined, borderRadius: design.template === "modern" ? 8 : 0, padding: design.template === "restaurant" ? 4 : 0 }}>
+              {design.template === "modern" && (
+                <div style={{ height: 6, background: accent, borderRadius: 4, marginBottom: 8 }} />
+              )}
               <div style={{ textAlign: design.headerAlign }} className="mb-2">
-                {design.logoText && <p style={{ fontSize: `${design.fontSize + 8}px` }}>{design.logoText}</p>}
-                <p className="font-bold" style={{ fontSize: `${design.fontSize + 4}px` }}>{settings.storeName}</p>
+                {design.showLogo && design.logoText && <p style={{ fontSize: `${design.fontSize + 8}px` }}>{design.logoText}</p>}
+                {design.showStoreName && <p className="font-bold" style={{ fontSize: `${design.fontSize + 4}px`, color: accent }}>{settings.storeName}</p>}
                 {design.showStoreAddress && settings.storeAddress && <p>{settings.storeAddress}</p>}
                 {design.showTaxNumber && settings.taxNumber && <p>الرقم الضريبي: {settings.taxNumber}</p>}
-                {settings.receiptHeader && <p>{settings.receiptHeader}</p>}
+                {(design.headerText || settings.receiptHeader) && <p>{design.headerText || settings.receiptHeader}</p>}
                 <p style={small}>فاتورة ضريبية مبسطة</p>
               </div>
               <div style={sep} className="space-y-0.5 mb-2">
                 <div className="flex justify-between"><span>رقم الفاتورة:</span><span>{lastReceipt.invoiceNumber}</span></div>
-                <div className="flex justify-between"><span>التاريخ:</span><span>{lastReceipt.date}</span></div>
+                {design.showTime && <div className="flex justify-between"><span>التاريخ:</span><span>{lastReceipt.date}</span></div>}
                 {design.showCashier && <div className="flex justify-between"><span>الكاشير:</span><span>{lastReceipt.cashier}</span></div>}
                 {design.showCustomer && <div className="flex justify-between"><span>العميل:</span><span>{lastReceipt.customer}</span></div>}
                 {design.showOrderType && (
                   <div className="flex justify-between">
                     <span>نوع الطلب:</span>
-                    <span>{lastReceipt.orderType}{lastReceipt.table ? ` - طاولة ${lastReceipt.table}` : ""}</span>
+                    <span>{lastReceipt.orderType}{design.showTable && lastReceipt.table ? ` - طاولة ${lastReceipt.table}` : ""}</span>
                   </div>
                 )}
               </div>
@@ -2539,7 +2710,7 @@ export default function CashierPOSWorkspace() {
                 {lastReceipt.deliveryFee > 0 && <div className="flex justify-between"><span>رسوم توصيل:</span><span>{cur} {lastReceipt.deliveryFee.toFixed(2)}</span></div>}
                 <div
                   className={`flex justify-between ${design.boldTotal ? "font-bold" : ""}`}
-                  style={{ borderTop: SEPARATOR_STYLE[design.separator], paddingTop: "4px", marginTop: "4px", fontSize: design.boldTotal ? `${design.fontSize + 2}px` : undefined }}
+                  style={{ ...sepStyle(accent, design.separator), paddingTop: "4px", marginTop: "4px", fontSize: design.boldTotal ? `${design.fontSize + 2}px` : undefined, color: design.boldTotal ? accent : undefined }}
                 >
                   <span>الإجمالي:</span><span>{cur} {lastReceipt.total.toFixed(2)}</span>
                 </div>
@@ -2559,8 +2730,16 @@ export default function CashierPOSWorkspace() {
                   </>
                 )}
               </div>
+              {design.showQR && (
+                <div style={{ marginTop: 6, textAlign: "center" }}>
+                  <div style={{ width: 56, height: 56, margin: "0 auto", border: `2px solid ${accent}`, borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8 }}>QR</div>
+                </div>
+              )}
+              {design.showBarcode && (
+                <div style={{ marginTop: 4, textAlign: "center", fontFamily: "monospace", letterSpacing: 1 }}>||·|||·||·|</div>
+              )}
               <div style={{ ...sep, textAlign: "center" }} className="mt-3">
-                <p>{settings.receiptFooter}</p>
+                <p>{design.footerText || settings.receiptFooter}</p>
                 {design.extraFooter && <p>{design.extraFooter}</p>}
               </div>
             </div>
