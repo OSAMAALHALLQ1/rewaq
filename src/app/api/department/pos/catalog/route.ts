@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { authenticateDepartmentDevice } from "@/lib/department/auth";
+import { z } from "zod";
+import { authenticateDepartmentDevice, requireDepartmentDeviceCapability } from "@/lib/department/auth";
 import { demoCatalogItems } from "@/lib/demo-data";
 import { canUseDemoFallback } from "@/lib/supabase/env";
 
@@ -101,5 +102,120 @@ export async function GET(request: Request) {
         : null,
       imageUrl: item.image_url ?? item.image_path ?? null,
     })),
+  });
+}
+
+// ── إنشاء صنف جديد من شاشة الكاشير ──
+const createItemSchema = z.object({
+  name: z.string().trim().min(2, "اسم الصنف مطلوب (حرفان على الأقل)").max(120),
+  price: z.coerce.number().min(0, "السعر يجب أن يكون صفرًا أو أكثر"),
+  category: z.string().trim().max(60).optional(),
+  unit: z.string().trim().max(30).optional(),
+  taxRate: z.coerce.number().min(0).max(100).default(0),
+  barcode: z.string().trim().max(64).optional(),
+});
+
+export async function POST(request: Request) {
+  const auth = await authenticateDepartmentDevice(request, "pos");
+  if (!auth.ok) {
+    return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
+  }
+
+  const cap = requireDepartmentDeviceCapability(auth, "pos_write");
+  if (!cap.ok) {
+    return NextResponse.json({ success: false, error: cap.error }, { status: cap.status });
+  }
+
+  const body = await request.json().catch(() => ({}));
+  const parsed = createItemSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { success: false, error: parsed.error.issues[0]?.message ?? "بيانات الصنف غير صحيحة" },
+      { status: 400 },
+    );
+  }
+
+  const { name, price, category, unit, taxRate, barcode } = parsed.data;
+  const code = `POS-${Date.now().toString(36).toUpperCase()}`;
+
+  if (canUseDemoFallback()) {
+    const demoItem = {
+      id: `catalog-pos-${Date.now()}`,
+      organizationId: auth.device.organizationId,
+      code,
+      name,
+      barcodes: barcode ? [barcode] : [],
+      categoryName: category || "عام",
+      mainUnit: unit || "قطعة",
+      units: [{ name: unit || "قطعة", factor: 1 }],
+      purchasePrice: 0,
+      retailPrice: price,
+      wholesalePrice: price,
+      branchPrice: price,
+      customerPrice: price,
+      minimumQuantity: 0,
+      taxRate,
+      isActive: true,
+    };
+    demoCatalogItems.push(demoItem as any);
+    return NextResponse.json({
+      success: true,
+      item: {
+        id: demoItem.id,
+        code,
+        name,
+        category: demoItem.categoryName,
+        unit: demoItem.mainUnit,
+        price,
+        taxRate,
+        barcodes: demoItem.barcodes,
+        stockQuantity: null,
+        imageUrl: null,
+      },
+    });
+  }
+
+  const { data: created, error } = await auth.admin
+    .from("catalog_items")
+    .insert({
+      organization_id: auth.device.organizationId,
+      branch_id: auth.device.branchId || null,
+      code,
+      name,
+      category_name: category || "عام",
+      main_unit: unit || "قطعة",
+      retail_price: price,
+      tax_rate: taxRate,
+      status: "active",
+    })
+    .select("id, code, name, category_name, main_unit, retail_price, tax_rate")
+    .single();
+
+  if (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+
+  if (barcode) {
+    await auth.admin.from("item_barcodes").insert({
+      organization_id: auth.device.organizationId,
+      catalog_item_id: created.id,
+      barcode,
+    });
+  }
+
+  return NextResponse.json({
+    success: true,
+    item: {
+      id: created.id,
+      code: created.code,
+      name: created.name,
+      category: created.category_name ?? "عام",
+      unit: created.main_unit ?? "قطعة",
+      price: Number(created.retail_price ?? 0),
+      taxRate: Number(created.tax_rate ?? 0),
+      barcodes: barcode ? [barcode] : [],
+      stockQuantity: null,
+      imageUrl: null,
+    },
   });
 }

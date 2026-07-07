@@ -9,7 +9,7 @@ import {
   ShoppingCart, Printer, RotateCcw, PauseCircle, PlayCircle,
   Lock, Unlock, Utensils, ShoppingBag, Bike, Wallet,
   Landmark, Smartphone, AlertTriangle, Receipt, Undo2, StickyNote,
-  Clock, Shield
+  Clock, Shield, Settings as SettingsIcon, ChefHat, Save
 } from "lucide-react";
 
 // ─────────────────── Types ───────────────────
@@ -121,6 +121,51 @@ type PosInvoice = {
 };
 
 type OrderType = "dine_in" | "takeaway" | "delivery";
+
+// تصميم الفاتورة المطبوعة — يُخزن محليًا لكل جهاز كاشير
+type ReceiptDesign = {
+  fontSize: number;                       // 10–16 px
+  font: "mono" | "sans";
+  logoText: string;                       // نص/رمز أعلى الفاتورة
+  headerAlign: "center" | "right";
+  separator: "dashed" | "solid" | "double";
+  showStoreAddress: boolean;
+  showTaxNumber: boolean;
+  showCashier: boolean;
+  showCustomer: boolean;
+  showOrderType: boolean;
+  showItemNotes: boolean;
+  showDiscounts: boolean;
+  showPayments: boolean;
+  showChange: boolean;
+  boldTotal: boolean;
+  extraFooter: string;                    // سطر إضافي أسفل الفاتورة (رقم هاتف، واتساب...)
+};
+
+const DEFAULT_DESIGN: ReceiptDesign = {
+  fontSize: 12,
+  font: "mono",
+  logoText: "",
+  headerAlign: "center",
+  separator: "dashed",
+  showStoreAddress: true,
+  showTaxNumber: true,
+  showCashier: true,
+  showCustomer: true,
+  showOrderType: true,
+  showItemNotes: true,
+  showDiscounts: true,
+  showPayments: true,
+  showChange: true,
+  boldTotal: true,
+  extraFooter: "",
+};
+
+const SEPARATOR_STYLE: Record<ReceiptDesign["separator"], string> = {
+  dashed: "1px dashed #000",
+  solid: "1px solid #000",
+  double: "3px double #000",
+};
 
 const DEFAULT_SETTINGS: PosSettings = {
   storeName: "رواق",
@@ -242,6 +287,20 @@ export default function CashierPOSWorkspace() {
   // ── lock screen ──
   const [locked, setLocked] = useState(false);
 
+  // ── add dish modal ──
+  const [showAddItem, setShowAddItem] = useState(false);
+  const [newItem, setNewItem] = useState({ name: "", price: "", category: "", taxRate: "", barcode: "" });
+  const [addItemBusy, setAddItemBusy] = useState(false);
+  const [addItemError, setAddItemError] = useState("");
+
+  // ── settings modal ──
+  const [showSettings, setShowSettings] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<"design" | "system">("design");
+  const [design, setDesign] = useState<ReceiptDesign>(DEFAULT_DESIGN);
+  const [sysForm, setSysForm] = useState<PosSettings>(DEFAULT_SETTINGS);
+  const [sysBusy, setSysBusy] = useState(false);
+  const [sysMsg, setSysMsg] = useState("");
+
   const isManager = device.role === "manager";
   const cur = settings.currencySymbol;
 
@@ -266,6 +325,8 @@ export default function CashierPOSWorkspace() {
     window.addEventListener("offline", off);
     const q = localStorage.getItem("rwq_pos_queue");
     if (q) { try { setSyncQueue(JSON.parse(q)); } catch { } }
+    const dz = localStorage.getItem("rwq_receipt_design");
+    if (dz) { try { setDesign({ ...DEFAULT_DESIGN, ...JSON.parse(dz) }); } catch { } }
     return () => { window.removeEventListener("online", on); window.removeEventListener("offline", off); };
   }, []);
 
@@ -489,6 +550,78 @@ export default function CashierPOSWorkspace() {
       else setCart((prev) => prev.map((i) => i.id === selectedItemId ? { ...i, qty: q } : i));
     }
     setShowQtyInput(false); setQtyInput("");
+  };
+
+  // ─────────────────── Add dish ───────────────────
+  const handleAddItem = async () => {
+    if (addItemBusy) return;
+    setAddItemBusy(true); setAddItemError("");
+    try {
+      const r = await fetch("/api/department/pos/catalog", {
+        method: "POST",
+        headers: apiHeaders(),
+        body: JSON.stringify({
+          name: newItem.name.trim(),
+          price: parseFloat(newItem.price) || 0,
+          category: newItem.category.trim() || undefined,
+          taxRate: parseFloat(newItem.taxRate) || 0,
+          barcode: newItem.barcode.trim() || undefined,
+        }),
+      });
+      const p = await r.json();
+      if (!r.ok || !p.success) throw new Error(p.error || "تعذر إضافة الصنف");
+      setMenuItems((prev) => [...prev, p.item]);
+      handleAddToCart(p.item);
+      setShowAddItem(false);
+      setNewItem({ name: "", price: "", category: "", taxRate: "", barcode: "" });
+      setStatusMessage(`✓ أُضيف الصنف ${p.item.name}`);
+    } catch (e) {
+      setAddItemError(e instanceof Error ? e.message : "تعذر إضافة الصنف");
+    } finally { setAddItemBusy(false); }
+  };
+
+  // ─────────────────── Settings ───────────────────
+  const updateDesign = (patch: Partial<ReceiptDesign>) => {
+    setDesign((prev) => {
+      const next = { ...prev, ...patch };
+      localStorage.setItem("rwq_receipt_design", JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const openSettings = () => {
+    setSysForm(settings);
+    setSysMsg("");
+    setSettingsTab("design");
+    setShowSettings(true);
+  };
+
+  const saveSystemSettings = async () => {
+    if (sysBusy) return;
+    setSysBusy(true); setSysMsg("");
+    try {
+      const r = await fetch("/api/department/pos/settings", {
+        method: "POST",
+        headers: apiHeaders(),
+        body: JSON.stringify({
+          currency: sysForm.currency,
+          taxRate: sysForm.taxRate,
+          receiptHeader: sysForm.receiptHeader ?? "",
+          receiptFooter: sysForm.receiptFooter,
+          maxCashierDiscount: sysForm.maxCashierDiscount,
+          allowCashierRefund: sysForm.allowCashierRefund,
+          requireShift: sysForm.requireShift,
+          printOnCheckout: sysForm.printOnCheckout,
+          receiptWidth: sysForm.receiptWidth as "58mm" | "80mm",
+        }),
+      });
+      const p = await r.json();
+      if (!r.ok || !p.success) throw new Error(p.error || "تعذر حفظ الإعدادات");
+      setSettings({ ...DEFAULT_SETTINGS, ...p.settings });
+      setSysMsg("✓ تم حفظ إعدادات النظام");
+    } catch (e) {
+      setSysMsg(e instanceof Error ? e.message : "تعذر حفظ الإعدادات");
+    } finally { setSysBusy(false); }
   };
 
   // ─────────────────── Hold orders ───────────────────
@@ -899,6 +1032,9 @@ export default function CashierPOSWorkspace() {
           )}
         </div>
 
+        <button onClick={openSettings} className="w-9 h-9 rounded flex items-center justify-center hover:bg-white/10 transition-colors" title="الإعدادات وتخصيص الفاتورة">
+          <SettingsIcon className="h-4 w-4" />
+        </button>
         <button onClick={() => setLocked(true)} className="w-9 h-9 rounded flex items-center justify-center hover:bg-white/10 transition-colors" title="قفل الشاشة">
           <Lock className="h-4 w-4" />
         </button>
@@ -992,6 +1128,15 @@ export default function CashierPOSWorkspace() {
                 );
               })}
             </div>
+
+            {/* Add dish */}
+            <button
+              onClick={() => { setAddItemError(""); setShowAddItem(true); }}
+              className="h-9 px-3 rounded-lg bg-[#3d3d6b] text-white text-xs font-semibold flex items-center gap-1.5 hover:bg-[#2e2e55] transition-colors shrink-0"
+              title="إضافة طبق جديد للكتالوج"
+            >
+              <ChefHat className="h-4 w-4" /> إضافة طبق
+            </button>
 
             {/* Table name (dine-in) */}
             {orderType === "dine_in" && (
@@ -1760,68 +1905,479 @@ export default function CashierPOSWorkspace() {
         </div>
       )}
 
-      {/* ═══════════ PRINT RECEIPT (hidden) ═══════════ */}
-      <div className="hidden print:block fixed inset-0 bg-white text-black text-right" style={{ width: settings.receiptWidth === "58mm" ? "58mm" : "80mm", padding: "8px", fontSize: "12px", fontFamily: "monospace" }}>
-        {lastReceipt && (
-          <div>
-            <div className="text-center mb-2">
-              <p className="font-bold text-base">{settings.storeName} - نقطة البيع</p>
-              {settings.storeAddress && <p className="text-xs">{settings.storeAddress}</p>}
-              {settings.taxNumber && <p className="text-xs">الرقم الضريبي: {settings.taxNumber}</p>}
-              {settings.receiptHeader && <p className="text-xs">{settings.receiptHeader}</p>}
-              <p className="text-xs">فاتورة ضريبية مبسطة</p>
+      {/* ═══════════ ADD DISH MODAL ═══════════ */}
+      {showAddItem && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 print:hidden">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+            <div className="bg-[#3d3d6b] text-white px-5 py-4 flex items-center justify-between">
+              <h2 className="font-bold text-base flex items-center gap-2"><ChefHat className="h-5 w-5" /> إضافة طبق جديد</h2>
+              <button onClick={() => setShowAddItem(false)} className="hover:bg-white/20 p-1 rounded transition-colors">
+                <X className="h-5 w-5" />
+              </button>
             </div>
-            <div className="border-t border-dashed border-black pt-2 text-xs space-y-0.5 mb-2">
-              <div className="flex justify-between"><span>رقم الفاتورة:</span><span>{lastReceipt.invoiceNumber}</span></div>
-              <div className="flex justify-between"><span>التاريخ:</span><span>{lastReceipt.date}</span></div>
-              <div className="flex justify-between"><span>الكاشير:</span><span>{lastReceipt.cashier}</span></div>
-              <div className="flex justify-between"><span>العميل:</span><span>{lastReceipt.customer}</span></div>
-              <div className="flex justify-between">
-                <span>نوع الطلب:</span>
-                <span>{lastReceipt.orderType}{lastReceipt.table ? ` - طاولة ${lastReceipt.table}` : ""}</span>
+            <div className="p-5 space-y-3">
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block font-medium">اسم الطبق *</label>
+                <input
+                  autoFocus type="text" value={newItem.name}
+                  onChange={(e) => setNewItem((v) => ({ ...v, name: e.target.value }))}
+                  placeholder="شاورما دجاج كبير..."
+                  className="w-full h-11 border-2 border-gray-200 rounded-xl px-3 text-right text-sm focus:outline-none focus:border-[#3d3d6b] transition-colors"
+                />
               </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block font-medium">السعر ({cur}) *</label>
+                  <input
+                    type="number" inputMode="decimal" value={newItem.price}
+                    onChange={(e) => setNewItem((v) => ({ ...v, price: e.target.value }))}
+                    placeholder="0.00"
+                    className="w-full h-11 border-2 border-gray-200 rounded-xl px-3 text-right text-sm font-bold focus:outline-none focus:border-[#3d3d6b] transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block font-medium">الضريبة %</label>
+                  <input
+                    type="number" inputMode="decimal" value={newItem.taxRate}
+                    onChange={(e) => setNewItem((v) => ({ ...v, taxRate: e.target.value }))}
+                    placeholder="0"
+                    className="w-full h-11 border-2 border-gray-200 rounded-xl px-3 text-right text-sm focus:outline-none focus:border-[#3d3d6b] transition-colors"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block font-medium">التصنيف</label>
+                <input
+                  type="text" value={newItem.category} list="pos-categories"
+                  onChange={(e) => setNewItem((v) => ({ ...v, category: e.target.value }))}
+                  placeholder="وجبات، مشروبات..."
+                  className="w-full h-11 border-2 border-gray-200 rounded-xl px-3 text-right text-sm focus:outline-none focus:border-[#3d3d6b] transition-colors"
+                />
+                <datalist id="pos-categories">
+                  {categories.filter((c) => c !== "الكل").map((c) => <option key={c} value={c} />)}
+                </datalist>
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block font-medium">باركود (اختياري)</label>
+                <input
+                  type="text" value={newItem.barcode}
+                  onChange={(e) => setNewItem((v) => ({ ...v, barcode: e.target.value }))}
+                  placeholder="امسح أو اكتب الباركود"
+                  className="w-full h-11 border-2 border-gray-200 rounded-xl px-3 text-right text-sm focus:outline-none focus:border-[#3d3d6b] transition-colors"
+                />
+              </div>
+              {addItemError && <p className="text-xs text-red-600 bg-red-50 rounded-lg p-2.5">{addItemError}</p>}
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <button
+                  onClick={() => setShowAddItem(false)}
+                  className="h-12 rounded-xl border-2 border-gray-200 text-gray-600 text-sm font-semibold hover:bg-gray-50 transition-colors"
+                >
+                  إلغاء
+                </button>
+                <button
+                  onClick={handleAddItem}
+                  disabled={addItemBusy || newItem.name.trim().length < 2 || newItem.price === ""}
+                  className="h-12 rounded-xl bg-[#00a650] hover:bg-[#008a42] disabled:bg-gray-300 text-white text-sm font-bold transition-colors flex items-center justify-center gap-2"
+                >
+                  {addItemBusy ? <RotateCcw className="h-4 w-4 animate-spin" /> : <><Plus className="h-4 w-4" /> إضافة وبيع</>}
+                </button>
+              </div>
+              <p className="text-[10px] text-gray-400 text-center">يُحفظ الطبق في الكتالوج ويُضاف للسلة مباشرة</p>
             </div>
-            <div className="border-t border-dashed border-black pt-2 mb-2">
-              {lastReceipt.items.map((item: any, i: number) => (
-                <div key={i} className="py-0.5">
-                  <div className="flex justify-between text-xs">
-                    <span>{item.name} x{item.qty}</span>
-                    <span>{cur} {(item.price * item.qty).toFixed(2)}</span>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════ SETTINGS MODAL ═══════════ */}
+      {showSettings && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 print:hidden">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden max-h-[92vh] flex flex-col">
+            <div className="bg-[#3d3d6b] text-white px-5 py-4 flex items-center justify-between shrink-0">
+              <h2 className="font-bold text-base flex items-center gap-2"><SettingsIcon className="h-5 w-5" /> إعدادات نقطة البيع</h2>
+              <button onClick={() => setShowSettings(false)} className="hover:bg-white/20 p-1 rounded transition-colors">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex border-b border-gray-200 shrink-0">
+              <button
+                onClick={() => setSettingsTab("design")}
+                className={`flex-1 h-12 text-sm font-semibold transition-colors ${settingsTab === "design" ? "text-[#3d3d6b] border-b-2 border-[#3d3d6b] bg-[#3d3d6b]/5" : "text-gray-400 hover:text-gray-600"}`}
+              >
+                🧾 تصميم الفاتورة
+              </button>
+              <button
+                onClick={() => setSettingsTab("system")}
+                className={`flex-1 h-12 text-sm font-semibold transition-colors flex items-center justify-center gap-1.5 ${settingsTab === "system" ? "text-[#3d3d6b] border-b-2 border-[#3d3d6b] bg-[#3d3d6b]/5" : "text-gray-400 hover:text-gray-600"}`}
+              >
+                <Shield className="h-4 w-4" /> إعدادات النظام {!isManager && <span className="text-[10px] bg-gray-100 rounded px-1.5 py-0.5">مدير فقط</span>}
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto">
+              {settingsTab === "design" ? (
+                <div className="flex flex-col md:flex-row">
+                  {/* Design controls */}
+                  <div className="flex-1 p-5 space-y-4">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs text-gray-500 mb-1 block font-medium">حجم الخط ({design.fontSize}px)</label>
+                        <input
+                          type="range" min={10} max={16} step={1}
+                          value={design.fontSize}
+                          onChange={(e) => updateDesign({ fontSize: parseInt(e.target.value, 10) })}
+                          className="w-full accent-[#3d3d6b]"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500 mb-1 block font-medium">نوع الخط</label>
+                        <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+                          {(["mono", "sans"] as const).map((f) => (
+                            <button key={f} onClick={() => updateDesign({ font: f })}
+                              className={`flex-1 h-8 rounded-md text-xs font-semibold transition-colors ${design.font === f ? "bg-[#3d3d6b] text-white" : "text-gray-500"}`}>
+                              {f === "mono" ? "طابعة حرارية" : "عادي"}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs text-gray-500 mb-1 block font-medium">شعار / رمز أعلى الفاتورة</label>
+                        <input
+                          type="text" value={design.logoText}
+                          onChange={(e) => updateDesign({ logoText: e.target.value })}
+                          placeholder="🍔 أو نص مختصر"
+                          className="w-full h-10 border border-gray-200 rounded-lg px-3 text-right text-sm focus:outline-none focus:ring-1 focus:ring-[#3d3d6b]/40"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500 mb-1 block font-medium">خط الفصل</label>
+                        <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+                          {(["dashed", "solid", "double"] as const).map((s) => (
+                            <button key={s} onClick={() => updateDesign({ separator: s })}
+                              className={`flex-1 h-8 rounded-md text-xs font-semibold transition-colors ${design.separator === s ? "bg-[#3d3d6b] text-white" : "text-gray-500"}`}>
+                              {s === "dashed" ? "متقطع" : s === "solid" ? "متصل" : "مزدوج"}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 mb-1 block font-medium">محاذاة رأس الفاتورة</label>
+                      <div className="flex gap-1 bg-gray-100 rounded-lg p-1 max-w-[200px]">
+                        {(["center", "right"] as const).map((a) => (
+                          <button key={a} onClick={() => updateDesign({ headerAlign: a })}
+                            className={`flex-1 h-8 rounded-md text-xs font-semibold transition-colors ${design.headerAlign === a ? "bg-[#3d3d6b] text-white" : "text-gray-500"}`}>
+                            {a === "center" ? "وسط" : "يمين"}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Show/hide toggles */}
+                    <div>
+                      <p className="text-xs text-gray-500 mb-2 font-medium">عناصر الفاتورة (إظهار / إخفاء)</p>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {([
+                          ["showStoreAddress", "عنوان المتجر"],
+                          ["showTaxNumber", "الرقم الضريبي"],
+                          ["showCashier", "اسم الكاشير"],
+                          ["showCustomer", "اسم العميل"],
+                          ["showOrderType", "نوع الطلب"],
+                          ["showItemNotes", "ملاحظات الأصناف"],
+                          ["showDiscounts", "تفاصيل الخصومات"],
+                          ["showPayments", "تفاصيل الدفع"],
+                          ["showChange", "المستلم والباقي"],
+                          ["boldTotal", "إجمالي بخط عريض"],
+                        ] as Array<[keyof ReceiptDesign, string]>).map(([key, label]) => (
+                          <button
+                            key={key}
+                            onClick={() => updateDesign({ [key]: !design[key] } as Partial<ReceiptDesign>)}
+                            className={`h-10 rounded-lg border text-xs font-medium transition-colors flex items-center justify-between px-3 ${
+                              design[key] ? "border-[#00a650]/40 bg-[#00a650]/5 text-[#008a42]" : "border-gray-200 text-gray-400"
+                            }`}
+                          >
+                            <span>{label}</span>
+                            <span className={`w-4 h-4 rounded-full flex items-center justify-center ${design[key] ? "bg-[#00a650] text-white" : "bg-gray-200"}`}>
+                              {design[key] && <Check className="h-3 w-3" />}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-xs text-gray-500 mb-1 block font-medium">سطر إضافي أسفل الفاتورة</label>
+                      <input
+                        type="text" value={design.extraFooter}
+                        onChange={(e) => updateDesign({ extraFooter: e.target.value })}
+                        placeholder="للتوصيل: 0599-000000 · واتساب..."
+                        className="w-full h-10 border border-gray-200 rounded-lg px-3 text-right text-sm focus:outline-none focus:ring-1 focus:ring-[#3d3d6b]/40"
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between pt-1">
+                      <p className="text-[10px] text-gray-400">يُحفظ التصميم تلقائيًا على هذا الجهاز</p>
+                      <button
+                        onClick={() => { localStorage.removeItem("rwq_receipt_design"); setDesign(DEFAULT_DESIGN); }}
+                        className="text-xs text-red-400 hover:text-red-600"
+                      >
+                        استعادة الافتراضي
+                      </button>
+                    </div>
                   </div>
-                  {item.discount > 0 && (
-                    <div className="flex justify-between text-[10px]">
-                      <span> خصم {item.discount}%</span>
-                      <span>- {cur} {(item.price * item.qty * item.discount / 100).toFixed(2)}</span>
+
+                  {/* Live preview */}
+                  <div className="md:w-72 shrink-0 bg-gray-100 p-4 flex flex-col items-center border-t md:border-t-0 md:border-r border-gray-200">
+                    <p className="text-xs text-gray-500 font-semibold mb-3 flex items-center gap-1"><Printer className="h-3.5 w-3.5" /> معاينة حية</p>
+                    <div
+                      dir="rtl"
+                      className="bg-white shadow-md rounded-sm p-3 w-full max-w-[240px] text-black overflow-hidden"
+                      style={{ fontSize: `${design.fontSize}px`, fontFamily: design.font === "mono" ? "monospace" : "inherit", lineHeight: 1.5 }}
+                    >
+                      <div style={{ textAlign: design.headerAlign }}>
+                        {design.logoText && <div style={{ fontSize: `${design.fontSize + 6}px` }}>{design.logoText}</div>}
+                        <div className="font-bold" style={{ fontSize: `${design.fontSize + 3}px` }}>{settings.storeName}</div>
+                        {design.showStoreAddress && <div>{settings.storeAddress || "العنوان هنا"}</div>}
+                        {design.showTaxNumber && <div>الرقم الضريبي: {settings.taxNumber || "123456"}</div>}
+                        {settings.receiptHeader && <div>{settings.receiptHeader}</div>}
+                      </div>
+                      <div style={{ borderTop: SEPARATOR_STYLE[design.separator], margin: "6px 0", paddingTop: "6px" }}>
+                        <div className="flex justify-between"><span>الفاتورة:</span><span>POS-000123</span></div>
+                        {design.showCashier && <div className="flex justify-between"><span>الكاشير:</span><span>{device.name}</span></div>}
+                        {design.showCustomer && <div className="flex justify-between"><span>العميل:</span><span>عميل سريع</span></div>}
+                        {design.showOrderType && <div className="flex justify-between"><span>النوع:</span><span>سفري</span></div>}
+                      </div>
+                      <div style={{ borderTop: SEPARATOR_STYLE[design.separator], margin: "6px 0", paddingTop: "6px" }}>
+                        <div className="flex justify-between"><span>شاورما x2</span><span>{cur} 30.00</span></div>
+                        {design.showItemNotes && <div style={{ fontSize: `${Math.max(9, design.fontSize - 2)}px` }}> * بدون بصل</div>}
+                        <div className="flex justify-between"><span>عصير x1</span><span>{cur} 8.00</span></div>
+                      </div>
+                      <div style={{ borderTop: SEPARATOR_STYLE[design.separator], margin: "6px 0", paddingTop: "6px" }}>
+                        <div className="flex justify-between"><span>المجموع:</span><span>{cur} 38.00</span></div>
+                        {design.showDiscounts && <div className="flex justify-between"><span>الخصم:</span><span>- {cur} 3.00</span></div>}
+                        <div className={`flex justify-between ${design.boldTotal ? "font-black" : ""}`} style={design.boldTotal ? { fontSize: `${design.fontSize + 2}px` } : undefined}>
+                          <span>الإجمالي:</span><span>{cur} 35.00</span>
+                        </div>
+                        {design.showPayments && <div className="flex justify-between"><span>نقدي:</span><span>{cur} 35.00</span></div>}
+                        {design.showChange && (
+                          <>
+                            <div className="flex justify-between"><span>المستلم:</span><span>{cur} 50.00</span></div>
+                            <div className="flex justify-between"><span>الباقي:</span><span>{cur} 15.00</span></div>
+                          </>
+                        )}
+                      </div>
+                      <div style={{ borderTop: SEPARATOR_STYLE[design.separator], marginTop: "6px", paddingTop: "6px", textAlign: "center" }}>
+                        <div>{settings.receiptFooter}</div>
+                        {design.extraFooter && <div>{design.extraFooter}</div>}
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-gray-400 mt-2">عرض الورق: {settings.receiptWidth}</p>
+                  </div>
+                </div>
+              ) : (
+                /* System settings tab */
+                <div className="p-5 space-y-4 max-w-lg">
+                  {!isManager && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-700 flex items-center gap-2">
+                      <Shield className="h-4 w-4 shrink-0" />
+                      هذه الإعدادات للعرض فقط — تعديلها يتطلب جهازًا بدور مدير.
                     </div>
                   )}
-                  {item.note && <div className="text-[10px]"> * {item.note}</div>}
+                  <fieldset disabled={!isManager} className="space-y-4 disabled:opacity-60">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs text-gray-500 mb-1 block font-medium">العملة</label>
+                        <select
+                          value={sysForm.currency}
+                          onChange={(e) => setSysForm((v) => ({ ...v, currency: e.target.value }))}
+                          className="w-full h-11 border border-gray-200 rounded-lg px-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#3d3d6b]/40 bg-white"
+                        >
+                          <option value="ILS">شيكل ₪</option>
+                          <option value="USD">دولار $</option>
+                          <option value="JOD">دينار د.أ</option>
+                          <option value="EGP">جنيه ج.م</option>
+                          <option value="SAR">ريال ر.س</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500 mb-1 block font-medium">الضريبة الافتراضية %</label>
+                        <input
+                          type="number" inputMode="decimal" value={sysForm.taxRate}
+                          onChange={(e) => setSysForm((v) => ({ ...v, taxRate: parseFloat(e.target.value) || 0 }))}
+                          className="w-full h-11 border border-gray-200 rounded-lg px-3 text-right text-sm focus:outline-none focus:ring-1 focus:ring-[#3d3d6b]/40"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 mb-1 block font-medium">ترويسة الفاتورة (يطبع أعلى الفاتورة)</label>
+                      <input
+                        type="text" value={sysForm.receiptHeader ?? ""}
+                        onChange={(e) => setSysForm((v) => ({ ...v, receiptHeader: e.target.value }))}
+                        placeholder="أهلاً بكم في مطعمنا"
+                        className="w-full h-11 border border-gray-200 rounded-lg px-3 text-right text-sm focus:outline-none focus:ring-1 focus:ring-[#3d3d6b]/40"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 mb-1 block font-medium">تذييل الفاتورة</label>
+                      <input
+                        type="text" value={sysForm.receiptFooter}
+                        onChange={(e) => setSysForm((v) => ({ ...v, receiptFooter: e.target.value }))}
+                        className="w-full h-11 border border-gray-200 rounded-lg px-3 text-right text-sm focus:outline-none focus:ring-1 focus:ring-[#3d3d6b]/40"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs text-gray-500 mb-1 block font-medium">حد خصم الكاشير %</label>
+                        <input
+                          type="number" inputMode="decimal" value={sysForm.maxCashierDiscount}
+                          onChange={(e) => setSysForm((v) => ({ ...v, maxCashierDiscount: parseFloat(e.target.value) || 0 }))}
+                          className="w-full h-11 border border-gray-200 rounded-lg px-3 text-right text-sm focus:outline-none focus:ring-1 focus:ring-[#3d3d6b]/40"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500 mb-1 block font-medium">عرض ورق الطباعة</label>
+                        <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+                          {(["80mm", "58mm"] as const).map((w) => (
+                            <button key={w} type="button" onClick={() => setSysForm((v) => ({ ...v, receiptWidth: w }))}
+                              className={`flex-1 h-9 rounded-md text-xs font-semibold transition-colors ${sysForm.receiptWidth === w ? "bg-[#3d3d6b] text-white" : "text-gray-500"}`}>
+                              {w}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      {([
+                        ["requireShift", "إلزام فتح وردية قبل البيع"],
+                        ["allowCashierRefund", "السماح للكاشير بالمرتجعات"],
+                        ["printOnCheckout", "طباعة تلقائية بعد الدفع"],
+                      ] as Array<[keyof PosSettings, string]>).map(([key, label]) => (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => setSysForm((v) => ({ ...v, [key]: !v[key] }))}
+                          className={`w-full h-12 rounded-xl border-2 text-sm font-medium transition-colors flex items-center justify-between px-4 ${
+                            sysForm[key] ? "border-[#00a650]/40 bg-[#00a650]/5 text-[#008a42]" : "border-gray-200 text-gray-500"
+                          }`}
+                        >
+                          <span>{label}</span>
+                          <span className={`w-5 h-5 rounded-full flex items-center justify-center ${sysForm[key] ? "bg-[#00a650] text-white" : "bg-gray-200"}`}>
+                            {sysForm[key] === true && <Check className="h-3.5 w-3.5" />}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                    {sysMsg && (
+                      <p className={`text-xs rounded-lg p-2.5 ${sysMsg.startsWith("✓") ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>{sysMsg}</p>
+                    )}
+                    {isManager && (
+                      <button
+                        onClick={saveSystemSettings}
+                        disabled={sysBusy}
+                        className="w-full h-13 min-h-[52px] rounded-xl bg-[#3d3d6b] hover:bg-[#2e2e55] disabled:bg-gray-300 text-white text-sm font-bold transition-colors flex items-center justify-center gap-2"
+                      >
+                        {sysBusy ? <RotateCcw className="h-4 w-4 animate-spin" /> : <><Save className="h-4 w-4" /> حفظ إعدادات النظام</>}
+                      </button>
+                    )}
+                  </fieldset>
                 </div>
-              ))}
-            </div>
-            <div className="border-t border-dashed border-black pt-2 text-xs space-y-0.5">
-              <div className="flex justify-between"><span>المجموع الفرعي:</span><span>{cur} {lastReceipt.subtotal.toFixed(2)}</span></div>
-              {lastReceipt.discount > 0 && <div className="flex justify-between"><span>الخصم:</span><span>- {cur} {lastReceipt.discount.toFixed(2)}</span></div>}
-              {lastReceipt.tax > 0 && <div className="flex justify-between"><span>الضريبة:</span><span>{cur} {lastReceipt.tax.toFixed(2)}</span></div>}
-              {lastReceipt.serviceFee > 0 && <div className="flex justify-between"><span>رسوم خدمة:</span><span>{cur} {lastReceipt.serviceFee.toFixed(2)}</span></div>}
-              {lastReceipt.deliveryFee > 0 && <div className="flex justify-between"><span>رسوم توصيل:</span><span>{cur} {lastReceipt.deliveryFee.toFixed(2)}</span></div>}
-              <div className="flex justify-between font-bold text-sm border-t border-black pt-1 mt-1"><span>الإجمالي:</span><span>{cur} {lastReceipt.total.toFixed(2)}</span></div>
-              {lastReceipt.paymentLines && lastReceipt.paymentLines.length > 1 ? (
-                lastReceipt.paymentLines.map((p: PaymentLine, i: number) => (
-                  <div key={i} className="flex justify-between"><span>{PAY_LABEL[p.method]}:</span><span>{cur} {p.amount.toFixed(2)}</span></div>
-                ))
-              ) : (
-                <div className="flex justify-between mt-1"><span>طريقة الدفع:</span><span>{lastReceipt.method}</span></div>
-              )}
-              {lastReceipt.cashReceived != null && (
-                <>
-                  <div className="flex justify-between"><span>المستلم:</span><span>{cur} {lastReceipt.cashReceived.toFixed(2)}</span></div>
-                  <div className="flex justify-between"><span>الباقي:</span><span>{cur} {Math.max(0, lastReceipt.change ?? 0).toFixed(2)}</span></div>
-                </>
               )}
             </div>
-            <div className="text-center mt-3 text-xs border-t border-dashed border-black pt-2">{settings.receiptFooter}</div>
           </div>
-        )}
+        </div>
+      )}
+
+      {/* ═══════════ PRINT RECEIPT (hidden) ═══════════ */}
+      <div
+        className="hidden print:block fixed inset-0 bg-white text-black text-right"
+        style={{
+          width: settings.receiptWidth === "58mm" ? "58mm" : "80mm",
+          padding: "8px",
+          fontSize: `${design.fontSize}px`,
+          fontFamily: design.font === "mono" ? "monospace" : "inherit",
+          lineHeight: 1.5,
+        }}
+      >
+        {lastReceipt && (() => {
+          const sep = { borderTop: SEPARATOR_STYLE[design.separator], paddingTop: "6px", marginTop: "6px" };
+          const small = { fontSize: `${Math.max(9, design.fontSize - 2)}px` };
+          return (
+            <div>
+              <div style={{ textAlign: design.headerAlign }} className="mb-2">
+                {design.logoText && <p style={{ fontSize: `${design.fontSize + 8}px` }}>{design.logoText}</p>}
+                <p className="font-bold" style={{ fontSize: `${design.fontSize + 4}px` }}>{settings.storeName}</p>
+                {design.showStoreAddress && settings.storeAddress && <p>{settings.storeAddress}</p>}
+                {design.showTaxNumber && settings.taxNumber && <p>الرقم الضريبي: {settings.taxNumber}</p>}
+                {settings.receiptHeader && <p>{settings.receiptHeader}</p>}
+                <p style={small}>فاتورة ضريبية مبسطة</p>
+              </div>
+              <div style={sep} className="space-y-0.5 mb-2">
+                <div className="flex justify-between"><span>رقم الفاتورة:</span><span>{lastReceipt.invoiceNumber}</span></div>
+                <div className="flex justify-between"><span>التاريخ:</span><span>{lastReceipt.date}</span></div>
+                {design.showCashier && <div className="flex justify-between"><span>الكاشير:</span><span>{lastReceipt.cashier}</span></div>}
+                {design.showCustomer && <div className="flex justify-between"><span>العميل:</span><span>{lastReceipt.customer}</span></div>}
+                {design.showOrderType && (
+                  <div className="flex justify-between">
+                    <span>نوع الطلب:</span>
+                    <span>{lastReceipt.orderType}{lastReceipt.table ? ` - طاولة ${lastReceipt.table}` : ""}</span>
+                  </div>
+                )}
+              </div>
+              <div style={sep} className="mb-2">
+                {lastReceipt.items.map((item: any, i: number) => (
+                  <div key={i} className="py-0.5">
+                    <div className="flex justify-between">
+                      <span>{item.name} x{item.qty}</span>
+                      <span>{cur} {(item.price * item.qty).toFixed(2)}</span>
+                    </div>
+                    {design.showDiscounts && item.discount > 0 && (
+                      <div className="flex justify-between" style={small}>
+                        <span> خصم {item.discount}%</span>
+                        <span>- {cur} {(item.price * item.qty * item.discount / 100).toFixed(2)}</span>
+                      </div>
+                    )}
+                    {design.showItemNotes && item.note && <div style={small}> * {item.note}</div>}
+                  </div>
+                ))}
+              </div>
+              <div style={sep} className="space-y-0.5">
+                <div className="flex justify-between"><span>المجموع الفرعي:</span><span>{cur} {lastReceipt.subtotal.toFixed(2)}</span></div>
+                {design.showDiscounts && lastReceipt.discount > 0 && <div className="flex justify-between"><span>الخصم:</span><span>- {cur} {lastReceipt.discount.toFixed(2)}</span></div>}
+                {lastReceipt.tax > 0 && <div className="flex justify-between"><span>الضريبة:</span><span>{cur} {lastReceipt.tax.toFixed(2)}</span></div>}
+                {lastReceipt.serviceFee > 0 && <div className="flex justify-between"><span>رسوم خدمة:</span><span>{cur} {lastReceipt.serviceFee.toFixed(2)}</span></div>}
+                {lastReceipt.deliveryFee > 0 && <div className="flex justify-between"><span>رسوم توصيل:</span><span>{cur} {lastReceipt.deliveryFee.toFixed(2)}</span></div>}
+                <div
+                  className={`flex justify-between ${design.boldTotal ? "font-bold" : ""}`}
+                  style={{ borderTop: SEPARATOR_STYLE[design.separator], paddingTop: "4px", marginTop: "4px", fontSize: design.boldTotal ? `${design.fontSize + 2}px` : undefined }}
+                >
+                  <span>الإجمالي:</span><span>{cur} {lastReceipt.total.toFixed(2)}</span>
+                </div>
+                {design.showPayments && (
+                  lastReceipt.paymentLines && lastReceipt.paymentLines.length > 1 ? (
+                    lastReceipt.paymentLines.map((p: PaymentLine, i: number) => (
+                      <div key={i} className="flex justify-between"><span>{PAY_LABEL[p.method]}:</span><span>{cur} {p.amount.toFixed(2)}</span></div>
+                    ))
+                  ) : (
+                    <div className="flex justify-between mt-1"><span>طريقة الدفع:</span><span>{lastReceipt.method}</span></div>
+                  )
+                )}
+                {design.showChange && lastReceipt.cashReceived != null && (
+                  <>
+                    <div className="flex justify-between"><span>المستلم:</span><span>{cur} {lastReceipt.cashReceived.toFixed(2)}</span></div>
+                    <div className="flex justify-between"><span>الباقي:</span><span>{cur} {Math.max(0, lastReceipt.change ?? 0).toFixed(2)}</span></div>
+                  </>
+                )}
+              </div>
+              <div style={{ ...sep, textAlign: "center" }} className="mt-3">
+                <p>{settings.receiptFooter}</p>
+                {design.extraFooter && <p>{design.extraFooter}</p>}
+              </div>
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
