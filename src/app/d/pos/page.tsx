@@ -9,7 +9,7 @@ import {
   ShoppingCart, Printer, RotateCcw, PauseCircle, PlayCircle,
   Lock, Unlock, Utensils, ShoppingBag, Bike, Wallet,
   Landmark, Smartphone, AlertTriangle, Receipt, Undo2, StickyNote,
-  Clock, Shield, Settings as SettingsIcon, ChefHat, Save
+  Clock, Shield, Settings as SettingsIcon, Save
 } from "lucide-react";
 
 // ─────────────────── Types ───────────────────
@@ -176,7 +176,7 @@ const DEFAULT_DESIGN: ReceiptDesign = {
   fontSize: 12,
   font: "mono",
   logoText: "",
-  accentColor: "#3d3d6b",
+  accentColor: "#1e40af",
   headerAlign: "center",
   separator: "dashed",
   showLogo: false,
@@ -1030,14 +1030,14 @@ export default function CashierPOSWorkspace() {
     return (
       <div dir="rtl" className="h-screen flex items-center justify-center bg-[#f0f2f5] text-gray-900 select-none">
         <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
-          <div className="bg-[#3d3d6b] text-white px-6 py-5">
+          <div className="bg-[#1e40af] text-white px-6 py-5">
             <h1 className="font-bold text-lg flex items-center gap-2"><Clock className="h-5 w-5" /> فتح وردية جديدة</h1>
             <p className="text-xs text-white/60 mt-1">{settings.storeName} · {device.name} · {currentDate}</p>
           </div>
           <div className="p-6 space-y-4">
             {zReport && (
               <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-xs space-y-1.5">
-                <p className="font-bold text-sm text-[#3d3d6b] mb-2 flex items-center gap-1.5"><Receipt className="h-4 w-4" /> ملخص الوردية السابقة (Z)</p>
+                <p className="font-bold text-sm text-[#1e40af] mb-2 flex items-center gap-1.5"><Receipt className="h-4 w-4" /> ملخص الوردية السابقة (Z)</p>
                 <div className="flex justify-between"><span className="text-gray-500">مبيعات نقدية:</span><span className="font-semibold">{cur} {Number(zReport.cashSales ?? 0).toFixed(2)}</span></div>
                 <div className="flex justify-between"><span className="text-gray-500">مبيعات بطاقة:</span><span className="font-semibold">{cur} {Number(zReport.cardSales ?? 0).toFixed(2)}</span></div>
                 <div className="flex justify-between"><span className="text-gray-500">النقدي المتوقع:</span><span className="font-semibold">{cur} {Number(zReport.expectedCash ?? 0).toFixed(2)}</span></div>
@@ -1057,12 +1057,12 @@ export default function CashierPOSWorkspace() {
                 onChange={(e) => setOpeningCash(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleOpenShift()}
                 placeholder="0.00"
-                className="w-full h-14 border-2 border-gray-200 rounded-xl px-4 text-right text-2xl font-bold focus:outline-none focus:border-[#3d3d6b] transition-colors"
+                className="w-full h-14 border-2 border-gray-200 rounded-xl px-4 text-right text-2xl font-bold focus:outline-none focus:border-[#1e40af] transition-colors"
               />
               <div className="grid grid-cols-4 gap-2 mt-2">
                 {[100, 200, 500, 1000].map((v) => (
                   <button key={v} onClick={() => setOpeningCash(String(v))}
-                    className="h-11 border border-gray-200 rounded-lg text-sm font-semibold hover:bg-gray-50 hover:border-[#3d3d6b]/30 transition-colors">
+                    className="h-11 border border-gray-200 rounded-lg text-sm font-semibold hover:bg-gray-50 hover:border-[#1e40af]/30 transition-colors">
                     {cur}{v}
                   </button>
                 ))}
@@ -1072,12 +1072,12 @@ export default function CashierPOSWorkspace() {
             <button
               onClick={handleOpenShift}
               disabled={shiftBusy}
-              className="w-full h-14 rounded-xl bg-[#00a650] hover:bg-[#008a42] disabled:bg-gray-300 text-white text-base font-bold transition-colors flex items-center justify-center gap-2"
+              className="w-full h-14 rounded-xl bg-[#2563eb] hover:bg-[#1d4ed8] disabled:bg-gray-300 text-white text-base font-bold transition-colors flex items-center justify-center gap-2"
             >
               {shiftBusy ? <RotateCcw className="h-5 w-5 animate-spin" /> : <><Unlock className="h-5 w-5" /> فتح الوردية وبدء البيع</>}
             </button>
             <div className="flex items-center justify-between text-xs text-gray-400 pt-1">
-              <button onClick={() => router.push("/dashboard")} className="hover:text-[#3d3d6b] flex items-center gap-1"><Home className="h-3.5 w-3.5" /> الرئيسية</button>
+              <button onClick={() => router.push("/dashboard")} className="hover:text-[#1e40af] flex items-center gap-1"><Home className="h-3.5 w-3.5" /> الرئيسية</button>
               <button onClick={handleLogout} className="hover:text-red-500 flex items-center gap-1"><LogOut className="h-3.5 w-3.5" /> تسجيل خروج</button>
             </div>
           </div>
@@ -1089,7 +1089,7 @@ export default function CashierPOSWorkspace() {
   // ═══════════════════ LOCK SCREEN ═══════════════════
   if (locked) {
     return (
-      <div dir="rtl" className="h-screen flex flex-col items-center justify-center bg-[#3d3d6b] select-none text-white gap-6">
+      <div dir="rtl" className="h-screen flex flex-col items-center justify-center bg-[#1e40af] select-none text-white gap-6">
         <Lock className="h-16 w-16 text-white/40" />
         <div className="text-center">
           <p className="text-xl font-bold">{settings.storeName} — الشاشة مقفلة</p>
@@ -1097,7 +1097,7 @@ export default function CashierPOSWorkspace() {
         </div>
         <button
           onClick={() => setLocked(false)}
-          className="h-14 px-10 rounded-xl bg-white text-[#3d3d6b] font-bold text-base hover:bg-gray-100 transition-colors flex items-center gap-2"
+          className="h-14 px-10 rounded-xl bg-white text-[#1e40af] font-bold text-base hover:bg-gray-100 transition-colors flex items-center gap-2"
         >
           <Unlock className="h-5 w-5" /> فتح الشاشة
         </button>
@@ -1110,7 +1110,7 @@ export default function CashierPOSWorkspace() {
     <div dir="rtl" className="h-screen flex flex-col overflow-hidden bg-[#f0f2f5] text-gray-900 select-none">
 
       {/* ═══════════ TOP HEADER ═══════════ */}
-      <header className="h-14 shrink-0 bg-[#3d3d6b] text-white flex items-center px-3 gap-2 shadow-lg z-20 print:hidden">
+      <header className="h-14 shrink-0 bg-[#1e40af] text-white flex items-center px-3 gap-2 shadow-lg z-20 print:hidden">
         {/* User info */}
         <div className="flex items-center gap-2 min-w-[150px]">
           <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
@@ -1165,7 +1165,7 @@ export default function CashierPOSWorkspace() {
         <div className="flex items-center gap-1">
           <button
             onClick={() => { resetOrder(); setOrderIndex((n) => n + 1); }}
-            className="h-9 w-9 rounded bg-[#00a650] hover:bg-[#008a42] flex items-center justify-center transition-colors"
+            className="h-9 w-9 rounded bg-[#2563eb] hover:bg-[#1d4ed8] flex items-center justify-center transition-colors"
             title="طلب جديد"
           >
             <Plus className="h-4 w-4" />
@@ -1241,7 +1241,7 @@ export default function CashierPOSWorkspace() {
                       </p>
                     </div>
                     {inv.discount > 0 && <span className="text-[10px] text-green-600 bg-green-50 rounded px-1.5 py-0.5">خصم {cur}{inv.discount.toFixed(2)}</span>}
-                    <p className="text-sm font-bold text-[#3d3d6b] shrink-0">{cur} {inv.total.toFixed(2)}</p>
+                    <p className="text-sm font-bold text-[#1e40af] shrink-0">{cur} {inv.total.toFixed(2)}</p>
                     {canRefund && inv.status !== "refunded" && (
                       <button
                         onClick={() => { setRefundTarget(inv); setRefundReason(""); setRefundError(""); }}
@@ -1272,7 +1272,7 @@ export default function CashierPOSWorkspace() {
                 placeholder="بحث بالاسم أو الكود أو الباركود..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full h-9 bg-gray-100 border border-gray-200 rounded-lg pr-8 pl-3 text-sm text-right focus:outline-none focus:ring-1 focus:ring-[#3d3d6b]/40 focus:bg-white transition-colors"
+                className="w-full h-9 bg-gray-100 border border-gray-200 rounded-lg pr-8 pl-3 text-sm text-right focus:outline-none focus:ring-1 focus:ring-[#1e40af]/40 focus:bg-white transition-colors"
               />
             </div>
 
@@ -1285,7 +1285,7 @@ export default function CashierPOSWorkspace() {
                     key={t.id}
                     onClick={() => setOrderType(t.id)}
                     className={`h-8 px-3 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-colors ${
-                      orderType === t.id ? "bg-[#3d3d6b] text-white shadow-sm" : "text-gray-500 hover:text-gray-700"
+                      orderType === t.id ? "bg-[#1e40af] text-white shadow-sm" : "text-gray-500 hover:text-gray-700"
                     }`}
                   >
                     <Icon className="h-3.5 w-3.5" /> {t.label}
@@ -1297,10 +1297,10 @@ export default function CashierPOSWorkspace() {
             {/* Add dish */}
             <button
               onClick={() => { setAddItemError(""); setShowAddItem(true); }}
-              className="h-9 px-3 rounded-lg bg-[#3d3d6b] text-white text-xs font-semibold flex items-center gap-1.5 hover:bg-[#2e2e55] transition-colors shrink-0"
-              title="إضافة طبق جديد للكتالوج"
+              className="h-9 px-3 rounded-lg bg-[#1e40af] text-white text-xs font-semibold flex items-center gap-1.5 hover:bg-[#1e3a8a] transition-colors shrink-0"
+              title="إضافة صنف جديد للكتالوج"
             >
-              <ChefHat className="h-4 w-4" /> إضافة طبق
+              <Plus className="h-4 w-4" /> إضافة صنف
             </button>
 
             {/* Table name (dine-in) */}
@@ -1310,7 +1310,7 @@ export default function CashierPOSWorkspace() {
                 placeholder="رقم الطاولة"
                 value={tableName}
                 onChange={(e) => setTableName(e.target.value)}
-                className="w-24 h-9 bg-gray-100 border border-gray-200 rounded-lg px-2 text-sm text-center focus:outline-none focus:ring-1 focus:ring-[#3d3d6b]/40"
+                className="w-24 h-9 bg-gray-100 border border-gray-200 rounded-lg px-2 text-sm text-center focus:outline-none focus:ring-1 focus:ring-[#1e40af]/40"
               />
             )}
 
@@ -1318,13 +1318,13 @@ export default function CashierPOSWorkspace() {
             <div className="flex items-center gap-0.5 bg-gray-100 rounded-lg p-0.5 mr-auto">
               <button
                 onClick={() => setViewMode("grid")}
-                className={`w-8 h-8 rounded flex items-center justify-center transition-colors ${viewMode === "grid" ? "bg-white shadow-sm text-[#3d3d6b]" : "text-gray-400 hover:text-gray-600"}`}
+                className={`w-8 h-8 rounded flex items-center justify-center transition-colors ${viewMode === "grid" ? "bg-white shadow-sm text-[#1e40af]" : "text-gray-400 hover:text-gray-600"}`}
               >
                 <svg viewBox="0 0 16 16" className="h-3.5 w-3.5 fill-current"><rect x="1" y="1" width="6" height="6" rx="1" /><rect x="9" y="1" width="6" height="6" rx="1" /><rect x="1" y="9" width="6" height="6" rx="1" /><rect x="9" y="9" width="6" height="6" rx="1" /></svg>
               </button>
               <button
                 onClick={() => setViewMode("list")}
-                className={`w-8 h-8 rounded flex items-center justify-center transition-colors ${viewMode === "list" ? "bg-white shadow-sm text-[#3d3d6b]" : "text-gray-400 hover:text-gray-600"}`}
+                className={`w-8 h-8 rounded flex items-center justify-center transition-colors ${viewMode === "list" ? "bg-white shadow-sm text-[#1e40af]" : "text-gray-400 hover:text-gray-600"}`}
               >
                 <svg viewBox="0 0 16 16" className="h-3.5 w-3.5 fill-current"><rect x="1" y="2" width="14" height="2.5" rx="1" /><rect x="1" y="6.75" width="14" height="2.5" rx="1" /><rect x="1" y="11.5" width="14" height="2.5" rx="1" /></svg>
               </button>
@@ -1342,7 +1342,7 @@ export default function CashierPOSWorkspace() {
                   onClick={() => setActiveCategory(cat)}
                   className={`mx-1.5 px-2 py-3 rounded-lg text-xs font-medium text-center transition-all ${
                     activeCategory === cat
-                      ? "bg-[#3d3d6b] text-white shadow-sm"
+                      ? "bg-[#1e40af] text-white shadow-sm"
                       : "text-gray-600 hover:bg-gray-100"
                   }`}
                 >
@@ -1368,20 +1368,20 @@ export default function CashierPOSWorkspace() {
                         key={item.id}
                         onClick={() => handleAddToCart(item)}
                         className={`group relative bg-white rounded-lg border-2 transition-all text-right p-0 overflow-hidden shadow-sm hover:shadow-md active:scale-95 ${
-                          inCart ? "border-[#3d3d6b]" : "border-gray-100 hover:border-[#3d3d6b]/40"
+                          inCart ? "border-[#1e40af]" : "border-gray-100 hover:border-[#1e40af]/40"
                         }`}
                       >
-                        <div className="h-20 bg-gradient-to-br from-[#3d3d6b]/5 to-[#3d3d6b]/10 flex items-center justify-center">
-                          <div className="w-10 h-10 rounded-full bg-[#3d3d6b]/10 flex items-center justify-center">
-                            <Tag className="h-5 w-5 text-[#3d3d6b]/50" />
+                        <div className="h-20 bg-gradient-to-br from-[#1e40af]/5 to-[#1e40af]/10 flex items-center justify-center">
+                          <div className="w-10 h-10 rounded-full bg-[#1e40af]/10 flex items-center justify-center">
+                            <Tag className="h-5 w-5 text-[#1e40af]/50" />
                           </div>
                         </div>
                         <div className="p-2">
                           <p className="text-xs font-semibold text-gray-800 line-clamp-2 leading-tight mb-1">{item.name}</p>
-                          <p className="text-[11px] font-bold text-[#3d3d6b]">{cur} {item.price.toFixed(2)}</p>
+                          <p className="text-[11px] font-bold text-[#1e40af]">{cur} {item.price.toFixed(2)}</p>
                         </div>
                         {inCart && (
-                          <div className="absolute top-1.5 left-1.5 w-5 h-5 bg-[#3d3d6b] rounded-full flex items-center justify-center">
+                          <div className="absolute top-1.5 left-1.5 w-5 h-5 bg-[#1e40af] rounded-full flex items-center justify-center">
                             <span className="text-white text-[9px] font-bold">{inCart.qty}</span>
                           </div>
                         )}
@@ -1403,18 +1403,18 @@ export default function CashierPOSWorkspace() {
                         key={item.id}
                         onClick={() => handleAddToCart(item)}
                         className={`w-full flex items-center gap-3 bg-white rounded-lg border-2 p-2.5 text-right transition-all hover:shadow-sm active:scale-[0.99] ${
-                          inCart ? "border-[#3d3d6b]" : "border-gray-100 hover:border-[#3d3d6b]/40"
+                          inCart ? "border-[#1e40af]" : "border-gray-100 hover:border-[#1e40af]/40"
                         }`}
                       >
-                        <div className="w-9 h-9 rounded-lg bg-[#3d3d6b]/8 flex items-center justify-center shrink-0">
-                          <Tag className="h-4 w-4 text-[#3d3d6b]/40" />
+                        <div className="w-9 h-9 rounded-lg bg-[#1e40af]/8 flex items-center justify-center shrink-0">
+                          <Tag className="h-4 w-4 text-[#1e40af]/40" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-semibold text-gray-800 truncate">{item.name}</p>
                           <p className="text-[10px] text-gray-400">{item.category} · {item.code}</p>
                         </div>
                         <div className="text-right shrink-0">
-                          <p className="text-sm font-bold text-[#3d3d6b]">{cur} {item.price.toFixed(2)}</p>
+                          <p className="text-sm font-bold text-[#1e40af]">{cur} {item.price.toFixed(2)}</p>
                           {inCart && <p className="text-[10px] text-gray-400">x{inCart.qty}</p>}
                         </div>
                       </button>
@@ -1438,23 +1438,23 @@ export default function CashierPOSWorkspace() {
                       onChange={(e) => setCustomerName(e.target.value)}
                       onBlur={() => setShowCustomerInput(false)}
                       onKeyDown={(e) => e.key === "Enter" && setShowCustomerInput(false)}
-                      className="flex-1 text-sm border border-[#3d3d6b]/30 rounded px-2 py-2 focus:outline-none focus:ring-1 focus:ring-[#3d3d6b]/40"
+                      className="flex-1 text-sm border border-[#1e40af]/30 rounded px-2 py-2 focus:outline-none focus:ring-1 focus:ring-[#1e40af]/40"
                     />
-                    <button onClick={() => setShowCustomerInput(false)} className="text-[#3d3d6b]"><Check className="h-4 w-4" /></button>
+                    <button onClick={() => setShowCustomerInput(false)} className="text-[#1e40af]"><Check className="h-4 w-4" /></button>
                   </div>
                 ) : (
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => setShowCustomerInput(true)}
-                      className="flex items-center gap-2 text-xs text-gray-500 hover:text-[#3d3d6b] transition-colors group flex-1 min-w-0"
+                      className="flex items-center gap-2 text-xs text-gray-500 hover:text-[#1e40af] transition-colors group flex-1 min-w-0"
                     >
                       <User className="h-3.5 w-3.5 shrink-0" />
                       <span className="truncate">{customerName}</span>
-                      <span className="text-[10px] text-gray-300 group-hover:text-[#3d3d6b]/50">تعديل</span>
+                      <span className="text-[10px] text-gray-300 group-hover:text-[#1e40af]/50">تعديل</span>
                     </button>
                     <button
                       onClick={() => { setShowNotesInput((v) => !v); }}
-                      className={`h-7 px-2 rounded text-[10px] flex items-center gap-1 transition-colors ${orderNotes ? "bg-amber-50 text-amber-600" : "text-gray-400 hover:text-[#3d3d6b]"}`}
+                      className={`h-7 px-2 rounded text-[10px] flex items-center gap-1 transition-colors ${orderNotes ? "bg-amber-50 text-amber-600" : "text-gray-400 hover:text-[#1e40af]"}`}
                       title="ملاحظة على الطلب"
                     >
                       <StickyNote className="h-3.5 w-3.5" /> {orderNotes ? "ملاحظة ✓" : "ملاحظة"}
@@ -1503,7 +1503,7 @@ export default function CashierPOSWorkspace() {
                       key={item.id}
                       onClick={() => setSelectedItemId(item.id)}
                       className={`px-3 py-2.5 border-b border-gray-50 cursor-pointer transition-colors ${
-                        selectedItemId === item.id ? "bg-[#3d3d6b]/5 border-r-2 border-r-[#3d3d6b]" : "hover:bg-gray-50"
+                        selectedItemId === item.id ? "bg-[#1e40af]/5 border-r-2 border-r-[#1e40af]" : "hover:bg-gray-50"
                       }`}
                     >
                       <div className="flex items-start justify-between gap-2">
@@ -1516,7 +1516,7 @@ export default function CashierPOSWorkspace() {
                             <p className="text-[10px] text-amber-600 truncate">📝 {item.note}</p>
                           )}
                           {item.selectedModifiers.length > 0 && (
-                            <p className="text-[10px] text-[#3d3d6b]/70 truncate">
+                            <p className="text-[10px] text-[#1e40af]/70 truncate">
                               {item.selectedModifiers.map((m) => m.name).join(" + ")}
                             </p>
                           )}
@@ -1526,7 +1526,7 @@ export default function CashierPOSWorkspace() {
                           </p>
                         </div>
                         <div className="text-left shrink-0">
-                          <p className="text-xs font-bold text-[#3d3d6b]">{cur} {itemNet(item).toFixed(2)}</p>
+                          <p className="text-xs font-bold text-[#1e40af]">{cur} {itemNet(item).toFixed(2)}</p>
                         </div>
                       </div>
 
@@ -1589,7 +1589,7 @@ export default function CashierPOSWorkspace() {
                   onClick={() => setShowFeesInput((v) => !v)}
                   disabled={cart.length === 0}
                   className={`flex-1 h-10 rounded-lg border text-xs transition-colors font-medium disabled:opacity-30 ${
-                    serviceFee > 0 || deliveryFee > 0 ? "border-[#3d3d6b]/40 bg-[#3d3d6b]/5 text-[#3d3d6b]" : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
+                    serviceFee > 0 || deliveryFee > 0 ? "border-[#1e40af]/40 bg-[#1e40af]/5 text-[#1e40af]" : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
                   }`}
                 >
                   رسوم
@@ -1604,9 +1604,9 @@ export default function CashierPOSWorkspace() {
                     value={discountInput}
                     onChange={(e) => setDiscountInput(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter") applyItemDiscount(); if (e.key === "Escape") setShowDiscountInput(false); }}
-                    className="flex-1 h-10 text-sm border border-[#3d3d6b]/30 rounded-lg px-2 focus:outline-none focus:ring-1 focus:ring-[#3d3d6b]/40 text-right"
+                    className="flex-1 h-10 text-sm border border-[#1e40af]/30 rounded-lg px-2 focus:outline-none focus:ring-1 focus:ring-[#1e40af]/40 text-right"
                   />
-                  <button onClick={applyItemDiscount} className="h-10 px-4 bg-[#3d3d6b] text-white text-xs rounded-lg hover:bg-[#2e2e55]">تطبيق</button>
+                  <button onClick={applyItemDiscount} className="h-10 px-4 bg-[#1e40af] text-white text-xs rounded-lg hover:bg-[#1e3a8a]">تطبيق</button>
                   <button onClick={() => setShowDiscountInput(false)} className="h-10 w-10 flex items-center justify-center text-gray-400 hover:text-gray-600"><X className="h-4 w-4" /></button>
                 </div>
               )}
@@ -1617,9 +1617,9 @@ export default function CashierPOSWorkspace() {
                     value={orderDiscountInput}
                     onChange={(e) => setOrderDiscountInput(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter") applyOrderDiscount(); if (e.key === "Escape") setShowOrderDiscount(false); }}
-                    className="flex-1 h-10 text-sm border border-[#3d3d6b]/30 rounded-lg px-2 focus:outline-none focus:ring-1 focus:ring-[#3d3d6b]/40 text-right"
+                    className="flex-1 h-10 text-sm border border-[#1e40af]/30 rounded-lg px-2 focus:outline-none focus:ring-1 focus:ring-[#1e40af]/40 text-right"
                   />
-                  <button onClick={applyOrderDiscount} className="h-10 px-4 bg-[#3d3d6b] text-white text-xs rounded-lg hover:bg-[#2e2e55]">تطبيق</button>
+                  <button onClick={applyOrderDiscount} className="h-10 px-4 bg-[#1e40af] text-white text-xs rounded-lg hover:bg-[#1e3a8a]">تطبيق</button>
                   <button onClick={() => setShowOrderDiscount(false)} className="h-10 w-10 flex items-center justify-center text-gray-400 hover:text-gray-600"><X className="h-4 w-4" /></button>
                 </div>
               )}
@@ -1643,9 +1643,9 @@ export default function CashierPOSWorkspace() {
                     value={qtyInput}
                     onChange={(e) => setQtyInput(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter") applyQty(); if (e.key === "Escape") setShowQtyInput(false); }}
-                    className="flex-1 h-10 text-sm border border-[#3d3d6b]/30 rounded-lg px-2 focus:outline-none focus:ring-1 focus:ring-[#3d3d6b]/40 text-right"
+                    className="flex-1 h-10 text-sm border border-[#1e40af]/30 rounded-lg px-2 focus:outline-none focus:ring-1 focus:ring-[#1e40af]/40 text-right"
                   />
-                  <button onClick={applyQty} className="h-10 px-4 bg-[#3d3d6b] text-white text-xs rounded-lg hover:bg-[#2e2e55]">تطبيق</button>
+                  <button onClick={applyQty} className="h-10 px-4 bg-[#1e40af] text-white text-xs rounded-lg hover:bg-[#1e3a8a]">تطبيق</button>
                   <button onClick={() => setShowQtyInput(false)} className="h-10 w-10 flex items-center justify-center text-gray-400 hover:text-gray-600"><X className="h-4 w-4" /></button>
                 </div>
               )}
@@ -1657,7 +1657,7 @@ export default function CashierPOSWorkspace() {
                       type="number" inputMode="decimal" value={serviceFee || ""}
                       onChange={(e) => setServiceFee(Math.max(0, parseFloat(e.target.value) || 0))}
                       placeholder="0.00"
-                      className="flex-1 h-9 text-sm border border-gray-200 rounded-lg px-2 focus:outline-none focus:ring-1 focus:ring-[#3d3d6b]/40 text-right"
+                      className="flex-1 h-9 text-sm border border-gray-200 rounded-lg px-2 focus:outline-none focus:ring-1 focus:ring-[#1e40af]/40 text-right"
                     />
                   </div>
                   <div className="flex items-center gap-2">
@@ -1666,9 +1666,9 @@ export default function CashierPOSWorkspace() {
                       type="number" inputMode="decimal" value={deliveryFee || ""}
                       onChange={(e) => setDeliveryFee(Math.max(0, parseFloat(e.target.value) || 0))}
                       placeholder="0.00"
-                      className="flex-1 h-9 text-sm border border-gray-200 rounded-lg px-2 focus:outline-none focus:ring-1 focus:ring-[#3d3d6b]/40 text-right"
+                      className="flex-1 h-9 text-sm border border-gray-200 rounded-lg px-2 focus:outline-none focus:ring-1 focus:ring-[#1e40af]/40 text-right"
                     />
-                    <button onClick={() => setShowFeesInput(false)} className="h-9 px-3 bg-[#3d3d6b] text-white text-xs rounded-lg hover:bg-[#2e2e55]">تم</button>
+                    <button onClick={() => setShowFeesInput(false)} className="h-9 px-3 bg-[#1e40af] text-white text-xs rounded-lg hover:bg-[#1e3a8a]">تم</button>
                   </div>
                 </div>
               )}
@@ -1713,7 +1713,7 @@ export default function CashierPOSWorkspace() {
                 )}
                 <div className="flex justify-between items-center pt-1 border-t border-gray-100">
                   <span className="text-xs text-gray-600 font-semibold">الإجمالي:</span>
-                  <span className="font-black text-[#3d3d6b] text-lg">{cur} {total.toFixed(2)}</span>
+                  <span className="font-black text-[#1e40af] text-lg">{cur} {total.toFixed(2)}</span>
                 </div>
               </div>
 
@@ -1730,7 +1730,7 @@ export default function CashierPOSWorkspace() {
                 <button
                   onClick={openPayment}
                   disabled={cart.length === 0 || checkoutBusy}
-                  className="col-span-3 h-14 rounded-xl bg-[#00a650] hover:bg-[#008a42] disabled:bg-gray-300 text-white font-bold text-lg transition-colors flex items-center justify-center gap-2 active:scale-[0.99]"
+                  className="col-span-3 h-14 rounded-xl bg-[#2563eb] hover:bg-[#1d4ed8] disabled:bg-gray-300 text-white font-bold text-lg transition-colors flex items-center justify-center gap-2 active:scale-[0.99]"
                 >
                   {checkoutBusy ? (
                     <RotateCcw className="h-5 w-5 animate-spin" />
@@ -1752,12 +1752,12 @@ export default function CashierPOSWorkspace() {
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 print:hidden">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden max-h-[92vh] flex flex-col">
             {/* Modal header */}
-            <div className="bg-[#3d3d6b] text-white px-5 py-4 flex items-center justify-between shrink-0">
+            <div className="bg-[#1e40af] text-white px-5 py-4 flex items-center justify-between shrink-0">
               <h2 className="font-bold text-base">إتمام عملية الدفع</h2>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => { setSplitMode((v) => !v); setPayments([]); setPayAmount(""); }}
-                  className={`h-8 px-3 rounded-lg text-xs font-semibold transition-colors ${splitMode ? "bg-white text-[#3d3d6b]" : "bg-white/15 hover:bg-white/25"}`}
+                  className={`h-8 px-3 rounded-lg text-xs font-semibold transition-colors ${splitMode ? "bg-white text-[#1e40af]" : "bg-white/15 hover:bg-white/25"}`}
                 >
                   دفع مجزأ
                 </button>
@@ -1769,9 +1769,9 @@ export default function CashierPOSWorkspace() {
 
             <div className="p-5 space-y-4 overflow-y-auto">
               {/* Total */}
-              <div className="bg-[#3d3d6b]/5 rounded-xl p-4 text-center">
+              <div className="bg-[#1e40af]/5 rounded-xl p-4 text-center">
                 <p className="text-xs text-gray-500 mb-1">المبلغ الإجمالي</p>
-                <p className="text-3xl font-black text-[#3d3d6b]">{cur} {total.toFixed(2)}</p>
+                <p className="text-3xl font-black text-[#1e40af]">{cur} {total.toFixed(2)}</p>
                 <p className="text-xs text-gray-400 mt-1">{cart.length} صنف · {customerName}</p>
                 {splitMode && (
                   <p className={`text-sm font-bold mt-2 ${remaining > 0 ? "text-amber-600" : "text-green-600"}`}>
@@ -1790,8 +1790,8 @@ export default function CashierPOSWorkspace() {
                       onClick={() => setPayMethod(m.id)}
                       className={`h-14 rounded-xl border-2 flex flex-col items-center justify-center gap-1 text-xs font-semibold transition-all ${
                         payMethod === m.id
-                          ? "border-[#3d3d6b] bg-[#3d3d6b] text-white"
-                          : "border-gray-200 text-gray-600 hover:border-[#3d3d6b]/40"
+                          ? "border-[#1e40af] bg-[#1e40af] text-white"
+                          : "border-gray-200 text-gray-600 hover:border-[#1e40af]/40"
                       }`}
                     >
                       <Icon className="h-4 w-4" /> {m.label}
@@ -1810,7 +1810,7 @@ export default function CashierPOSWorkspace() {
                       onChange={(e) => setPayAmount(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && addPaymentLine()}
                       placeholder={`المبلغ (متبقي ${remaining.toFixed(2)})`}
-                      className="flex-1 h-12 border-2 border-gray-200 rounded-xl px-3 text-right text-base font-bold focus:outline-none focus:border-[#3d3d6b] transition-colors"
+                      className="flex-1 h-12 border-2 border-gray-200 rounded-xl px-3 text-right text-base font-bold focus:outline-none focus:border-[#1e40af] transition-colors"
                     />
                     <button
                       onClick={() => setPayAmount(String(remaining))}
@@ -1821,7 +1821,7 @@ export default function CashierPOSWorkspace() {
                     <button
                       onClick={addPaymentLine}
                       disabled={(parseFloat(payAmount) || 0) <= 0 || remaining <= 0}
-                      className="h-12 w-12 rounded-xl bg-[#3d3d6b] text-white flex items-center justify-center disabled:bg-gray-300"
+                      className="h-12 w-12 rounded-xl bg-[#1e40af] text-white flex items-center justify-center disabled:bg-gray-300"
                     >
                       <Plus className="h-5 w-5" />
                     </button>
@@ -1832,7 +1832,7 @@ export default function CashierPOSWorkspace() {
                         <div key={p.method} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2.5 text-sm">
                           <span className="font-medium text-gray-700">{PAY_LABEL[p.method]}</span>
                           <div className="flex items-center gap-2">
-                            <span className="font-bold text-[#3d3d6b]">{cur} {p.amount.toFixed(2)}</span>
+                            <span className="font-bold text-[#1e40af]">{cur} {p.amount.toFixed(2)}</span>
                             <button onClick={() => removePaymentLine(p.method)} className="text-red-400 hover:text-red-600"><X className="h-4 w-4" /></button>
                           </div>
                         </div>
@@ -1849,7 +1849,7 @@ export default function CashierPOSWorkspace() {
                     value={cashReceived}
                     onChange={(e) => setCashReceived(e.target.value)}
                     placeholder="0.00"
-                    className="w-full h-12 border-2 border-gray-200 rounded-xl px-3 text-right text-lg font-bold focus:outline-none focus:border-[#3d3d6b] transition-colors"
+                    className="w-full h-12 border-2 border-gray-200 rounded-xl px-3 text-right text-lg font-bold focus:outline-none focus:border-[#1e40af] transition-colors"
                   />
                   {cashReceivedNum > 0 && (
                     <div className={`mt-2 p-3 rounded-lg text-center text-base font-bold ${change >= 0 ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>
@@ -1862,7 +1862,7 @@ export default function CashierPOSWorkspace() {
                       <button
                         key={v}
                         onClick={() => setCashReceived(String(v))}
-                        className="h-11 border border-gray-200 rounded-lg text-sm font-semibold hover:bg-gray-50 hover:border-[#3d3d6b]/30 transition-colors"
+                        className="h-11 border border-gray-200 rounded-lg text-sm font-semibold hover:bg-gray-50 hover:border-[#1e40af]/30 transition-colors"
                       >
                         {cur}{v}
                       </button>
@@ -1896,7 +1896,7 @@ export default function CashierPOSWorkspace() {
                   (splitMode ? (remaining > 0.009 || payments.length === 0)
                     : (payMethod === "cash" && cashReceivedNum > 0 && change < 0))
                 }
-                className="h-13 min-h-[52px] rounded-xl bg-[#00a650] hover:bg-[#008a42] disabled:bg-gray-300 text-white text-sm font-bold transition-colors flex items-center justify-center gap-2"
+                className="h-13 min-h-[52px] rounded-xl bg-[#2563eb] hover:bg-[#1d4ed8] disabled:bg-gray-300 text-white text-sm font-bold transition-colors flex items-center justify-center gap-2"
               >
                 {checkoutBusy ? <RotateCcw className="h-4 w-4 animate-spin" /> : <><Printer className="h-4 w-4" /> تأكيد وطباعة</>}
               </button>
@@ -1927,7 +1927,7 @@ export default function CashierPOSWorkspace() {
                     <div key={o.id} className="border border-gray-200 rounded-xl p-3 hover:border-amber-300 transition-colors">
                       <div className="flex items-center justify-between mb-1.5">
                         <p className="text-sm font-bold text-gray-800">{o.customerName}</p>
-                        <p className="text-sm font-bold text-[#3d3d6b]">{cur} {o.total.toFixed(2)}</p>
+                        <p className="text-sm font-bold text-[#1e40af]">{cur} {o.total.toFixed(2)}</p>
                       </div>
                       <p className="text-[11px] text-gray-400 mb-2">
                         {o.itemCount} صنف · {new Date(o.heldAt).toLocaleTimeString("ar-PS", { hour: "2-digit", minute: "2-digit" })}
@@ -1936,7 +1936,7 @@ export default function CashierPOSWorkspace() {
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => recallHeld(o)}
-                          className="flex-1 h-10 rounded-lg bg-[#3d3d6b] text-white text-xs font-bold hover:bg-[#2e2e55] flex items-center justify-center gap-1.5 transition-colors"
+                          className="flex-1 h-10 rounded-lg bg-[#1e40af] text-white text-xs font-bold hover:bg-[#1e3a8a] flex items-center justify-center gap-1.5 transition-colors"
                         >
                           <PlayCircle className="h-4 w-4" /> استرجاع
                         </button>
@@ -1960,7 +1960,7 @@ export default function CashierPOSWorkspace() {
       {closeShiftModal && shift && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 print:hidden">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden max-h-[90vh] flex flex-col">
-            <div className="bg-[#3d3d6b] text-white px-5 py-4 flex items-center justify-between shrink-0">
+            <div className="bg-[#1e40af] text-white px-5 py-4 flex items-center justify-between shrink-0">
               <h2 className="font-bold text-base flex items-center gap-2"><Clock className="h-5 w-5" /> إغلاق الوردية</h2>
               <button onClick={() => setCloseShiftModal(false)} className="hover:bg-white/20 p-1 rounded transition-colors">
                 <X className="h-5 w-5" />
@@ -1973,7 +1973,7 @@ export default function CashierPOSWorkspace() {
                 <div className="flex justify-between"><span className="text-gray-500">رصيد افتتاحي:</span><span className="font-semibold">{cur} {shift.openingCash.toFixed(2)}</span></div>
                 <div className="flex justify-between"><span className="text-gray-500">مبيعات نقدية:</span><span className="font-semibold">{cur} {shift.cashSales.toFixed(2)}</span></div>
                 <div className="flex justify-between"><span className="text-gray-500">مبيعات بطاقة:</span><span className="font-semibold">{cur} {shift.cardSales.toFixed(2)}</span></div>
-                <div className="flex justify-between font-bold border-t border-gray-200 pt-1.5 mt-1 text-[#3d3d6b]">
+                <div className="flex justify-between font-bold border-t border-gray-200 pt-1.5 mt-1 text-[#1e40af]">
                   <span>النقدي المتوقع بالدرج:</span><span>{cur} {shift.expectedCash.toFixed(2)}</span>
                 </div>
               </div>
@@ -1985,7 +1985,7 @@ export default function CashierPOSWorkspace() {
                   value={actualCash}
                   onChange={(e) => setActualCash(e.target.value)}
                   placeholder="0.00"
-                  className="w-full h-13 min-h-[52px] border-2 border-gray-200 rounded-xl px-4 text-right text-xl font-bold focus:outline-none focus:border-[#3d3d6b] transition-colors"
+                  className="w-full h-13 min-h-[52px] border-2 border-gray-200 rounded-xl px-4 text-right text-xl font-bold focus:outline-none focus:border-[#1e40af] transition-colors"
                 />
                 {actualCash !== "" && (
                   <div className={`mt-2 p-2.5 rounded-lg text-center text-sm font-bold ${
@@ -2000,7 +2000,7 @@ export default function CashierPOSWorkspace() {
                 value={closeNotes}
                 onChange={(e) => setCloseNotes(e.target.value)}
                 placeholder="ملاحظات الإغلاق (اختياري)"
-                className="w-full h-11 border border-gray-200 rounded-xl px-3 text-right text-sm focus:outline-none focus:ring-1 focus:ring-[#3d3d6b]/40"
+                className="w-full h-11 border border-gray-200 rounded-xl px-3 text-right text-sm focus:outline-none focus:ring-1 focus:ring-[#1e40af]/40"
               />
               {shiftError && <p className="text-xs text-red-600 bg-red-50 rounded-lg p-2.5">{shiftError}</p>}
             </div>
@@ -2079,20 +2079,20 @@ export default function CashierPOSWorkspace() {
       {showAddItem && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 print:hidden">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[92vh] flex flex-col overflow-hidden">
-            <div className="bg-[#3d3d6b] text-white px-5 py-4 flex items-center justify-between shrink-0">
-              <h2 className="font-bold text-base flex items-center gap-2"><ChefHat className="h-5 w-5" /> إضافة طبق جديد</h2>
+            <div className="bg-[#1e40af] text-white px-5 py-4 flex items-center justify-between shrink-0">
+              <h2 className="font-bold text-base flex items-center gap-2"><Plus className="h-5 w-5" /> إضافة صنف جديد</h2>
               <button onClick={() => setShowAddItem(false)} className="hover:bg-white/20 p-1 rounded transition-colors">
                 <X className="h-5 w-5" />
               </button>
             </div>
             <div className="p-5 space-y-3 overflow-y-auto">
               <div>
-                <label className="text-xs text-gray-600 mb-1 block font-medium">اسم الطبق *</label>
+                  <label className="text-xs text-gray-600 mb-1 block font-medium">اسم الصنف *</label>
                 <input
                   autoFocus type="text" value={newItem.name}
                   onChange={(e) => setNewItem((v) => ({ ...v, name: e.target.value }))}
-                  placeholder="شاورما دجاج كبير..."
-                  className="w-full h-11 border-2 border-gray-200 rounded-xl px-3 text-right text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:border-[#3d3d6b] transition-colors"
+                  placeholder="منتج جديد..."
+                  className="w-full h-11 border-2 border-gray-200 rounded-xl px-3 text-right text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:border-[#1e40af] transition-colors"
                 />
               </div>
               <div className="grid grid-cols-2 gap-2">
@@ -2102,7 +2102,7 @@ export default function CashierPOSWorkspace() {
                     type="number" inputMode="decimal" value={newItem.price}
                     onChange={(e) => setNewItem((v) => ({ ...v, price: e.target.value }))}
                     placeholder="0.00"
-                    className="w-full h-11 border-2 border-gray-200 rounded-xl px-3 text-right text-sm font-bold text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:border-[#3d3d6b] transition-colors"
+                    className="w-full h-11 border-2 border-gray-200 rounded-xl px-3 text-right text-sm font-bold text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:border-[#1e40af] transition-colors"
                   />
                 </div>
                 <div>
@@ -2111,7 +2111,7 @@ export default function CashierPOSWorkspace() {
                     type="number" inputMode="decimal" value={newItem.cost}
                     onChange={(e) => setNewItem((v) => ({ ...v, cost: e.target.value }))}
                     placeholder="0.00"
-                    className="w-full h-11 border-2 border-gray-200 rounded-xl px-3 text-right text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:border-[#3d3d6b] transition-colors"
+                    className="w-full h-11 border-2 border-gray-200 rounded-xl px-3 text-right text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:border-[#1e40af] transition-colors"
                   />
                 </div>
               </div>
@@ -2122,7 +2122,7 @@ export default function CashierPOSWorkspace() {
                     type="number" inputMode="decimal" value={newItem.taxRate}
                     onChange={(e) => setNewItem((v) => ({ ...v, taxRate: e.target.value }))}
                     placeholder="0"
-                    className="w-full h-11 border-2 border-gray-200 rounded-xl px-3 text-right text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:border-[#3d3d6b] transition-colors"
+                    className="w-full h-11 border-2 border-gray-200 rounded-xl px-3 text-right text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:border-[#1e40af] transition-colors"
                   />
                 </div>
                 <div>
@@ -2131,7 +2131,7 @@ export default function CashierPOSWorkspace() {
                     type="text" value={newItem.unit}
                     onChange={(e) => setNewItem((v) => ({ ...v, unit: e.target.value }))}
                     placeholder="قطعة / حبة..."
-                    className="w-full h-11 border-2 border-gray-200 rounded-xl px-3 text-right text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:border-[#3d3d6b] transition-colors"
+                    className="w-full h-11 border-2 border-gray-200 rounded-xl px-3 text-right text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:border-[#1e40af] transition-colors"
                   />
                 </div>
               </div>
@@ -2140,8 +2140,8 @@ export default function CashierPOSWorkspace() {
                 <input
                   type="text" value={newItem.category} list="pos-categories"
                   onChange={(e) => setNewItem((v) => ({ ...v, category: e.target.value }))}
-                  placeholder="وجبات، مشروبات..."
-                  className="w-full h-11 border-2 border-gray-200 rounded-xl px-3 text-right text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:border-[#3d3d6b] transition-colors"
+                  placeholder="أصناف، مشروبات..."
+                  className="w-full h-11 border-2 border-gray-200 rounded-xl px-3 text-right text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:border-[#1e40af] transition-colors"
                 />
                 <datalist id="pos-categories">
                   {categories.filter((c) => c !== "الكل").map((c) => <option key={c} value={c} />)}
@@ -2153,12 +2153,12 @@ export default function CashierPOSWorkspace() {
                   type="text" value={newItem.barcode}
                   onChange={(e) => setNewItem((v) => ({ ...v, barcode: e.target.value }))}
                   placeholder="امسح أو اكتب الباركود"
-                  className="w-full h-11 border-2 border-gray-200 rounded-xl px-3 text-right text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:border-[#3d3d6b] transition-colors"
+                  className="w-full h-11 border-2 border-gray-200 rounded-xl px-3 text-right text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:border-[#1e40af] transition-colors"
                 />
               </div>
               <label className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 cursor-pointer">
                 <span className="text-xs text-gray-700 font-medium">ربط الصنف بالمخزن (يظهر في المخزون ويبقى دائمًا)</span>
-                <input type="checkbox" checked={linkInventory} onChange={(e) => setLinkInventory(e.target.checked)} className="h-4 w-4 accent-[#00a650]" />
+                <input type="checkbox" checked={linkInventory} onChange={(e) => setLinkInventory(e.target.checked)} className="h-4 w-4 accent-[#2563eb]" />
               </label>
               {addItemError && <p className="text-xs text-red-600 bg-red-50 rounded-lg p-2.5">{addItemError}</p>}
               <div className="grid grid-cols-2 gap-2 pt-1">
@@ -2171,12 +2171,12 @@ export default function CashierPOSWorkspace() {
                 <button
                   onClick={handleAddItem}
                   disabled={addItemBusy || newItem.name.trim().length < 2 || newItem.price === ""}
-                  className="h-12 rounded-xl bg-[#00a650] hover:bg-[#008a42] disabled:bg-gray-300 text-white text-sm font-bold transition-colors flex items-center justify-center gap-2"
+                  className="h-12 rounded-xl bg-[#2563eb] hover:bg-[#1d4ed8] disabled:bg-gray-300 text-white text-sm font-bold transition-colors flex items-center justify-center gap-2"
                 >
                   {addItemBusy ? <RotateCcw className="h-4 w-4 animate-spin" /> : <><Plus className="h-4 w-4" /> إضافة وبيع</>}
                 </button>
               </div>
-              <p className="text-[10px] text-gray-400 text-center">يُحفظ الطبق في الكتالوج ويُربط بالمخزن ويُضاف للسلة مباشرة</p>
+               <p className="text-[10px] text-gray-400 text-center">يُحفظ الصنف في الكتالوج ويُربط بالمخزن ويُضاف للسلة مباشرة</p>
             </div>
           </div>
         </div>
@@ -2186,8 +2186,8 @@ export default function CashierPOSWorkspace() {
       {modifierTarget && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 print:hidden">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden max-h-[92vh] flex flex-col">
-            <div className="bg-[#3d3d6b] text-white px-5 py-4 flex items-center justify-between shrink-0">
-              <h2 className="font-bold text-base flex items-center gap-2"><ChefHat className="h-5 w-5" /> تخصيص {modifierTarget.name}</h2>
+            <div className="bg-[#1e40af] text-white px-5 py-4 flex items-center justify-between shrink-0">
+              <h2 className="font-bold text-base flex items-center gap-2"><Tag className="h-5 w-5" /> تخصيص {modifierTarget.name}</h2>
               <button onClick={() => { setModifierTarget(null); setModifierSelections({}); }} className="hover:bg-white/20 p-1 rounded transition-colors">
                 <X className="h-5 w-5" />
               </button>
@@ -2210,12 +2210,12 @@ export default function CashierPOSWorkspace() {
                           onClick={() => toggleModifierOption(g.id, o.id, g.selectionType === "multiple", g.maxSelect)}
                           className={`h-12 rounded-xl border-2 px-2 text-xs font-semibold flex items-center justify-between transition-all ${
                             selected
-                              ? "border-[#3d3d6b] bg-[#3d3d6b] text-white"
-                              : "border-gray-200 text-gray-700 hover:border-[#3d3d6b]/40"
+                              ? "border-[#1e40af] bg-[#1e40af] text-white"
+                              : "border-gray-200 text-gray-700 hover:border-[#1e40af]/40"
                           }`}
                         >
                           <span className="truncate">{o.name}</span>
-                          {o.priceDelta > 0 && <span className={selected ? "text-white/80" : "text-[#3d3d6b]"}>+{cur}{o.priceDelta.toFixed(2)}</span>}
+                          {o.priceDelta > 0 && <span className={selected ? "text-white/80" : "text-[#1e40af]"}>+{cur}{o.priceDelta.toFixed(2)}</span>}
                         </button>
                       );
                     })}
@@ -2233,7 +2233,7 @@ export default function CashierPOSWorkspace() {
               </button>
               <button
                 onClick={confirmModifiers}
-                className="h-13 min-h-[52px] rounded-xl bg-[#00a650] hover:bg-[#008a42] text-white text-sm font-bold transition-colors flex items-center justify-center gap-1"
+                className="h-13 min-h-[52px] rounded-xl bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-sm font-bold transition-colors flex items-center justify-center gap-1"
               >
                 <Plus className="h-4 w-4" />
                 إضافة · {cur} {(modifierTarget.price + modifierPriceDelta(modifierTarget)).toFixed(2)}
@@ -2247,7 +2247,7 @@ export default function CashierPOSWorkspace() {
       {showSettings && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 print:hidden">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden max-h-[92vh] flex flex-col">
-            <div className="bg-[#3d3d6b] text-white px-5 py-4 flex items-center justify-between shrink-0">
+            <div className="bg-[#1e40af] text-white px-5 py-4 flex items-center justify-between shrink-0">
               <h2 className="font-bold text-base flex items-center gap-2"><SettingsIcon className="h-5 w-5" /> إعدادات نقطة البيع</h2>
               <button onClick={() => setShowSettings(false)} className="hover:bg-white/20 p-1 rounded transition-colors">
                 <X className="h-5 w-5" />
@@ -2258,13 +2258,13 @@ export default function CashierPOSWorkspace() {
             <div className="flex border-b border-gray-200 shrink-0">
               <button
                 onClick={() => setSettingsTab("design")}
-                className={`flex-1 h-12 text-sm font-semibold transition-colors ${settingsTab === "design" ? "text-[#3d3d6b] border-b-2 border-[#3d3d6b] bg-[#3d3d6b]/5" : "text-gray-400 hover:text-gray-600"}`}
+                className={`flex-1 h-12 text-sm font-semibold transition-colors ${settingsTab === "design" ? "text-[#1e40af] border-b-2 border-[#1e40af] bg-[#1e40af]/5" : "text-gray-400 hover:text-gray-600"}`}
               >
                 🧾 تصميم الفاتورة
               </button>
               <button
                 onClick={() => setSettingsTab("system")}
-                className={`flex-1 h-12 text-sm font-semibold transition-colors flex items-center justify-center gap-1.5 ${settingsTab === "system" ? "text-[#3d3d6b] border-b-2 border-[#3d3d6b] bg-[#3d3d6b]/5" : "text-gray-400 hover:text-gray-600"}`}
+                className={`flex-1 h-12 text-sm font-semibold transition-colors flex items-center justify-center gap-1.5 ${settingsTab === "system" ? "text-[#1e40af] border-b-2 border-[#1e40af] bg-[#1e40af]/5" : "text-gray-400 hover:text-gray-600"}`}
               >
                 <Shield className="h-4 w-4" /> إعدادات النظام {!isManager && <span className="text-[10px] bg-gray-100 rounded px-1.5 py-0.5">مدير فقط</span>}
               </button>
@@ -2287,9 +2287,9 @@ export default function CashierPOSWorkspace() {
                           <button
                             key={tpl}
                             onClick={() => updateDesign({ template: tpl })}
-                            className={`rounded-xl border-2 p-2 text-right transition-all ${design.template === tpl ? "border-[#3d3d6b] bg-[#3d3d6b]/5" : "border-gray-200 hover:border-[#3d3d6b]/40"}`}
+                            className={`rounded-xl border-2 p-2 text-right transition-all ${design.template === tpl ? "border-[#1e40af] bg-[#1e40af]/5" : "border-gray-200 hover:border-[#1e40af]/40"}`}
                           >
-                            <div className={`h-8 rounded mb-1 ${tpl === "modern" ? "bg-gradient-to-r from-[#3d3d6b] to-[#00a650]" : tpl === "restaurant" ? "border-2 border-[#3d3d6b]" : "bg-gray-200"}`} />
+                            <div className={`h-8 rounded mb-1 ${tpl === "modern" ? "bg-gradient-to-r from-[#1e40af] to-[#2563eb]" : tpl === "restaurant" ? "border-2 border-[#1e40af]" : "bg-gray-200"}`} />
                             <p className="text-xs font-bold text-gray-800">{label}</p>
                             <p className="text-[9px] text-gray-400">{desc}</p>
                           </button>
@@ -2304,7 +2304,7 @@ export default function CashierPOSWorkspace() {
                           type="range" min={10} max={16} step={1}
                           value={design.fontSize}
                           onChange={(e) => updateDesign({ fontSize: parseInt(e.target.value, 10) })}
-                          className="w-full accent-[#3d3d6b]"
+                          className="w-full accent-[#1e40af]"
                         />
                       </div>
                       <div>
@@ -2312,7 +2312,7 @@ export default function CashierPOSWorkspace() {
                         <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
                           {(["mono", "sans"] as const).map((f) => (
                             <button key={f} onClick={() => updateDesign({ font: f })}
-                              className={`flex-1 h-8 rounded-md text-xs font-semibold transition-colors ${design.font === f ? "bg-[#3d3d6b] text-white" : "text-gray-500"}`}>
+                              className={`flex-1 h-8 rounded-md text-xs font-semibold transition-colors ${design.font === f ? "bg-[#1e40af] text-white" : "text-gray-500"}`}>
                               {f === "mono" ? "طابعة حرارية" : "عادي"}
                             </button>
                           ))}
@@ -2329,7 +2329,7 @@ export default function CashierPOSWorkspace() {
                           onChange={(e) => updateDesign({ accentColor: e.target.value })}
                           className="h-9 w-12 rounded border border-gray-200 cursor-pointer bg-white"
                         />
-                        {["#3d3d6b", "#00a650", "#e11d48", "#ea580c", "#0ea5e9", "#111827"].map((c) => (
+                        {["#1e40af", "#2563eb", "#e11d48", "#ea580c", "#0ea5e9", "#111827"].map((c) => (
                           <button key={c} onClick={() => updateDesign({ accentColor: c })}
                             className={`h-7 w-7 rounded-full border-2 ${design.accentColor === c ? "border-gray-900" : "border-white shadow"}`}
                             style={{ background: c }}
@@ -2345,7 +2345,7 @@ export default function CashierPOSWorkspace() {
                           type="text" value={design.logoText}
                           onChange={(e) => updateDesign({ logoText: e.target.value })}
                           placeholder="🍔 أو نص مختصر"
-                          className="w-full h-10 border border-gray-200 rounded-lg px-3 text-right text-sm focus:outline-none focus:ring-1 focus:ring-[#3d3d6b]/40"
+                          className="w-full h-10 border border-gray-200 rounded-lg px-3 text-right text-sm focus:outline-none focus:ring-1 focus:ring-[#1e40af]/40"
                         />
                       </div>
                       <div>
@@ -2353,7 +2353,7 @@ export default function CashierPOSWorkspace() {
                         <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
                           {(["dashed", "solid", "double"] as const).map((s) => (
                             <button key={s} onClick={() => updateDesign({ separator: s })}
-                              className={`flex-1 h-8 rounded-md text-xs font-semibold transition-colors ${design.separator === s ? "bg-[#3d3d6b] text-white" : "text-gray-500"}`}>
+                              className={`flex-1 h-8 rounded-md text-xs font-semibold transition-colors ${design.separator === s ? "bg-[#1e40af] text-white" : "text-gray-500"}`}>
                               {s === "dashed" ? "متقطع" : s === "solid" ? "متصل" : "مزدوج"}
                             </button>
                           ))}
@@ -2367,7 +2367,7 @@ export default function CashierPOSWorkspace() {
                         <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
                           {(["center", "right"] as const).map((a) => (
                             <button key={a} onClick={() => updateDesign({ headerAlign: a })}
-                              className={`flex-1 h-8 rounded-md text-xs font-semibold transition-colors ${design.headerAlign === a ? "bg-[#3d3d6b] text-white" : "text-gray-500"}`}>
+                              className={`flex-1 h-8 rounded-md text-xs font-semibold transition-colors ${design.headerAlign === a ? "bg-[#1e40af] text-white" : "text-gray-500"}`}>
                               {a === "center" ? "وسط" : "يمين"}
                             </button>
                           ))}
@@ -2379,7 +2379,7 @@ export default function CashierPOSWorkspace() {
                           type="text" value={design.headerText}
                           onChange={(e) => updateDesign({ headerText: e.target.value })}
                           placeholder="أهلاً بكم في مطعمنا"
-                          className="w-full h-10 border border-gray-200 rounded-lg px-3 text-right text-sm focus:outline-none focus:ring-1 focus:ring-[#3d3d6b]/40"
+                          className="w-full h-10 border border-gray-200 rounded-lg px-3 text-right text-sm focus:outline-none focus:ring-1 focus:ring-[#1e40af]/40"
                         />
                       </div>
                     </div>
@@ -2390,7 +2390,7 @@ export default function CashierPOSWorkspace() {
                         type="text" value={design.footerText}
                         onChange={(e) => updateDesign({ footerText: e.target.value })}
                         placeholder="شكرًا لزيارتكم — نتطلع لخدمتكم"
-                        className="w-full h-10 border border-gray-200 rounded-lg px-3 text-right text-sm focus:outline-none focus:ring-1 focus:ring-[#3d3d6b]/40"
+                        className="w-full h-10 border border-gray-200 rounded-lg px-3 text-right text-sm focus:outline-none focus:ring-1 focus:ring-[#1e40af]/40"
                       />
                     </div>
 
@@ -2420,11 +2420,11 @@ export default function CashierPOSWorkspace() {
                             key={key}
                             onClick={() => updateDesign({ [key]: !design[key] } as Partial<ReceiptDesign>)}
                             className={`h-10 rounded-lg border text-xs font-medium transition-colors flex items-center justify-between px-3 ${
-                              design[key] ? "border-[#00a650]/40 bg-[#00a650]/5 text-[#008a42]" : "border-gray-200 text-gray-400"
+                              design[key] ? "border-[#2563eb]/40 bg-[#2563eb]/5 text-[#1d4ed8]" : "border-gray-200 text-gray-400"
                             }`}
                           >
                             <span>{label}</span>
-                            <span className={`w-4 h-4 rounded-full flex items-center justify-center ${design[key] ? "bg-[#00a650] text-white" : "bg-gray-200"}`}>
+                            <span className={`w-4 h-4 rounded-full flex items-center justify-center ${design[key] ? "bg-[#2563eb] text-white" : "bg-gray-200"}`}>
                               {design[key] && <Check className="h-3 w-3" />}
                             </span>
                           </button>
@@ -2438,7 +2438,7 @@ export default function CashierPOSWorkspace() {
                         type="text" value={design.extraFooter}
                         onChange={(e) => updateDesign({ extraFooter: e.target.value })}
                         placeholder="للتوصيل: 0599-000000 · واتساب..."
-                        className="w-full h-10 border border-gray-200 rounded-lg px-3 text-right text-sm focus:outline-none focus:ring-1 focus:ring-[#3d3d6b]/40"
+                        className="w-full h-10 border border-gray-200 rounded-lg px-3 text-right text-sm focus:outline-none focus:ring-1 focus:ring-[#1e40af]/40"
                       />
                     </div>
 
@@ -2487,7 +2487,7 @@ export default function CashierPOSWorkspace() {
                         {design.showTable && <div className="flex justify-between"><span>الطاولة:</span><span>12</span></div>}
                       </div>
                       <div style={{ ...sepStyle(design.accentColor, design.separator), margin: "6px 0", paddingTop: "6px" }}>
-                        <div className="flex justify-between"><span>شاورما x2</span><span>{cur} 30.00</span></div>
+                        <div className="flex justify-between"><span>منتج x2</span><span>{cur} 30.00</span></div>
                         <div className="flex justify-between" style={{ fontSize: `${Math.max(9, design.fontSize - 2)}px` }}><span> كبير +</span><span>{cur} 8.00</span></div>
                         {design.showItemNotes && <div style={{ fontSize: `${Math.max(9, design.fontSize - 2)}px` }}> * بدون بصل</div>}
                         <div className="flex justify-between"><span>عصير x1</span><span>{cur} 8.00</span></div>
@@ -2538,7 +2538,7 @@ export default function CashierPOSWorkspace() {
                         <select
                           value={sysForm.currency}
                           onChange={(e) => setSysForm((v) => ({ ...v, currency: e.target.value }))}
-                          className="w-full h-11 border border-gray-200 rounded-lg px-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#3d3d6b]/40 bg-white"
+                          className="w-full h-11 border border-gray-200 rounded-lg px-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#1e40af]/40 bg-white"
                         >
                           <option value="ILS">شيكل ₪</option>
                           <option value="USD">دولار $</option>
@@ -2552,7 +2552,7 @@ export default function CashierPOSWorkspace() {
                         <input
                           type="number" inputMode="decimal" value={sysForm.taxRate}
                           onChange={(e) => setSysForm((v) => ({ ...v, taxRate: parseFloat(e.target.value) || 0 }))}
-                          className="w-full h-11 border border-gray-200 rounded-lg px-3 text-right text-sm focus:outline-none focus:ring-1 focus:ring-[#3d3d6b]/40"
+                          className="w-full h-11 border border-gray-200 rounded-lg px-3 text-right text-sm focus:outline-none focus:ring-1 focus:ring-[#1e40af]/40"
                         />
                       </div>
                     </div>
@@ -2562,7 +2562,7 @@ export default function CashierPOSWorkspace() {
                         type="text" value={sysForm.receiptHeader ?? ""}
                         onChange={(e) => setSysForm((v) => ({ ...v, receiptHeader: e.target.value }))}
                         placeholder="أهلاً بكم في مطعمنا"
-                        className="w-full h-11 border border-gray-200 rounded-lg px-3 text-right text-sm focus:outline-none focus:ring-1 focus:ring-[#3d3d6b]/40"
+                        className="w-full h-11 border border-gray-200 rounded-lg px-3 text-right text-sm focus:outline-none focus:ring-1 focus:ring-[#1e40af]/40"
                       />
                     </div>
                     <div>
@@ -2570,7 +2570,7 @@ export default function CashierPOSWorkspace() {
                       <input
                         type="text" value={sysForm.receiptFooter}
                         onChange={(e) => setSysForm((v) => ({ ...v, receiptFooter: e.target.value }))}
-                        className="w-full h-11 border border-gray-200 rounded-lg px-3 text-right text-sm focus:outline-none focus:ring-1 focus:ring-[#3d3d6b]/40"
+                        className="w-full h-11 border border-gray-200 rounded-lg px-3 text-right text-sm focus:outline-none focus:ring-1 focus:ring-[#1e40af]/40"
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
@@ -2579,7 +2579,7 @@ export default function CashierPOSWorkspace() {
                         <input
                           type="number" inputMode="decimal" value={sysForm.maxCashierDiscount}
                           onChange={(e) => setSysForm((v) => ({ ...v, maxCashierDiscount: parseFloat(e.target.value) || 0 }))}
-                          className="w-full h-11 border border-gray-200 rounded-lg px-3 text-right text-sm focus:outline-none focus:ring-1 focus:ring-[#3d3d6b]/40"
+                          className="w-full h-11 border border-gray-200 rounded-lg px-3 text-right text-sm focus:outline-none focus:ring-1 focus:ring-[#1e40af]/40"
                         />
                       </div>
                       <div>
@@ -2587,7 +2587,7 @@ export default function CashierPOSWorkspace() {
                         <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
                           {(["80mm", "58mm"] as const).map((w) => (
                             <button key={w} type="button" onClick={() => setSysForm((v) => ({ ...v, receiptWidth: w }))}
-                              className={`flex-1 h-9 rounded-md text-xs font-semibold transition-colors ${sysForm.receiptWidth === w ? "bg-[#3d3d6b] text-white" : "text-gray-500"}`}>
+                              className={`flex-1 h-9 rounded-md text-xs font-semibold transition-colors ${sysForm.receiptWidth === w ? "bg-[#1e40af] text-white" : "text-gray-500"}`}>
                               {w}
                             </button>
                           ))}
@@ -2605,11 +2605,11 @@ export default function CashierPOSWorkspace() {
                           type="button"
                           onClick={() => setSysForm((v) => ({ ...v, [key]: !v[key] }))}
                           className={`w-full h-12 rounded-xl border-2 text-sm font-medium transition-colors flex items-center justify-between px-4 ${
-                            sysForm[key] ? "border-[#00a650]/40 bg-[#00a650]/5 text-[#008a42]" : "border-gray-200 text-gray-500"
+                            sysForm[key] ? "border-[#2563eb]/40 bg-[#2563eb]/5 text-[#1d4ed8]" : "border-gray-200 text-gray-500"
                           }`}
                         >
                           <span>{label}</span>
-                          <span className={`w-5 h-5 rounded-full flex items-center justify-center ${sysForm[key] ? "bg-[#00a650] text-white" : "bg-gray-200"}`}>
+                          <span className={`w-5 h-5 rounded-full flex items-center justify-center ${sysForm[key] ? "bg-[#2563eb] text-white" : "bg-gray-200"}`}>
                             {sysForm[key] === true && <Check className="h-3.5 w-3.5" />}
                           </span>
                         </button>
@@ -2622,7 +2622,7 @@ export default function CashierPOSWorkspace() {
                       <button
                         onClick={saveSystemSettings}
                         disabled={sysBusy}
-                        className="w-full h-13 min-h-[52px] rounded-xl bg-[#3d3d6b] hover:bg-[#2e2e55] disabled:bg-gray-300 text-white text-sm font-bold transition-colors flex items-center justify-center gap-2"
+                        className="w-full h-13 min-h-[52px] rounded-xl bg-[#1e40af] hover:bg-[#1e3a8a] disabled:bg-gray-300 text-white text-sm font-bold transition-colors flex items-center justify-center gap-2"
                       >
                         {sysBusy ? <RotateCcw className="h-4 w-4 animate-spin" /> : <><Save className="h-4 w-4" /> حفظ إعدادات النظام</>}
                       </button>
