@@ -1,19 +1,24 @@
 import Link from "next/link";
+import type { LucideIcon } from "lucide-react";
 import {
   ArrowLeft,
   Banknote,
+  BarChart3,
   Building,
+  ChefHat,
   Coins,
   FileText,
   Landmark,
+  MonitorSmartphone,
   PackageSearch,
   PiggyBank,
   ReceiptText,
   Scale,
+  Store,
   TrendingUp,
   Wallet,
+  Warehouse,
 } from "lucide-react";
-import { MetricCard } from "@/components/metric-card";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,9 +26,70 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CategoryPieChart, FinanceAreaChart, FinanceBarChart } from "@/components/dashboard/charts";
 import { getAccountingDashboardData } from "@/server/queries/accounting-erp";
+import { cn } from "@/lib/utils";
 
 function money(value: number) {
   return `${value.toLocaleString("ar-EG")} ₪`;
+}
+
+const TILE_TONES = {
+  blue: "bg-blue-50 text-blue-600",
+  emerald: "bg-emerald-50 text-emerald-600",
+  amber: "bg-amber-50 text-amber-600",
+  sky: "bg-sky-50 text-sky-600",
+  violet: "bg-violet-50 text-violet-600",
+  rose: "bg-rose-50 text-rose-600",
+} as const;
+
+type TileTone = keyof typeof TILE_TONES;
+
+const QUICK_ACCESS: Array<{ label: string; description: string; href: string; icon: LucideIcon; tone: TileTone }> = [
+  { label: "نقطة البيع", description: "شاشة الكاشير والبيع السريع", href: "/d/pos", icon: MonitorSmartphone, tone: "blue" },
+  { label: "المخزون والمستودعات", description: "الأصناف والكميات والتنبيهات", href: "/dashboard/inventory/dashboard", icon: Warehouse, tone: "emerald" },
+  { label: "المشتريات والموردون", description: "فواتير التوريد وطلبيات الشراء", href: "/dashboard/suppliers", icon: Store, tone: "amber" },
+  { label: "فواتير العملاء", description: "المبيعات والذمم والمرتجعات", href: "/dashboard/customer-invoices", icon: ReceiptText, tone: "sky" },
+  { label: "الوصفات وتكلفة الطعام", description: "قوائم المواد وربحية الأطباق", href: "/dashboard/recipes", icon: ChefHat, tone: "violet" },
+  { label: "التقارير والتحليلات", description: "أداء المبيعات والمخزون والتكلفة", href: "/dashboard/reports", icon: BarChart3, tone: "rose" },
+];
+
+function SectionHeading({ title }: { title: string }) {
+  return (
+    <div className="mb-3 flex items-center gap-3">
+      <h2 className="text-sm font-bold text-foreground">{title}</h2>
+      <span className="h-px flex-1 bg-border" />
+    </div>
+  );
+}
+
+function StatTile({
+  label,
+  value,
+  hint,
+  icon: Icon,
+  tone,
+  emphasize,
+}: {
+  label: string;
+  value: string;
+  hint: string;
+  icon: LucideIcon;
+  tone: TileTone;
+  emphasize?: boolean;
+}) {
+  return (
+    <Card>
+      <CardContent className="flex items-start justify-between gap-3 p-4">
+        <div className="min-w-0">
+          <p className="text-xs font-medium text-muted-foreground">{label}</p>
+          <p className={cn("mt-2 font-black tracking-tight", emphasize ? "text-2xl" : "text-xl")}>{value}</p>
+          <p className="mt-2 text-[11px] leading-4 text-muted-foreground">{hint}</p>
+        </div>
+        <div className={cn("shrink-0 rounded-xl p-2.5", TILE_TONES[tone])}>
+          <Icon className={emphasize ? "h-5 w-5" : "h-4 w-4"} />
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
 export default async function DashboardPage() {
@@ -59,7 +125,7 @@ export default async function DashboardPage() {
     <>
       <PageHeader
         title="لوحة التحكم المالية"
-        description="ملخص لحظي للمؤشرات المالية: المبيعات، المشتريات، الأرباح والخسائر، السيولة، والذمم."
+        description="ملخص لحظي للمؤشرات المالية، مع وصول سريع لأهم أقسام النظام."
         actions={
           <>
             <Button asChild variant="outline">
@@ -75,18 +141,50 @@ export default async function DashboardPage() {
         }
       />
 
-      <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="مبيعات اليوم" value={money(data.todaySales)} description="فواتير العملاء اليوم" icon={TrendingUp} tone="success" />
-        <MetricCard label="مبيعات الشهر" value={money(data.monthSales)} description="إجمالي إيرادات الشهر" icon={Coins} />
-        <MetricCard label="صافي ربح الشهر" value={money(data.monthNetProfit)} description="بعد خصم التكاليف والمصروفات" icon={PiggyBank} tone="success" />
-        <MetricCard label="السيولة النقدية" value={money(liquidity)} description="نقدية + أرصدة البنوك" icon={Banknote} />
-        <MetricCard label="الذمم المدينة" value={money(data.customerReceivable)} description="مستحق من العملاء" icon={Wallet} />
-        <MetricCard label="الذمم الدائنة" value={money(data.supplierPayable)} description="مستحق للموردين" icon={Scale} tone="warning" />
-        <MetricCard label="قيمة المخزون" value={money(data.inventoryValue)} description="تكلفة الأصناف الحالية" icon={PackageSearch} />
-        <MetricCard label="أرصدة مسودة" value={String(data.draftEntries)} description="قيود بانتظار الترحيل" icon={FileText} tone="warning" />
+      {/* وصول سريع للأقسام الأساسية */}
+      <section className="mb-5">
+        <SectionHeading title="وصول سريع" />
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          {QUICK_ACCESS.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="group relative overflow-hidden rounded-xl border border-border bg-white p-4 shadow-[0_10px_30px_rgba(15,23,42,0.04)] transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-[0_16px_40px_rgba(15,23,42,0.09)]"
+            >
+              <div className={cn("inline-flex h-10 w-10 items-center justify-center rounded-lg", TILE_TONES[item.tone])}>
+                <item.icon className="h-5 w-5" />
+              </div>
+              <p className="mt-3 text-sm font-bold leading-5 text-foreground">{item.label}</p>
+              <p className="mt-1 text-[11px] leading-4 text-muted-foreground">{item.description}</p>
+              <ArrowLeft className="absolute left-3 top-3 h-3.5 w-3.5 text-muted-foreground/0 transition-all group-hover:-translate-x-0.5 group-hover:text-muted-foreground/50" />
+            </Link>
+          ))}
+        </div>
       </section>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-3">
+      {/* المؤشرات المالية الرئيسية */}
+      <section className="mb-5">
+        <SectionHeading title="الأداء المالي" />
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <StatTile label="مبيعات اليوم" value={money(data.todaySales)} hint="فواتير العملاء اليوم" icon={TrendingUp} tone="emerald" emphasize />
+          <StatTile label="مبيعات الشهر" value={money(data.monthSales)} hint="إجمالي إيرادات الشهر" icon={Coins} tone="blue" emphasize />
+          <StatTile label="صافي ربح الشهر" value={money(data.monthNetProfit)} hint="بعد خصم التكاليف والمصروفات" icon={PiggyBank} tone="emerald" emphasize />
+          <StatTile label="السيولة النقدية" value={money(liquidity)} hint="نقدية + أرصدة البنوك" icon={Banknote} tone="sky" emphasize />
+        </div>
+      </section>
+
+      <section className="mb-5">
+        <SectionHeading title="السيولة والمخزون" />
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <StatTile label="الذمم المدينة" value={money(data.customerReceivable)} hint="مستحق من العملاء" icon={Wallet} tone="sky" />
+          <StatTile label="الذمم الدائنة" value={money(data.supplierPayable)} hint="مستحق للموردين" icon={Scale} tone="amber" />
+          <StatTile label="قيمة المخزون" value={money(data.inventoryValue)} hint="تكلفة الأصناف الحالية" icon={PackageSearch} tone="violet" />
+          <StatTile label="أرصدة مسودة" value={String(data.draftEntries)} hint="قيود بانتظار الترحيل" icon={FileText} tone="amber" />
+        </div>
+      </section>
+
+      <SectionHeading title="التحليلات والاتجاهات" />
+      <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle>اتجاه الإيرادات والمصروفات</CardTitle>
@@ -180,31 +278,41 @@ export default async function DashboardPage() {
                   </TableCell>
                 </TableRow>
               ))}
+              {data.recentEntries.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={5} className="py-8 text-center text-sm text-muted-foreground">
+                    لا توجد قيود محاسبية بعد.
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
 
-      <div className="mt-4 flex flex-wrap gap-3">
-        <Button asChild variant="outline">
-          <Link href="/dashboard/accounting/p-and-l">
-            <Building className="h-4 w-4" />
-            قائمة الأرباح والخسائر
-          </Link>
-        </Button>
-        <Button asChild variant="outline">
-          <Link href="/dashboard/accounting/balance-sheet">
-            <Landmark className="h-4 w-4" />
-            المركز المالي
-          </Link>
-        </Button>
-        <Button asChild variant="outline">
-          <Link href="/dashboard/customer-invoices/new">
-            <ReceiptText className="h-4 w-4" />
-            فاتورة بيع جديدة
-          </Link>
-        </Button>
-      </div>
+      <section className="mt-5">
+        <SectionHeading title="اختصارات إضافية" />
+        <div className="flex flex-wrap gap-2.5">
+          <Button asChild variant="outline">
+            <Link href="/dashboard/accounting/p-and-l">
+              <Building className="h-4 w-4" />
+              قائمة الأرباح والخسائر
+            </Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href="/dashboard/accounting/balance-sheet">
+              <Landmark className="h-4 w-4" />
+              المركز المالي
+            </Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href="/dashboard/customer-invoices/new">
+              <ReceiptText className="h-4 w-4" />
+              فاتورة بيع جديدة
+            </Link>
+          </Button>
+        </div>
+      </section>
     </>
   );
 }
