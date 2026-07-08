@@ -2181,7 +2181,7 @@ export default function CashierPOSWorkspace() {
       {/* ═══════════ SETTINGS MODAL ═══════════ */}
       {showSettings && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 print:hidden">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden max-h-[92vh] flex flex-col">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden max-h-[92vh] flex flex-col">
             <div className="bg-[#1e40af] text-white px-5 py-4 flex items-center justify-between shrink-0">
               <h2 className="font-bold text-base flex items-center gap-2"><SettingsIcon className="h-5 w-5" /> إعدادات نقطة البيع</h2>
               <button onClick={() => setShowSettings(false)} className="hover:bg-white/20 p-1 rounded transition-colors">
@@ -2207,215 +2207,279 @@ export default function CashierPOSWorkspace() {
 
             <div className="flex-1 overflow-y-auto">
               {settingsTab === "design" ? (
-                <div className="flex flex-col md:flex-row">
+                <div className="flex flex-col lg:flex-row">
                   {/* Design controls */}
-                  <div className="flex-1 p-5 space-y-4">
-                    {/* قوالب الفاتورة */}
-                    <div>
-                      <p className="text-xs text-gray-500 mb-2 font-medium">قالب الفاتورة</p>
-                      <div className="grid grid-cols-4 gap-2">
-                        {([
-                          ["classic", "كلاسيكي", "جدول بسيط"],
-                          ["modern", "عصري", "شريط لوني"],
-                          ["restaurant", "مطعم", "إطار فاخر"],
-                          ["minimal", "بسيط", "مساحات بيضاء"],
-                          ["grid", "شبكي", "رأس مقسم"],
-                          ["creative", "إبداعي", "خلفية لونية"],
-                          ["card", "بطاقات", "بطاقات بظل"],
-                          ["b2b", "مؤسسات", "جدول مفصل"],
-                        ] as Array<[ReceiptDesign["template"], string, string]>).map(([tpl, label, desc]) => {
-                          const thumb =
-                            tpl === "modern"
-                              ? "bg-gradient-to-r from-[#1e40af] to-[#2563eb]"
-                              : tpl === "restaurant"
-                              ? "border-2 border-[#1e40af]"
-                              : tpl === "minimal"
-                              ? "bg-gray-100"
-                              : tpl === "grid"
-                              ? "grid grid-cols-2 gap-0.5 bg-[#1e40af]/20"
-                              : tpl === "creative"
-                              ? "bg-[#1e40af]"
-                              : tpl === "card"
-                              ? "bg-[#1e40af]/10 border border-[#1e40af]/30"
-                              : tpl === "b2b"
-                              ? "bg-[#1e40af]/15"
-                              : "bg-gray-200";
-                          return (
-                            <button
-                              key={tpl}
-                              onClick={() => updateDesign({ template: tpl })}
-                              className={`rounded-xl border-2 p-2 text-right transition-all ${design.template === tpl ? "border-[#1e40af] bg-[#1e40af]/5" : "border-gray-200 hover:border-[#1e40af]/40"}`}
-                            >
-                              <div className={`h-8 rounded mb-1 ${thumb}`} />
-                              <p className="text-xs font-bold text-gray-800">{label}</p>
-                              <p className="text-[9px] text-gray-400">{desc}</p>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-xs text-gray-500 mb-1 block font-medium">حجم الخط ({design.fontSize}px)</label>
-                        <input
-                          type="range" min={10} max={16} step={1}
-                          value={design.fontSize}
-                          onChange={(e) => updateDesign({ fontSize: parseInt(e.target.value, 10) })}
-                          className="w-full accent-[#1e40af]"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs text-gray-500 mb-1 block font-medium">نوع الخط</label>
-                        <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
-                          {(["mono", "sans"] as const).map((f) => (
-                            <button key={f} onClick={() => updateDesign({ font: f })}
-                              className={`flex-1 h-8 rounded-md text-xs font-semibold transition-colors ${design.font === f ? "bg-[#1e40af] text-white" : "text-gray-500"}`}>
-                              {f === "mono" ? "طابعة حرارية" : "عادي"}
-                            </button>
-                          ))}
+                  <div className="flex-1 p-5 space-y-5 bg-gray-50/60">
+                    {/* ── قسم القالب ── */}
+                    <section className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+                      <header className="flex items-center gap-2 px-4 py-2.5 border-b border-gray-100 bg-gray-50/80">
+                        <Receipt className="h-4 w-4 text-[#1e40af]" />
+                        <h3 className="text-sm font-bold text-gray-800">قالب الفاتورة</h3>
+                        <span className="mr-auto text-[11px] text-gray-400">اختر الشكل العام للإيصال</span>
+                      </header>
+                      <div className="p-4">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                          {([
+                            ["classic", "كلاسيكي", "جدول بسيط"],
+                            ["modern", "عصري", "شريط لوني"],
+                            ["restaurant", "مطعم", "إطار فاخر"],
+                            ["minimal", "بسيط", "مساحات بيضاء"],
+                            ["grid", "شبكي", "رأس مقسم"],
+                            ["creative", "إبداعي", "خلفية لونية"],
+                            ["card", "بطاقات", "بطاقات بظل"],
+                            ["b2b", "مؤسسات", "جدول مفصل"],
+                          ] as Array<[ReceiptDesign["template"], string, string]>).map(([tpl, label, desc]) => {
+                            const active = design.template === tpl;
+                            const ac = design.accentColor;
+                            return (
+                              <button
+                                key={tpl}
+                                onClick={() => updateDesign({ template: tpl })}
+                                className={`group rounded-xl border-2 p-2 text-right transition-all ${active ? "border-[#1e40af] bg-[#1e40af]/[0.04] shadow-sm" : "border-gray-200 hover:border-[#1e40af]/40 hover:bg-gray-50"}`}
+                              >
+                                {/* Mini receipt preview */}
+                                <div className="h-14 rounded-md bg-white border border-gray-200 p-1.5 mb-1.5 flex flex-col gap-[3px] overflow-hidden shadow-inner">
+                                  {tpl === "modern" && <div className="h-1 rounded-full" style={{ background: ac }} />}
+                                  {tpl === "creative"
+                                    ? <div className="rounded px-1 py-[3px] flex flex-col gap-[2px]" style={{ background: ac }}>
+                                        <div className="h-[3px] w-2/3 mx-auto rounded-full bg-white/90" />
+                                        <div className="h-[2px] w-1/2 mx-auto rounded-full bg-white/50" />
+                                      </div>
+                                    : <div className="h-[3px] rounded-full mx-auto" style={{ width: "60%", background: tpl === "minimal" ? "#d1d5db" : ac }} />}
+                                  {tpl === "grid" ? (
+                                    <div className="grid grid-cols-2 gap-[3px] mt-[2px]">
+                                      <div className="h-3 rounded-sm" style={{ background: `${ac}22` }} />
+                                      <div className="h-3 rounded-sm" style={{ background: `${ac}22` }} />
+                                    </div>
+                                  ) : tpl === "card" ? (
+                                    <div className="flex flex-col gap-[3px] mt-[2px]">
+                                      <div className="h-2 rounded-sm border border-gray-200 bg-gray-50" />
+                                      <div className="h-2 rounded-sm border border-gray-200 bg-gray-50" />
+                                    </div>
+                                  ) : tpl === "b2b" ? (
+                                    <div className="flex flex-col gap-[2px] mt-[2px]">
+                                      <div className="h-[2px] rounded-full bg-gray-300" />
+                                      <div className="h-[2px] rounded-full bg-gray-200" />
+                                      <div className="h-[2px] rounded-full bg-gray-200" />
+                                    </div>
+                                  ) : (
+                                    <div className="flex flex-col gap-[2px] mt-[1px]">
+                                      <div className="h-[2px] rounded-full bg-gray-200" />
+                                      <div className="h-[2px] rounded-full bg-gray-200 w-4/5" />
+                                      <div className="h-[2px] rounded-full bg-gray-200 w-3/5" />
+                                    </div>
+                                  )}
+                                  <div className="mt-auto h-[3px] rounded-full self-end" style={{ width: "40%", background: ac }} />
+                                </div>
+                                <p className={`text-xs font-bold ${active ? "text-[#1e40af]" : "text-gray-800"}`}>{label}</p>
+                                <p className="text-[9px] text-gray-400">{desc}</p>
+                              </button>
+                            );
+                          })}
                         </div>
                       </div>
-                    </div>
+                    </section>
 
-                    {/* اللون المميز */}
-                    <div>
-                      <label className="text-xs text-gray-500 mb-1 block font-medium">اللون المميز</label>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <input
-                          type="color" value={design.accentColor}
-                          onChange={(e) => updateDesign({ accentColor: e.target.value })}
-                          className="h-9 w-12 rounded border border-gray-200 cursor-pointer bg-white"
-                        />
-                        {["#1e40af", "#2563eb", "#e11d48", "#ea580c", "#0ea5e9", "#111827"].map((c) => (
-                          <button key={c} onClick={() => updateDesign({ accentColor: c })}
-                            className={`h-7 w-7 rounded-full border-2 ${design.accentColor === c ? "border-gray-900" : "border-white shadow"}`}
-                            style={{ background: c }}
+                    {/* ── قسم الهوية والألوان ── */}
+                    <section className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+                      <header className="flex items-center gap-2 px-4 py-2.5 border-b border-gray-100 bg-gray-50/80">
+                        <Tag className="h-4 w-4 text-[#1e40af]" />
+                        <h3 className="text-sm font-bold text-gray-800">الهوية والألوان</h3>
+                      </header>
+                      <div className="p-4 space-y-4">
+                        <div>
+                          <label className="text-xs text-gray-500 mb-1.5 block font-medium">اللون المميز</label>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <input
+                              type="color" value={design.accentColor}
+                              onChange={(e) => updateDesign({ accentColor: e.target.value })}
+                              className="h-9 w-12 rounded-lg border border-gray-200 cursor-pointer bg-white"
+                            />
+                            {["#1e40af", "#2563eb", "#e11d48", "#ea580c", "#0ea5e9", "#111827"].map((c) => (
+                              <button key={c} onClick={() => updateDesign({ accentColor: c })}
+                                className={`h-7 w-7 rounded-full border-2 transition-transform hover:scale-110 ${design.accentColor === c ? "border-gray-900 ring-2 ring-offset-1 ring-gray-300" : "border-white shadow"}`}
+                                style={{ background: c }}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-500 mb-1.5 block font-medium">شعار / رمز أعلى الفاتورة</label>
+                          <input
+                            type="text" value={design.logoText}
+                            onChange={(e) => updateDesign({ logoText: e.target.value })}
+                            placeholder="🍔 أو نص مختصر"
+                            className="w-full h-10 border border-gray-200 rounded-lg px-3 text-right text-sm focus:outline-none focus:ring-2 focus:ring-[#1e40af]/30 focus:border-[#1e40af]/40"
                           />
-                        ))}
+                        </div>
                       </div>
-                    </div>
+                    </section>
 
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-xs text-gray-500 mb-1 block font-medium">شعار / رمز أعلى الفاتورة</label>
-                        <input
-                          type="text" value={design.logoText}
-                          onChange={(e) => updateDesign({ logoText: e.target.value })}
-                          placeholder="🍔 أو نص مختصر"
-                          className="w-full h-10 border border-gray-200 rounded-lg px-3 text-right text-sm focus:outline-none focus:ring-1 focus:ring-[#1e40af]/40"
-                        />
+                    {/* ── قسم الطباعة والخط ── */}
+                    <section className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+                      <header className="flex items-center gap-2 px-4 py-2.5 border-b border-gray-100 bg-gray-50/80">
+                        <Printer className="h-4 w-4 text-[#1e40af]" />
+                        <h3 className="text-sm font-bold text-gray-800">الطباعة والخط</h3>
+                      </header>
+                      <div className="p-4 space-y-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div>
+                            <label className="text-xs text-gray-500 mb-1.5 block font-medium">حجم الخط ({design.fontSize}px)</label>
+                            <input
+                              type="range" min={10} max={16} step={1}
+                              value={design.fontSize}
+                              onChange={(e) => updateDesign({ fontSize: parseInt(e.target.value, 10) })}
+                              className="w-full accent-[#1e40af] mt-2"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-gray-500 mb-1.5 block font-medium">نوع الخط</label>
+                            <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+                              {(["mono", "sans"] as const).map((f) => (
+                                <button key={f} onClick={() => updateDesign({ font: f })}
+                                  className={`flex-1 h-8 rounded-md text-xs font-semibold transition-colors ${design.font === f ? "bg-[#1e40af] text-white shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
+                                  {f === "mono" ? "طابعة حرارية" : "عادي"}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div>
+                            <label className="text-xs text-gray-500 mb-1.5 block font-medium">خط الفصل</label>
+                            <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+                              {(["dashed", "solid", "double"] as const).map((s) => (
+                                <button key={s} onClick={() => updateDesign({ separator: s })}
+                                  className={`flex-1 h-8 rounded-md text-xs font-semibold transition-colors ${design.separator === s ? "bg-[#1e40af] text-white shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
+                                  {s === "dashed" ? "متقطع" : s === "solid" ? "متصل" : "مزدوج"}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                          <div>
+                            <label className="text-xs text-gray-500 mb-1.5 block font-medium">محاذاة الرأس</label>
+                            <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+                              {(["center", "right"] as const).map((a) => (
+                                <button key={a} onClick={() => updateDesign({ headerAlign: a })}
+                                  className={`flex-1 h-8 rounded-md text-xs font-semibold transition-colors ${design.headerAlign === a ? "bg-[#1e40af] text-white shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
+                                  {a === "center" ? "وسط" : "يمين"}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <label className="text-xs text-gray-500 mb-1 block font-medium">خط الفصل</label>
-                        <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
-                          {(["dashed", "solid", "double"] as const).map((s) => (
-                            <button key={s} onClick={() => updateDesign({ separator: s })}
-                              className={`flex-1 h-8 rounded-md text-xs font-semibold transition-colors ${design.separator === s ? "bg-[#1e40af] text-white" : "text-gray-500"}`}>
-                              {s === "dashed" ? "متقطع" : s === "solid" ? "متصل" : "مزدوج"}
+                    </section>
+
+                    {/* ── قسم النصوص ── */}
+                    <section className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+                      <header className="flex items-center gap-2 px-4 py-2.5 border-b border-gray-100 bg-gray-50/80">
+                        <StickyNote className="h-4 w-4 text-[#1e40af]" />
+                        <h3 className="text-sm font-bold text-gray-800">نصوص الترويسة والتذييل</h3>
+                      </header>
+                      <div className="p-4 space-y-4">
+                        <div>
+                          <label className="text-xs text-gray-500 mb-1.5 block font-medium">ترويسة مخصصة</label>
+                          <input
+                            type="text" value={design.headerText}
+                            onChange={(e) => updateDesign({ headerText: e.target.value })}
+                            placeholder="أهلاً بكم في مطعمنا"
+                            className="w-full h-10 border border-gray-200 rounded-lg px-3 text-right text-sm focus:outline-none focus:ring-2 focus:ring-[#1e40af]/30 focus:border-[#1e40af]/40"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-500 mb-1.5 block font-medium">تذييل مخصص أسفل الفاتورة</label>
+                          <input
+                            type="text" value={design.footerText}
+                            onChange={(e) => updateDesign({ footerText: e.target.value })}
+                            placeholder="شكرًا لزيارتكم — نتطلع لخدمتكم"
+                            className="w-full h-10 border border-gray-200 rounded-lg px-3 text-right text-sm focus:outline-none focus:ring-2 focus:ring-[#1e40af]/30 focus:border-[#1e40af]/40"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-500 mb-1.5 block font-medium">سطر إضافي أسفل الفاتورة</label>
+                          <input
+                            type="text" value={design.extraFooter}
+                            onChange={(e) => updateDesign({ extraFooter: e.target.value })}
+                            placeholder="للتوصيل: 0599-000000 · واتساب..."
+                            className="w-full h-10 border border-gray-200 rounded-lg px-3 text-right text-sm focus:outline-none focus:ring-2 focus:ring-[#1e40af]/30 focus:border-[#1e40af]/40"
+                          />
+                        </div>
+                      </div>
+                    </section>
+
+                    {/* ── قسم عناصر الظهور ── */}
+                    <section className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+                      <header className="flex items-center gap-2 px-4 py-2.5 border-b border-gray-100 bg-gray-50/80">
+                        <Check className="h-4 w-4 text-[#1e40af]" />
+                        <h3 className="text-sm font-bold text-gray-800">عناصر الفاتورة</h3>
+                        <span className="mr-auto text-[11px] text-gray-400">إظهار / إخفاء</span>
+                      </header>
+                      <div className="p-4">
+                        <div className="grid grid-cols-2 gap-1.5">
+                          {([
+                            ["showLogo", "الشعار/الرمز"],
+                            ["showStoreName", "اسم المتجر"],
+                            ["showStoreAddress", "عنوان المتجر"],
+                            ["showTaxNumber", "الرقم الضريبي"],
+                            ["showCashier", "اسم الكاشير"],
+                            ["showCustomer", "اسم العميل"],
+                            ["showOrderType", "نوع الطلب"],
+                            ["showTable", "رقم الطاولة"],
+                            ["showTime", "الوقت/التاريخ"],
+                            ["showItemNotes", "ملاحظات الأصناف"],
+                            ["showDiscounts", "تفاصيل الخصومات"],
+                            ["showPayments", "تفاصيل الدفع"],
+                            ["showChange", "المستلم والباقي"],
+                            ["showQR", "رمز QR"],
+                            ["showBarcode", "الباركود"],
+                            ["boldTotal", "إجمالي بخط عريض"],
+                          ] as Array<[keyof ReceiptDesign, string]>).map(([key, label]) => (
+                            <button
+                              key={key}
+                              onClick={() => updateDesign({ [key]: !design[key] } as Partial<ReceiptDesign>)}
+                              className={`h-10 rounded-lg border text-xs font-medium transition-colors flex items-center justify-between px-3 ${
+                                design[key] ? "border-[#2563eb]/40 bg-[#2563eb]/5 text-[#1d4ed8]" : "border-gray-200 text-gray-400 hover:border-gray-300"
+                              }`}
+                            >
+                              <span>{label}</span>
+                              <span className={`w-4 h-4 rounded-full flex items-center justify-center ${design[key] ? "bg-[#2563eb] text-white" : "bg-gray-200"}`}>
+                                {design[key] && <Check className="h-3 w-3" />}
+                              </span>
                             </button>
                           ))}
                         </div>
                       </div>
-                    </div>
+                    </section>
 
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-xs text-gray-500 mb-1 block font-medium">محاذاة الرأس</label>
-                        <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
-                          {(["center", "right"] as const).map((a) => (
-                            <button key={a} onClick={() => updateDesign({ headerAlign: a })}
-                              className={`flex-1 h-8 rounded-md text-xs font-semibold transition-colors ${design.headerAlign === a ? "bg-[#1e40af] text-white" : "text-gray-500"}`}>
-                              {a === "center" ? "وسط" : "يمين"}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                      <div>
-                        <label className="text-xs text-gray-500 mb-1 block font-medium">ترويسة مخصصة</label>
-                        <input
-                          type="text" value={design.headerText}
-                          onChange={(e) => updateDesign({ headerText: e.target.value })}
-                          placeholder="أهلاً بكم في مطعمنا"
-                          className="w-full h-10 border border-gray-200 rounded-lg px-3 text-right text-sm focus:outline-none focus:ring-1 focus:ring-[#1e40af]/40"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="text-xs text-gray-500 mb-1 block font-medium">تذييل مخصص أسفل الفاتورة</label>
-                      <input
-                        type="text" value={design.footerText}
-                        onChange={(e) => updateDesign({ footerText: e.target.value })}
-                        placeholder="شكرًا لزيارتكم — نتطلع لخدمتكم"
-                        className="w-full h-10 border border-gray-200 rounded-lg px-3 text-right text-sm focus:outline-none focus:ring-1 focus:ring-[#1e40af]/40"
-                      />
-                    </div>
-
-                    {/* Show/hide toggles */}
-                    <div>
-                      <p className="text-xs text-gray-500 mb-2 font-medium">عناصر الفاتورة (إظهار / إخفاء)</p>
-                      <div className="grid grid-cols-2 gap-1.5">
-                        {([
-                          ["showLogo", "الشعار/الرمز"],
-                          ["showStoreName", "اسم المتجر"],
-                          ["showStoreAddress", "عنوان المتجر"],
-                          ["showTaxNumber", "الرقم الضريبي"],
-                          ["showCashier", "اسم الكاشير"],
-                          ["showCustomer", "اسم العميل"],
-                          ["showOrderType", "نوع الطلب"],
-                          ["showTable", "رقم الطاولة"],
-                          ["showTime", "الوقت/التاريخ"],
-                          ["showItemNotes", "ملاحظات الأصناف"],
-                          ["showDiscounts", "تفاصيل الخصومات"],
-                          ["showPayments", "تفاصيل الدفع"],
-                          ["showChange", "المستلم والباقي"],
-                          ["showQR", "رمز QR"],
-                          ["showBarcode", "الباركود"],
-                          ["boldTotal", "إجمالي بخط عريض"],
-                        ] as Array<[keyof ReceiptDesign, string]>).map(([key, label]) => (
-                          <button
-                            key={key}
-                            onClick={() => updateDesign({ [key]: !design[key] } as Partial<ReceiptDesign>)}
-                            className={`h-10 rounded-lg border text-xs font-medium transition-colors flex items-center justify-between px-3 ${
-                              design[key] ? "border-[#2563eb]/40 bg-[#2563eb]/5 text-[#1d4ed8]" : "border-gray-200 text-gray-400"
-                            }`}
-                          >
-                            <span>{label}</span>
-                            <span className={`w-4 h-4 rounded-full flex items-center justify-center ${design[key] ? "bg-[#2563eb] text-white" : "bg-gray-200"}`}>
-                              {design[key] && <Check className="h-3 w-3" />}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="text-xs text-gray-500 mb-1 block font-medium">سطر إضافي أسفل الفاتورة</label>
-                      <input
-                        type="text" value={design.extraFooter}
-                        onChange={(e) => updateDesign({ extraFooter: e.target.value })}
-                        placeholder="للتوصيل: 0599-000000 · واتساب..."
-                        className="w-full h-10 border border-gray-200 rounded-lg px-3 text-right text-sm focus:outline-none focus:ring-1 focus:ring-[#1e40af]/40"
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between pt-1">
-                      <p className="text-[10px] text-gray-400">يُحفظ التصميم تلقائيًا على هذا الجهاز وينطبق على كل الفواتير</p>
+                    <div className="flex items-center justify-between gap-3 px-1 pt-1">
+                      <p className="text-[11px] text-gray-400 flex items-center gap-1.5">
+                        <Save className="h-3.5 w-3.5" />
+                        يُحفظ التصميم تلقائيًا على هذا الجهاز وينطبق على كل الفواتير
+                      </p>
                       <button
                         onClick={() => { localStorage.removeItem("rwq_receipt_design"); setDesign(DEFAULT_DESIGN); }}
-                        className="text-xs text-red-400 hover:text-red-600"
+                        className="shrink-0 inline-flex items-center gap-1.5 text-xs font-medium text-red-500 hover:text-white hover:bg-red-500 border border-red-200 hover:border-red-500 rounded-lg px-3 h-8 transition-colors"
                       >
+                        <RotateCcw className="h-3.5 w-3.5" />
                         استعادة الافتراضي
                       </button>
                     </div>
                   </div>
 
                   {/* Live preview */}
-                  <div className="md:w-80 shrink-0 bg-gray-100 p-4 flex flex-col items-center border-t md:border-t-0 md:border-r border-gray-200">
-                    <p className="text-xs text-gray-500 font-semibold mb-3 flex items-center gap-1"><Printer className="h-3.5 w-3.5" /> معاينة حية</p>
-                      <PosReceipt design={design} settings={settings} data={SAMPLE_RECEIPT} />
-                    <p className="text-[10px] text-gray-400 mt-2">عرض الورق: {settings.receiptWidth}</p>
+                  <div className="lg:w-96 shrink-0 bg-gradient-to-b from-gray-100 to-gray-200 p-5 flex flex-col items-center border-t lg:border-t-0 lg:border-r border-gray-200">
+                    <div className="lg:sticky lg:top-0 w-full flex flex-col items-center">
+                      <p className="text-xs text-gray-500 font-bold mb-3 flex items-center gap-1.5">
+                        <Printer className="h-4 w-4" /> معاينة حية
+                      </p>
+                      <div className="w-full bg-white rounded-lg shadow-lg p-4 max-h-[62vh] overflow-y-auto" style={{ maxWidth: settings.receiptWidth === "58mm" ? 240 : 300 }}>
+                        <PosReceipt design={design} settings={settings} data={SAMPLE_RECEIPT} />
+                      </div>
+                      <p className="text-[10px] text-gray-400 mt-3 flex items-center gap-1">
+                        <Receipt className="h-3 w-3" /> عرض الورق: {settings.receiptWidth} · بيانات تجريبية
+                      </p>
+                    </div>
                   </div>
                 </div>
               ) : (
