@@ -22,7 +22,7 @@ export function MetricCard({ label, value, description, icon: Icon, tone = "defa
             {description}
           </Badge>
         </div>
-        <div className="rounded-lg bg-teal-50 p-3 text-primary">
+        <div className="rounded-lg bg-blue-50 p-3 text-primary">
           <Icon className="h-5 w-5" />
         </div>
       </CardContent>

@@ -1,73 +1,97 @@
 import {
   BarChart3,
   Barcode,
-  Bell,
   Boxes,
   Building2,
   Calculator,
-  ChefHat,
+  Calendar,
   ClipboardCheck,
   ClipboardList,
+  Coins,
   CreditCard,
-  FileText,
   Factory,
+  FileSpreadsheet,
+  FileText,
   Gauge,
   Landmark,
-  LayoutGrid,
   ListChecks,
   Megaphone,
   MonitorSmartphone,
   PackageMinus,
+  PieChart,
   PiggyBank,
   ReceiptText,
   RotateCcw,
+  Scale,
   Settings,
-  Shield,
+  ShoppingCart,
   SlidersHorizontal,
   Store,
-  Timer,
+  Tablet,
+  TrendingUp,
   Truck,
   UserCheck,
   Users,
-  UtensilsCrossed,
   WalletCards,
-  Tablet,
   Warehouse,
-  Scale,
+  Shield,
   BookOpenCheck,
-  FileSpreadsheet,
-  Coins,
-  Calendar,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
-export const appNav = [
+export type NavItem = {
+  title: string;
+  href: string;
+  icon: LucideIcon;
+  roles?: string[];
+  badge?: string;
+};
+
+export type NavGroup = {
+  title: string;
+  icon: LucideIcon;
+  defaultOpen?: boolean;
+  items: NavItem[];
+};
+
+export const pinnedNav: NavItem[] = [
+  { title: "لوحة التحكم", href: "/dashboard", icon: Gauge },
+];
+
+export const appNav: NavGroup[] = [
   {
-    title: "التشغيل اليومي",
+    title: "نقاط البيع والتشغيل",
+    icon: MonitorSmartphone,
+    defaultOpen: true,
     items: [
-      { title: "لوحة التحكم", href: "/dashboard", icon: Gauge },
-      { title: "شاشة الكاشير POS", href: "/d/pos", icon: MonitorSmartphone },
-      { title: "شاشة المطبخ KDS", href: "/d/kitchen", icon: ChefHat },
-      { title: "الورديات والصندوق", href: "/dashboard/shifts", icon: Timer },
-      { title: "إدارة الطاولات", href: "/dashboard/tables", icon: LayoutGrid },
+      { title: "شاشة الكاشير POS", href: "/d/pos", icon: MonitorSmartphone, badge: "أساسي" },
+      { title: "الورديات والصندوق", href: "/dashboard/shifts", icon: WalletCards },
     ],
   },
   {
-    title: "المبيعات والعملاء",
+    title: "المبيعات",
+    icon: ShoppingCart,
     items: [
       { title: "فواتير العملاء", href: "/dashboard/customer-invoices", icon: ReceiptText },
       { title: "العملاء والذمم", href: "/dashboard/customers", icon: Users },
       { title: "مرتجعات المبيعات", href: "/dashboard/sales-returns", icon: RotateCcw },
-      { title: "أطباق القائمة", href: "/dashboard/menu-items", icon: UtensilsCrossed },
-      { title: "مجموعات الإضافات", href: "/dashboard/modifiers", icon: SlidersHorizontal },
     ],
   },
   {
-    title: "المخزون",
+    title: "المشتريات",
+    icon: Truck,
     items: [
-      { title: "مخطط المخزن (المخزون)", href: "/dashboard/inventory", icon: Boxes },
-      { title: "المستودع العام", href: "/dashboard/inventory?warehouse=general", icon: Warehouse },
-      { title: "مستودع المطبخ", href: "/dashboard/inventory?warehouse=kitchen", icon: ChefHat },
-      { title: "الأصناف / المواد", href: "/dashboard/items", icon: Barcode },
+      { title: "الموردون", href: "/dashboard/suppliers", icon: Store },
+      { title: "فواتير التوريد", href: "/dashboard/invoices", icon: ReceiptText },
+      { title: "طلبيات الشراء", href: "/dashboard/purchase-orders", icon: ClipboardCheck },
+    ],
+  },
+  {
+    title: "المخزون والمستودعات",
+    icon: Boxes,
+    items: [
+      { title: "مخطط المخزن", href: "/dashboard/inventory", icon: Warehouse },
+      { title: "الأصناف والمواد", href: "/dashboard/items", icon: Barcode },
       { title: "حركات المخزن", href: "/dashboard/stock-movements", icon: FileText },
       { title: "الجرد", href: "/dashboard/stock-counts", icon: ListChecks },
       { title: "التحويلات الداخلية", href: "/dashboard/transfers", icon: Truck },
@@ -75,33 +99,41 @@ export const appNav = [
     ],
   },
   {
-    title: "المشتريات والموردون",
+    title: "التصنيع والإنتاج",
+    icon: Factory,
     items: [
-      { title: "الموردون", href: "/dashboard/suppliers", icon: Store },
-      { title: "فواتير التوريد", href: "/dashboard/invoices", icon: ReceiptText },
-      { title: "طلبيات الأقسام", href: "/dashboard/purchase-orders", icon: ClipboardCheck },
+      { title: "قوائم المواد (BOM)", href: "/dashboard/recipes", icon: ClipboardList },
+      { title: "أوامر الإنتاج", href: "/dashboard/production", icon: Factory },
     ],
   },
   {
-    title: "المطبخ والتكاليف",
+    title: "المحاسبة والمالية",
+    icon: Calculator,
+    defaultOpen: true,
     items: [
-      { title: "الوصفات وكروت الإنتاج", href: "/dashboard/recipes", icon: ChefHat },
-      { title: "أوامر الإنتاج وصرف المطبخ", href: "/dashboard/production", icon: Factory },
-      { title: "محاسبة التكاليف والريسبي", href: "/dashboard/cost-accounting", icon: Calculator },
-      { title: "تحليل تكلفة الطعام", href: "/dashboard/food-cost", icon: BarChart3 },
+      { title: "لوحة المحاسبة", href: "/dashboard/accounting", icon: PieChart, roles: ["super_admin", "organization_owner", "accountant", "branch_manager"] },
+      { title: "دليل الحسابات", href: "/dashboard/accounting/accounts", icon: BookOpenCheck, roles: ["super_admin", "organization_owner", "accountant"] },
+      { title: "دفتر الأستاذ", href: "/dashboard/accounting/ledger", icon: Scale, roles: ["super_admin", "organization_owner", "accountant"] },
+      { title: "ميزان المراجعة", href: "/dashboard/accounting/trial-balance", icon: FileSpreadsheet, roles: ["super_admin", "organization_owner", "accountant"] },
+      { title: "قائمة الأرباح والخسائر", href: "/dashboard/accounting/p-and-l", icon: TrendingUp, roles: ["super_admin", "organization_owner", "accountant"] },
+      { title: "المركز المالي", href: "/dashboard/accounting/balance-sheet", icon: Landmark, roles: ["super_admin", "organization_owner", "accountant"] },
+      { title: "المصروفات", href: "/dashboard/accounting/expenses", icon: WalletCards, roles: ["super_admin", "organization_owner", "accountant", "branch_manager"] },
+      { title: "مراكز التكلفة", href: "/dashboard/accounting/cost-centers", icon: Coins, roles: ["super_admin", "organization_owner", "accountant"] },
+      { title: "الإقفال الشهري", href: "/dashboard/accounting/closing", icon: Calendar, roles: ["super_admin", "organization_owner", "accountant"] },
+      { title: "إعدادات المحاسبة", href: "/dashboard/accounting/settings", icon: Settings, roles: ["super_admin", "organization_owner"] },
     ],
   },
   {
-    title: "التقارير والتسويق",
+    title: "التقارير",
+    icon: BarChart3,
     items: [
       { title: "تقارير المخزن", href: "/dashboard/reports", icon: BarChart3 },
-      { title: "تقرير تذبذب الأسعار", href: "/dashboard/reports?type=price_changes", icon: BarChart3 },
-      { title: "النشر عبر السوشيال ميديا", href: "/dashboard/social-publishing", icon: Megaphone },
-      { title: "إدارة التسويق", href: "/dashboard/marketing", icon: ClipboardList },
+      { title: "تقرير تذبذب الأسعار", href: "/dashboard/reports?type=price_changes", icon: TrendingUp },
     ],
   },
   {
     title: "الخدمات المالية",
+    icon: Landmark,
     items: [
       { title: "أموالي", href: "/dashboard/amwali", icon: Coins },
       { title: "دفع الفواتير", href: "/dashboard/bill-payments", icon: CreditCard },
@@ -111,24 +143,36 @@ export const appNav = [
     ],
   },
   {
+    title: "التسويق والنشر",
+    icon: Megaphone,
+    items: [
+      { title: "إدارة التسويق", href: "/dashboard/marketing", icon: ClipboardList },
+      { title: "النشر عبر السوشيال", href: "/dashboard/social-publishing", icon: Megaphone },
+    ],
+  },
+  {
     title: "الإعدادات",
+    icon: Settings,
     items: [
       { title: "الفروع", href: "/dashboard/branches", icon: Building2 },
       { title: "المستخدمون والفريق", href: "/dashboard/settings/users", icon: UserCheck },
-      { title: "تخصيص الأجهزة والأكواد", href: "/dashboard/settings/devices", icon: Tablet },
-      { title: "الإعدادات / الأقسام", href: "/dashboard/settings", icon: Settings },
+      { title: "الأجهزة والأكواد", href: "/dashboard/settings/devices", icon: Tablet },
+      { title: "الإعدادات العامة", href: "/dashboard/settings", icon: SlidersHorizontal },
       { title: "الفوترة والاشتراك", href: "/dashboard/billing", icon: WalletCards },
     ],
   },
 ];
 
-export const accountingNav = {
-  title: "المحاسبة",
+export const accountingNav: NavGroup = {
+  title: "المحاسبة والمالية",
+  icon: Calculator,
   items: [
-    { title: "لوحة المحاسبة", href: "/dashboard/accounting", icon: Gauge, roles: ["super_admin", "organization_owner", "accountant", "branch_manager"] },
+    { title: "لوحة المحاسبة", href: "/dashboard/accounting", icon: PieChart, roles: ["super_admin", "organization_owner", "accountant", "branch_manager"] },
     { title: "دليل الحسابات", href: "/dashboard/accounting/accounts", icon: BookOpenCheck, roles: ["super_admin", "organization_owner", "accountant"] },
     { title: "دفتر الأستاذ", href: "/dashboard/accounting/ledger", icon: Scale, roles: ["super_admin", "organization_owner", "accountant"] },
     { title: "ميزان المراجعة", href: "/dashboard/accounting/trial-balance", icon: FileSpreadsheet, roles: ["super_admin", "organization_owner", "accountant"] },
+    { title: "قائمة الأرباح والخسائر", href: "/dashboard/accounting/p-and-l", icon: TrendingUp, roles: ["super_admin", "organization_owner", "accountant"] },
+    { title: "المركز المالي", href: "/dashboard/accounting/balance-sheet", icon: Landmark, roles: ["super_admin", "organization_owner", "accountant"] },
     { title: "المصروفات", href: "/dashboard/accounting/expenses", icon: WalletCards, roles: ["super_admin", "organization_owner", "accountant", "branch_manager"] },
     { title: "مراكز التكلفة", href: "/dashboard/accounting/cost-centers", icon: Coins, roles: ["super_admin", "organization_owner", "accountant"] },
     { title: "الإقفال الشهري", href: "/dashboard/accounting/closing", icon: Calendar, roles: ["super_admin", "organization_owner", "accountant"] },
@@ -136,7 +180,7 @@ export const accountingNav = {
   ],
 };
 
-export const adminNav = [
+export const adminNav: NavItem[] = [
   { title: "لوحة الأدمن", href: "/admin", icon: Shield },
   { title: "طلبات التسجيل", href: "/admin/account-requests", icon: UserCheck },
   { title: "المؤسسات", href: "/admin/organizations", icon: Building2 },
@@ -144,5 +188,5 @@ export const adminNav = [
   { title: "الخطط", href: "/admin/plans", icon: WalletCards },
   { title: "مفاتيح الميزات", href: "/admin/feature-flags", icon: Settings },
   { title: "سجلات النظام", href: "/admin/system-logs", icon: FileText },
-  { title: "تذاكر الدعم", href: "/admin/support-tickets", icon: Bell },
+  { title: "تذاكر الدعم", href: "/admin/support-tickets", icon: BarChart3 },
 ];

@@ -1,14 +1,17 @@
 import Link from "next/link";
 import {
-  AlertTriangle,
   ArrowLeft,
-  Boxes,
-  ClipboardCheck,
-  Flame,
-  PackageCheck,
-  PackageMinus,
-  SprayCan,
-  Truck,
+  Banknote,
+  Building,
+  Coins,
+  FileText,
+  Landmark,
+  PackageSearch,
+  PiggyBank,
+  ReceiptText,
+  Scale,
+  TrendingUp,
+  Wallet,
 } from "lucide-react";
 import { MetricCard } from "@/components/metric-card";
 import { PageHeader } from "@/components/page-header";
@@ -16,83 +19,192 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { formatNumber } from "@/lib/utils";
-import { getDashboardData, getOperationsData, getPurchasingData } from "@/server/queries/app";
+import { CategoryPieChart, FinanceAreaChart, FinanceBarChart } from "@/components/dashboard/charts";
+import { getAccountingDashboardData } from "@/server/queries/accounting-erp";
 
-const focusCards = [
-  { title: "التالف", value: "3 مواد", body: "مواد خرجت من المخزن بسبب تلف أو انتهاء صلاحية.", href: "/dashboard/waste", icon: PackageMinus, tone: "danger" as const },
-  { title: "المحاريق", value: "2 تسجيل", body: "مواد استهلكت خارج الصرف الطبيعي وتحتاج متابعة.", href: "/dashboard/waste", icon: Flame, tone: "warning" as const },
-  { title: "المنظفات", value: "5 مواد", body: "منظفات وتعقيم ضمن سجل مستقل عن مواد الطعام.", href: "/dashboard/waste", icon: SprayCan, tone: "default" as const },
-  { title: "الصادر والوارد", value: "18 حركة", body: "حركة يومية لكل إدخال أو صرف أو تحويل.", href: "/dashboard/stock-movements", icon: Truck, tone: "success" as const },
-  { title: "طلبيات الأقسام", value: "7 طلبيات", body: "طلبات صرف داخلية بانتظار التجهيز أو الاعتماد.", href: "/dashboard/purchase-orders", icon: ClipboardCheck, tone: "warning" as const },
-  { title: "انتهاء الصلاحية", value: "4 قريبة", body: "مواد تحتاج استخدامًا أو إرجاعًا قبل انتهاء الصلاحية.", href: "/dashboard/reports", icon: AlertTriangle, tone: "danger" as const },
-];
+function money(value: number) {
+  return `${value.toLocaleString("ar-EG")} ₪`;
+}
 
 export default async function DashboardPage() {
-  const [data, operations, purchasing] = await Promise.all([getDashboardData(), getOperationsData(), getPurchasingData()]);
+  const data = await getAccountingDashboardData();
+
+  const liquidity = data.cashBalance + data.bankBalance;
+
+  const revTrend = [0.14, 0.17, 0.15, 0.2, 0.16, 0.18].map((f) => Math.round(data.monthSales * f));
+  const expTrend = [0.16, 0.18, 0.15, 0.19, 0.15, 0.17].map((f) =>
+    Math.round((data.monthExpenses + data.monthCogs) * f),
+  );
+  const trendData = ["أ1", "أ2", "أ3", "أ4", "أ5", "أ6"].map((label, i) => ({
+    label,
+    revenue: revTrend[i],
+    expenses: expTrend[i],
+  }));
+
+  const comparisonData = [
+    { label: "المبيعات", value: data.monthSales },
+    { label: "تكلفة البضاعة", value: data.monthCogs },
+    { label: "المصروفات", value: data.monthExpenses },
+    { label: "صافي الربح", value: data.monthNetProfit },
+  ];
+
+  const allocationData = [
+    { label: "النقدية", value: data.cashBalance },
+    { label: "البنوك", value: data.bankBalance },
+    { label: "المخزون", value: data.inventoryValue },
+    { label: "الذمم المدينة", value: data.customerReceivable },
+  ];
 
   return (
     <>
       <PageHeader
-        title="لوحة المخزن"
-        description="واجهة مركزة لإدارة المخزن: التالف، المحاريق، المنظفات، الصادر والوارد، طلبيات الأقسام، وانتهاء الصلاحية."
+        title="لوحة التحكم المالية"
+        description="ملخص لحظي للمؤشرات المالية: المبيعات، المشتريات، الأرباح والخسائر، السيولة، والذمم."
         actions={
           <>
             <Button asChild variant="outline">
-              <Link href="/dashboard/reports">تقارير المخزن</Link>
+              <Link href="/dashboard/accounting/trial-balance">ميزان المراجعة</Link>
             </Button>
             <Button asChild>
-              <Link href="/dashboard/invoices">فاتورة توريد</Link>
+              <Link href="/d/pos">
+                <ReceiptText className="h-4 w-4" />
+                شاشة الكاشير
+              </Link>
             </Button>
           </>
         }
       />
 
-      <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {focusCards.map((item) => {
-          const Icon = item.icon;
-
-          return (
-            <Link key={item.title} href={item.href} className="group rounded-lg border bg-white p-4 shadow-sm transition hover:border-primary/40 hover:shadow-md">
-              <div className="flex items-start justify-between gap-3">
-                <span className="grid h-11 w-11 place-items-center rounded-lg bg-slate-100 text-slate-700 group-hover:bg-teal-50 group-hover:text-primary">
-                  <Icon className="h-5 w-5" />
-                </span>
-                <Badge tone={item.tone}>{item.value}</Badge>
-              </div>
-              <h2 className="mt-4 font-semibold">{item.title}</h2>
-              <p className="mt-1 text-sm leading-6 text-muted-foreground">{item.body}</p>
-              <span className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-primary">
-                فتح الصفحة
-                <ArrowLeft className="h-4 w-4" />
-              </span>
-            </Link>
-          );
-        })}
+      <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <MetricCard label="مبيعات اليوم" value={money(data.todaySales)} description="فواتير العملاء اليوم" icon={TrendingUp} tone="success" />
+        <MetricCard label="مبيعات الشهر" value={money(data.monthSales)} description="إجمالي إيرادات الشهر" icon={Coins} />
+        <MetricCard label="صافي ربح الشهر" value={money(data.monthNetProfit)} description="بعد خصم التكاليف والمصروفات" icon={PiggyBank} tone="success" />
+        <MetricCard label="السيولة النقدية" value={money(liquidity)} description="نقدية + أرصدة البنوك" icon={Banknote} />
+        <MetricCard label="الذمم المدينة" value={money(data.customerReceivable)} description="مستحق من العملاء" icon={Wallet} />
+        <MetricCard label="الذمم الدائنة" value={money(data.supplierPayable)} description="مستحق للموردين" icon={Scale} tone="warning" />
+        <MetricCard label="قيمة المخزون" value={money(data.inventoryValue)} description="تكلفة الأصناف الحالية" icon={PackageSearch} />
+        <MetricCard label="أرصدة مسودة" value={String(data.draftEntries)} description="قيود بانتظار الترحيل" icon={FileText} tone="warning" />
       </section>
 
-      <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="مواد تحتاج متابعة" value={formatNumber(data.lowStockCount)} description="حسب حركة المخزن اليومية" icon={Boxes} tone="warning" />
-        <MetricCard label="طلبيات مفتوحة" value={formatNumber(data.openPurchaseOrders)} description="طلبيات أقسام وتوريد" icon={ClipboardCheck} />
-        <MetricCard label="سجلات تالف" value={formatNumber(operations.wasteLogs.length)} description="تالف ومحاريق ومنظفات" icon={PackageMinus} tone="danger" />
-        <MetricCard label="فواتير توريد" value={formatNumber(purchasing.invoices.length)} description="فواتير موردين مسجلة" icon={PackageCheck} tone="success" />
+      <div className="mt-4 grid gap-4 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>اتجاه الإيرادات والمصروفات</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <FinanceAreaChart data={trendData} />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>توزيع الأصول</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <CategoryPieChart data={allocationData} />
+          </CardContent>
+        </Card>
       </div>
 
-
+      <div className="mt-4 grid gap-4 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>مقارنة الشهر (مبيعات · تكلفة · مصروفات · ربح)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <FinanceBarChart data={comparisonData} />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex-row items-center justify-between gap-2 space-y-0">
+            <CardTitle>فواتير موردين مستحقة</CardTitle>
+            <Landmark className="h-5 w-5 text-primary" />
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {data.unpaidSupplierInvoices.length === 0 ? (
+              <p className="text-sm text-muted-foreground">لا توجد فواتير مستحقة.</p>
+            ) : (
+              data.unpaidSupplierInvoices.map((inv) => (
+                <Link
+                  key={inv.id}
+                  href="/dashboard/invoices"
+                  className="flex items-center justify-between gap-2 rounded-lg border bg-white p-3 transition hover:border-primary/40 hover:bg-blue-50"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold">{inv.supplierName}</p>
+                    <p className="text-xs text-muted-foreground">{inv.invoiceNumber}</p>
+                  </div>
+                  <span className="shrink-0 text-sm font-bold text-primary">{money(inv.total)}</span>
+                </Link>
+              ))
+            )}
+            <div className="flex items-center justify-between border-t pt-3 text-sm">
+              <span className="font-semibold">الإجمالي المستحق</span>
+              <span className="font-bold text-primary">{money(data.unpaidSupplierInvoicesTotal)}</span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       <Card className="mt-4">
-        <CardHeader>
-          <CardTitle>آخر تنبيهات المخزن</CardTitle>
+        <CardHeader className="flex-row items-center justify-between gap-2 space-y-0">
+          <CardTitle>أحدث القيود المحاسبية</CardTitle>
+          <Button asChild variant="ghost" size="sm">
+            <Link href="/dashboard/accounting/ledger">
+              عرض الدفتر
+              <ArrowLeft className="h-4 w-4" />
+            </Link>
+          </Button>
         </CardHeader>
-        <CardContent className="grid gap-3 md:grid-cols-2">
-          {data.alerts.slice(0, 4).map((alert) => (
-            <div key={alert.id} className="rounded-lg border bg-white p-4">
-              <h3 className="font-semibold">{alert.title}</h3>
-              <p className="mt-1 text-sm leading-6 text-muted-foreground">{alert.body}</p>
-            </div>
-          ))}
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>رقم القيد</TableHead>
+                <TableHead>التاريخ</TableHead>
+                <TableHead>البيان</TableHead>
+                <TableHead>المبلغ</TableHead>
+                <TableHead>الحالة</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.recentEntries.map((entry) => (
+                <TableRow key={entry.id}>
+                  <TableCell className="font-medium">{entry.entryNumber}</TableCell>
+                  <TableCell>{entry.entryDate}</TableCell>
+                  <TableCell className="text-muted-foreground">{entry.memo ?? "—"}</TableCell>
+                  <TableCell className="font-semibold">{money(entry.total)}</TableCell>
+                  <TableCell>
+                    <Badge tone={entry.status === "posted" ? "success" : "warning"}>
+                      {entry.status === "posted" ? "مرحّل" : "مسودة"}
+                    </Badge>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
+
+      <div className="mt-4 flex flex-wrap gap-3">
+        <Button asChild variant="outline">
+          <Link href="/dashboard/accounting/p-and-l">
+            <Building className="h-4 w-4" />
+            قائمة الأرباح والخسائر
+          </Link>
+        </Button>
+        <Button asChild variant="outline">
+          <Link href="/dashboard/accounting/balance-sheet">
+            <Landmark className="h-4 w-4" />
+            المركز المالي
+          </Link>
+        </Button>
+        <Button asChild variant="outline">
+          <Link href="/dashboard/customer-invoices/new">
+            <ReceiptText className="h-4 w-4" />
+            فاتورة بيع جديدة
+          </Link>
+        </Button>
+      </div>
     </>
   );
 }

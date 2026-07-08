@@ -20,7 +20,7 @@ import {
 } from "recharts";
 import type { ReportPoint } from "@/types/domain";
 
-const colors = ["#0f766e", "#f97316", "#2563eb", "#8b5cf6", "#dc2626"];
+const colors = ["#2563eb", "#0ea5e9", "#16a34a", "#f59e0b", "#8b5cf6", "#dc2626"];
 
 function ChartFrame({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
@@ -88,6 +88,58 @@ export function FoodCostLineChart({ data }: { data: ReportPoint[] }) {
           <Tooltip formatter={(value) => [`${Number(value).toFixed(1)}%`, "تكلفة الطعام"]} />
           <Line type="monotone" dataKey="value" stroke="#f97316" strokeWidth={3} dot={{ r: 4 }} />
         </LineChart>
+      </ResponsiveContainer>
+    </ChartFrame>
+  );
+}
+
+export function FinanceAreaChart({
+  data,
+}: {
+  data: Array<{ label: string; revenue: number; expenses: number }>;
+}) {
+  return (
+    <ChartFrame>
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={data}>
+          <defs>
+            <linearGradient id="revenue" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#2563eb" stopOpacity={0.32} />
+              <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
+            </linearGradient>
+            <linearGradient id="expenses" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.28} />
+              <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" vertical={false} />
+          <XAxis dataKey="label" tickLine={false} axisLine={false} />
+          <YAxis tickLine={false} axisLine={false} width={48} />
+          <Tooltip
+            formatter={(value, name) => [
+              `${Number(value).toLocaleString("ar-EG")} ₪`,
+              name === "revenue" ? "الإيرادات" : "المصروفات",
+            ]}
+          />
+          <Area type="monotone" dataKey="revenue" stroke="#2563eb" fill="url(#revenue)" strokeWidth={2} />
+          <Area type="monotone" dataKey="expenses" stroke="#f59e0b" fill="url(#expenses)" strokeWidth={2} />
+        </AreaChart>
+      </ResponsiveContainer>
+    </ChartFrame>
+  );
+}
+
+export function FinanceBarChart({ data }: { data: ReportPoint[] }) {
+  return (
+    <ChartFrame>
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={data}>
+          <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+          <XAxis dataKey="label" tickLine={false} axisLine={false} />
+          <YAxis tickLine={false} axisLine={false} width={48} />
+          <Tooltip formatter={(value) => [`${Number(value).toLocaleString("ar-EG")} ₪`, "القيمة"]} />
+          <Bar dataKey="value" fill="#2563eb" radius={[8, 8, 8, 8]} />
+        </BarChart>
       </ResponsiveContainer>
     </ChartFrame>
   );
