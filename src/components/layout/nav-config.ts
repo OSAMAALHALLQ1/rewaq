@@ -90,7 +90,9 @@ export const appNav: NavGroup[] = [
     title: "المخزون والمستودعات",
     icon: Boxes,
     items: [
+      { title: "لوحة تحكم المخزون", href: "/dashboard/inventory/dashboard", icon: Gauge },
       { title: "مخطط المخزن", href: "/dashboard/inventory", icon: Warehouse },
+      { title: "دليل المستودعات", href: "/dashboard/warehouses", icon: Building2 },
       { title: "الأصناف والمواد", href: "/dashboard/items", icon: Barcode },
       { title: "حركات المخزن", href: "/dashboard/stock-movements", icon: FileText },
       { title: "الجرد", href: "/dashboard/stock-counts", icon: ListChecks },
