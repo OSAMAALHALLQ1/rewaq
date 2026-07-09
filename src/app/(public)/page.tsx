@@ -61,89 +61,124 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-background">
       <SiteHeader />
-      <main>
-        <section className="relative isolate mx-auto mt-4 max-w-7xl overflow-hidden rounded-[2.5rem] bg-secondary text-white shadow-lift">
-          <div className="pointer-events-none absolute inset-y-8 left-[-6rem] hidden w-[58rem] opacity-25 lg:block">
-            <DashboardMockup />
-          </div>
-          <div className="relative mx-auto flex min-h-[66vh] flex-col justify-center px-5 py-10 sm:min-h-[70vh] sm:py-14 lg:px-10">
-            <Badge tone="default" className="mb-4 w-fit border-white/15 bg-white/10 text-accent sm:mb-5">
-              منصة عربية للمطاعم والكافيهات
-            </Badge>
-            <h1 className="max-w-4xl text-4xl font-black leading-tight tracking-tight text-accent sm:text-5xl md:text-6xl lg:text-7xl">
-              رواق
-            </h1>
-            <p className="mt-3 max-w-3xl text-base leading-7 sm:text-lg sm:leading-9 md:text-xl text-slate-200">
-              لوحة عملية تجعل البيع، الشراء، المخزون، تكلفة الأطباق، ونشر العروض مفهومة من أول استخدام.
-            </p>
-            <div className="mt-6 flex flex-col gap-3 sm:mt-8 sm:flex-row sm:flex-wrap sm:gap-3">
-              <Button size="lg" asChild className="w-full sm:w-auto">
-                <Link href="/dashboard" className="flex items-center justify-center gap-2">
-                  فتح لوحة التجربة
-                  <ArrowLeft className="h-4 w-4" />
-                </Link>
-              </Button>
-              <Button size="lg" variant="outline" asChild className="w-full sm:w-auto">
-                <Link href="/request-demo">احجز عرضًا تجريبيًا</Link>
-              </Button>
-            </div>
-            <div className="mt-8 grid max-w-3xl gap-3 sm:grid-cols-3">
-              {([
-                ["بيع سريع", ReceiptText, "/dashboard/customer-invoices/new"],
-                ["طلب شراء", ShoppingCart, "/dashboard/purchase-orders"],
-                ["نشر عبر Node-RED", Megaphone, "/dashboard/marketing/create"],
-              ] as const).map(([item, Icon, href]) => (
-                <Link
-                  key={String(item)}
-                  href={href}
-                  className="flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-slate-100 transition hover:bg-white/10"
-                >
-                  <Icon className="h-4 w-4 text-accent" />
-                  {item}
-                </Link>
-              ))}
-            </div>
-            <div className="mt-6 flex flex-wrap gap-4 text-sm text-slate-300">
-              {["عزل البيانات", "متعدد العملاء", "قنوات اجتماعية متعددة"].map((item) => (
-                <span key={item} className="inline-flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-accent" />
-                  {item}
-                </span>
-              ))}
-            </div>
-          </div>
-        </section>
+      <main className="overflow-hidden">
+        <section className="mx-auto mt-4 max-w-7xl px-3 sm:px-4 lg:px-6">
+          <div className="relative overflow-hidden rounded-[2.5rem] bg-secondary text-white shadow-lift">
+            <div className="grid min-h-[calc(100vh-7rem)] items-center gap-8 px-5 py-8 sm:px-8 lg:grid-cols-[0.82fr_1.18fr] lg:px-10 lg:py-10">
+              <div className="relative z-10">
+                <Badge tone="default" className="mb-5 w-fit border-white/15 bg-white/10 text-accent">
+                  منصة عربية للمطاعم والكافيهات
+                </Badge>
+                <h1 className="max-w-3xl text-5xl font-black leading-tight tracking-tight text-accent sm:text-6xl lg:text-7xl">
+                  رواق
+                </h1>
+                <p className="mt-5 max-w-2xl text-lg leading-9 text-white/78 sm:text-xl">
+                  لوحة عملية تجعل البيع، الشراء، المخزون، تكلفة الأطباق، ونشر العروض مفهومة من أول استخدام.
+                </p>
 
-        <section className="py-14">
-          <div className="mx-auto grid max-w-7xl gap-6 px-4 lg:grid-cols-[0.9fr_1.1fr] lg:px-6">
-            <div>
-              <Badge tone="default">ابدأ حسب نوع نشاطك</Badge>
-              <h2 className="mt-4 text-3xl font-extrabold tracking-tight">أجب عن 5 أسئلة، ورواق يرتب لك الداشبورد.</h2>
-              <p className="mt-3 leading-7 text-muted-foreground">
-                ليس كل صاحب عمل يحتاج نفس الشاشة. الكافيه يريد سرعة كاشير وعروض، والمطعم المتوسط يحتاج تكلفة وموردين،
-                وصاحب الفروع يحتاج صلاحيات وتوزيع عمل.
-              </p>
-              <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                {businessProfiles.map(([title, body]) => (
-                  <div key={title} className="rounded-3xl border border-border bg-white p-4 shadow-soft">
-                    <p className="font-semibold">{title}</p>
-                    <p className="mt-1 text-sm leading-6 text-muted-foreground">{body}</p>
-                  </div>
+                <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                  <Button size="lg" asChild className="w-full sm:w-auto">
+                    <Link href="/dashboard" className="flex items-center justify-center gap-2">
+                      فتح لوحة التجربة
+                      <ArrowLeft className="h-4 w-4" />
+                    </Link>
+                  </Button>
+                  <Button size="lg" variant="light" asChild className="w-full sm:w-auto">
+                    <Link href="/request-demo">احجز عرضًا تجريبيًا</Link>
+                  </Button>
+                </div>
+
+                <div className="mt-8 grid gap-2 sm:grid-cols-3">
+                  {([
+                    ["بيع سريع", ReceiptText, "/dashboard/customer-invoices/new"],
+                    ["طلب شراء", ShoppingCart, "/dashboard/purchase-orders"],
+                    ["نشر عبر Node-RED", Megaphone, "/dashboard/marketing/create"],
+                  ] as const).map(([item, Icon, href]) => (
+                    <Link
+                      key={String(item)}
+                      href={href}
+                      className="flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-white transition hover:bg-white/10"
+                    >
+                      <Icon className="h-4 w-4 text-accent" />
+                      {item}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+
+              <div className="relative z-10">
+                <DashboardMockup />
+              </div>
+            </div>
+
+            <div className="border-t border-white/10 px-5 py-4 sm:px-8 lg:px-10">
+              <div className="flex flex-wrap gap-3 text-sm font-bold text-white/75">
+                {["عزل البيانات", "متعدد العملاء", "قنوات اجتماعية متعددة"].map((item) => (
+                  <span key={item} className="inline-flex items-center gap-2 rounded-full bg-white/6 px-4 py-2">
+                    <CheckCircle2 className="h-4 w-4 text-accent" />
+                    {item}
+                  </span>
                 ))}
               </div>
             </div>
-            <BusinessFitForm />
           </div>
         </section>
 
-        <section className="border-y border-border/80 bg-white/60 py-16">
+        <section className="mx-auto max-w-7xl px-4 py-14 lg:px-6">
+          <div className="grid gap-4 md:grid-cols-4">
+            {problems.map((problem, index) => (
+              <Card key={problem} variant={index === 1 ? "dark" : index === 2 ? "primary" : index === 3 ? "light" : "default"}>
+                <CardContent className="flex min-h-36 flex-col justify-between p-5">
+                  <TrendingDown className={index === 1 || index === 2 ? "h-5 w-5 text-accent" : "h-5 w-5 text-destructive"} />
+                  <p className="text-sm font-bold leading-7 opacity-85">{problem}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </section>
+
+        <section className="mx-auto grid max-w-7xl gap-6 px-4 pb-16 lg:grid-cols-[0.88fr_1.12fr] lg:px-6">
+          <div className="flex flex-col justify-center">
+            <Badge tone="default" className="w-fit">ابدأ حسب نوع نشاطك</Badge>
+            <h2 className="mt-4 max-w-xl text-4xl font-black leading-tight tracking-tight">أجب عن 5 أسئلة، ورواق يرتب لك الداشبورد.</h2>
+            <p className="mt-4 max-w-2xl leading-8 text-muted-foreground">
+              ليس كل صاحب عمل يحتاج نفس الشاشة. الكافيه يريد سرعة كاشير وعروض، والمطعم المتوسط يحتاج تكلفة وموردين،
+              وصاحب الفروع يحتاج صلاحيات وتوزيع عمل.
+            </p>
+            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+              {businessProfiles.map(([title, body], index) => (
+                <div key={title} className={index === 0 ? "rounded-3xl bg-secondary p-5 text-white" : "rounded-3xl border border-border bg-white p-5 shadow-soft"}>
+                  <p className="font-extrabold">{title}</p>
+                  <p className={index === 0 ? "mt-2 text-sm leading-6 text-white/70" : "mt-2 text-sm leading-6 text-muted-foreground"}>{body}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+          <BusinessFitForm />
+        </section>
+
+        <section id="features" className="bg-white py-16">
           <div className="mx-auto max-w-7xl px-4 lg:px-6">
-            <div className="grid gap-4 md:grid-cols-4">
-              {problems.map((problem, index) => (
-                <Card key={problem} variant={index % 3 === 1 ? "dark" : index % 3 === 2 ? "primary" : "default"}>
-                  <CardContent className="p-5">
-                    <TrendingDown className="mb-4 h-5 w-5 text-destructive" />
-                    <p className="text-sm leading-7 opacity-80">{problem}</p>
+            <div className="mb-10 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+              <div className="max-w-2xl">
+                <Badge tone="default">إدارة عمليات المطاعم</Badge>
+                <h2 className="mt-4 text-4xl font-black tracking-tight">حل تشغيلي واضح، بدون تعقيد زائد.</h2>
+                <p className="mt-3 leading-8 text-muted-foreground">
+                  كل ميزة مصممة لتقليل العمل اليدوي وربط التكلفة اليومية بقرارات الشراء والتسويق.
+                </p>
+              </div>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {features.map(({ title, description, icon: Icon }, index) => (
+                <Card key={title} variant={index === 1 ? "dark" : index === 2 ? "primary" : index === 4 ? "light" : "default"}>
+                  <CardHeader>
+                    <div className={index === 1 || index === 2 ? "mb-3 grid h-12 w-12 place-items-center rounded-full bg-white/15 text-white" : "mb-3 grid h-12 w-12 place-items-center rounded-full bg-primary-light text-primary"}>
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    <CardTitle>{title}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className={index === 1 || index === 2 ? "text-sm leading-7 text-white/72" : "text-sm leading-7 text-muted-foreground"}>{description}</p>
                   </CardContent>
                 </Card>
               ))}
@@ -151,62 +186,42 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <section id="features" className="mx-auto max-w-7xl px-4 py-16 lg:px-6">
-          <div className="mb-8 max-w-2xl">
-            <Badge tone="default">إدارة عمليات المطاعم</Badge>
-            <h2 className="mt-4 text-3xl font-extrabold tracking-tight">حل تشغيلي واضح، بدون تعقيد زائد.</h2>
-            <p className="mt-3 text-slate-600">
-              كل ميزة مصممة لتقليل العمل اليدوي وربط التكلفة اليومية بقرارات الشراء والتسويق.
-            </p>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {features.map(({ title, description, icon: Icon }) => (
-              <Card key={title}>
-                <CardHeader>
-                  <div className="mb-3 grid h-11 w-11 place-items-center rounded-full bg-primary-light text-primary">
-                    <Icon className="h-5 w-5" />
-                  </div>
-                  <CardTitle>{title}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm leading-7 text-muted-foreground">{description}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </section>
-
-        <section id="workflow" className="mx-auto max-w-7xl rounded-[2rem] bg-secondary py-16 text-white shadow-lift">
-          <div className="mx-auto max-w-7xl px-4 lg:px-6">
-            <h2 className="text-3xl font-bold">كيف يعمل؟</h2>
-            <div className="mt-8 grid gap-4 md:grid-cols-4">
-              {["اربط الفروع والمستخدمين", "أدخل المواد والموردين", "احسب الوصفات والقائمة", "انشر العروض وتابع التقارير"].map(
-                (step, index) => (
-                  <div key={step} className="rounded-3xl border border-white/10 bg-white/5 p-5">
-                    <span className="text-4xl font-black text-accent">{index + 1}</span>
-                    <p className="mt-4 leading-7 text-slate-200">{step}</p>
-                  </div>
-                ),
-              )}
+        <section id="workflow" className="mx-auto my-16 max-w-7xl px-4 lg:px-6">
+          <div className="rounded-[2.25rem] bg-secondary p-6 text-white shadow-lift sm:p-8 lg:p-10">
+            <div className="grid gap-8 lg:grid-cols-[0.75fr_1.25fr] lg:items-end">
+              <div>
+                <Badge className="border-white/15 bg-white/10 text-accent">كيف يعمل؟</Badge>
+                <h2 className="mt-4 text-4xl font-black tracking-tight">كيف يعمل؟</h2>
+              </div>
+              <div className="grid gap-3 md:grid-cols-4">
+                {["اربط الفروع والمستخدمين", "أدخل المواد والموردين", "احسب الوصفات والقائمة", "انشر العروض وتابع التقارير"].map(
+                  (step, index) => (
+                    <div key={step} className="rounded-3xl border border-white/10 bg-white/5 p-5">
+                      <span className="text-4xl font-black text-accent">{index + 1}</span>
+                      <p className="mt-4 text-sm font-bold leading-7 text-white/78">{step}</p>
+                    </div>
+                  ),
+                )}
+              </div>
             </div>
           </div>
         </section>
 
-        <section className="mx-auto max-w-7xl px-4 py-16 lg:px-6">
+        <section className="mx-auto max-w-7xl px-4 pb-16 lg:px-6">
           <div className="grid gap-4 lg:grid-cols-3">
             {["مطاعم وجبات سريعة", "كافيهات", "مطابخ سحابية"].map((useCase, index) => {
               const Icon = index === 1 ? Coffee : index === 2 ? Store : Sparkles;
 
               return (
-              <Card key={useCase}>
-                <CardContent className="p-6">
-                  <Icon className="mb-4 h-5 w-5 text-accent" />
-                  <h3 className="font-semibold">{useCase}</h3>
-                  <p className="mt-2 text-sm leading-7 text-muted-foreground">
-                    تحكم بالمخزون والتكاليف والتسويق اليومي من لوحة واحدة، مع صلاحيات تناسب الفريق.
-                  </p>
-                </CardContent>
-              </Card>
+                <Card key={useCase} variant={index === 1 ? "light" : "default"}>
+                  <CardContent className="p-6">
+                    <Icon className="mb-4 h-5 w-5 text-primary" />
+                    <h3 className="text-lg font-extrabold">{useCase}</h3>
+                    <p className="mt-2 text-sm leading-7 text-muted-foreground">
+                      تحكم بالمخزون والتكاليف والتسويق اليومي من لوحة واحدة، مع صلاحيات تناسب الفريق.
+                    </p>
+                  </CardContent>
+                </Card>
               );
             })}
           </div>
@@ -216,38 +231,39 @@ export default function LandingPage() {
           <div className="mx-auto max-w-7xl px-4 lg:px-6">
             <div className="mb-8 max-w-3xl">
               <Badge tone="default">مقارنة عملية لغزة</Badge>
-              <h2 className="mt-4 text-3xl font-extrabold tracking-tight">رواق يأخذ أفضل فكرة من كل نظام، ثم يبسطها.</h2>
-              <p className="mt-3 leading-7 text-muted-foreground">
+              <h2 className="mt-4 text-4xl font-black tracking-tight">رواق يأخذ أفضل فكرة من كل نظام، ثم يبسطها.</h2>
+              <p className="mt-3 leading-8 text-muted-foreground">
                 الهدف ليس تقليد Foodics أو الأصيل أو Aronium، بل جعل اختيار الداشبورد مناسبًا لحجم العمل ومستوى المحاسبة.
               </p>
             </div>
-            <div className="grid gap-3 md:grid-cols-2">
-              {recommendationRows.map(([type, best, why]) => (
-                <Card key={type}>
-                  <CardContent className="grid gap-3 p-5 sm:grid-cols-[130px_1fr]">
-                    <div>
-                      <p className="text-sm text-muted-foreground">نوع العمل</p>
-                      <p className="font-bold">{type}</p>
-                    </div>
-                    <div>
-                      <p className="font-semibold text-primary">{best}</p>
-                      <p className="mt-1 text-sm leading-6 text-muted-foreground">{why}</p>
-                    </div>
-                  </CardContent>
-                </Card>
+            <div className="overflow-hidden rounded-[2rem] border border-border bg-white shadow-soft">
+              {recommendationRows.map(([type, best, why], index) => (
+                <div key={type} className="grid gap-3 border-b border-border p-5 last:border-b-0 md:grid-cols-[180px_1fr_44px] md:items-center">
+                  <div>
+                    <p className="text-xs font-bold text-muted-foreground">نوع العمل</p>
+                    <p className="font-extrabold">{type}</p>
+                  </div>
+                  <div>
+                    <p className="font-extrabold text-primary">{best}</p>
+                    <p className="mt-1 text-sm leading-6 text-muted-foreground">{why}</p>
+                  </div>
+                  <span className={index === 1 ? "grid h-11 w-11 place-items-center rounded-full bg-secondary text-white" : "grid h-11 w-11 place-items-center rounded-full border border-dashed border-secondary/35 text-primary"}>
+                    <ArrowLeft className="h-4 w-4" />
+                  </span>
+                </div>
               ))}
             </div>
           </div>
         </section>
 
-        <section className="bg-white py-12 sm:py-16">
+        <section className="bg-white py-16">
           <div className="mx-auto max-w-7xl px-3 sm:px-4 lg:px-6">
-            <div className="mb-6 flex flex-col gap-2 sm:mb-8 sm:flex-row sm:items-end sm:justify-between">
+            <div className="mb-8 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <h2 className="text-2xl font-bold sm:text-3xl">باقات واضحة للنمو</h2>
-                <p className="mt-1 text-sm text-muted-foreground sm:mt-2">ابدأ صغيرًا وتوسع عندما تصبح الفروع أكثر.</p>
+                <h2 className="text-3xl font-black tracking-tight">باقات واضحة للنمو</h2>
+                <p className="mt-2 text-sm text-muted-foreground">ابدأ صغيرًا وتوسع عندما تصبح الفروع أكثر.</p>
               </div>
-              <Link href="/pricing" className="text-sm font-semibold text-primary">
+              <Link href="/pricing" className="rounded-full bg-primary-light px-4 py-2 text-sm font-extrabold text-primary">
                 تفاصيل الأسعار
               </Link>
             </div>
@@ -258,11 +274,11 @@ export default function LandingPage() {
                 ["Scale", "₪499", "صلاحيات وأتمتة وتوسع متقدم"],
               ].map(([name, price, desc]) => (
                 <Card key={name} variant={name === "Growth" ? "dark" : name === "Scale" ? "light" : "default"}>
-                  <CardContent className="p-4 sm:p-6">
-                    <h3 className="text-lg font-bold sm:text-xl">{name}</h3>
-                    <p className="mt-3 text-2xl font-black sm:mt-4 sm:text-3xl">{price}</p>
-                    <p className="mt-2 text-sm leading-6 text-muted-foreground sm:mt-3 sm:text-sm sm:leading-7">{desc}</p>
-                    <Button className="mt-4 w-full sm:mt-6" variant={name === "Growth" ? "light" : "default"} asChild>
+                  <CardContent className="p-6">
+                    <h3 className="text-xl font-extrabold">{name}</h3>
+                    <p className="mt-4 text-4xl font-black tabular-nums">{price}</p>
+                    <p className={name === "Growth" ? "mt-3 text-sm leading-7 text-white/70" : "mt-3 text-sm leading-7 text-muted-foreground"}>{desc}</p>
+                    <Button className="mt-6 w-full" variant={name === "Growth" ? "light" : "default"} asChild>
                       <Link href="/register">اختيار الباقة</Link>
                     </Button>
                   </CardContent>
@@ -273,12 +289,12 @@ export default function LandingPage() {
         </section>
 
         <section className="mx-auto max-w-4xl px-4 py-16 lg:px-6">
-          <h2 className="text-center text-3xl font-bold">أسئلة شائعة</h2>
+          <h2 className="text-center text-4xl font-black tracking-tight">أسئلة شائعة</h2>
           <div className="mt-8 space-y-3">
             {faqs.map(([question, answer]) => (
               <Card key={question}>
-                <CardContent className="p-5">
-                  <h3 className="font-semibold">{question}</h3>
+                <CardContent className="p-6">
+                  <h3 className="font-extrabold">{question}</h3>
                   <p className="mt-2 text-sm leading-7 text-muted-foreground">{answer}</p>
                 </CardContent>
               </Card>
@@ -287,9 +303,9 @@ export default function LandingPage() {
         </section>
 
         <section className="mx-auto max-w-7xl px-4 pb-16 lg:px-6">
-          <div className="rounded-[2rem] bg-secondary px-6 py-10 text-white shadow-lift md:px-10">
-            <h2 className="text-3xl font-bold">جاهز ترى تكلفة الطبق قبل نهاية اليوم؟</h2>
-            <p className="mt-3 max-w-2xl text-white/75">
+          <div className="rounded-[2.25rem] bg-secondary px-6 py-10 text-white shadow-lift md:px-10">
+            <h2 className="text-4xl font-black tracking-tight">جاهز ترى تكلفة الطبق قبل نهاية اليوم؟</h2>
+            <p className="mt-3 max-w-2xl leading-8 text-white/75">
               شغّل نسخة MVP محليًا، طبّق migrations على Supabase، وابدأ بتجربة مطعم إيوان.
             </p>
             <Button className="mt-6 bg-white text-primary hover:bg-slate-100" asChild>
