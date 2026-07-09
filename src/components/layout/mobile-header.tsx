@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Menu, Search, MessageSquare } from "lucide-react";
 import { useState } from "react";
+import { GlobalSearch } from "@/components/layout/global-search";
 import { NotificationBell } from "@/components/layout/notification-bell";
 import type { AppSession } from "@/lib/auth/session";
 import type { Branch, Notification } from "@/types/domain";
@@ -108,15 +109,7 @@ export function MobileHeader({
         {/* Search bar - slides in from top */}
         {searchOpen && (
           <div className="px-4 py-3 border-t border-border bg-slate-50">
-            <div className="relative">
-              <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-primary" />
-              <input
-                type="text"
-                placeholder="بحث: صنف، فاتورة، مورد..."
-                className="w-full rounded-lg border border-input bg-white ps-9 pe-3 py-2 text-sm placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                autoFocus
-              />
-            </div>
+            <GlobalSearch variant="mobile" autoFocus onNavigate={() => setSearchOpen(false)} />
           </div>
         )}
       </header>

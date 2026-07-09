@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { Boxes, FileText, Megaphone, ReceiptText, Search, ShoppingCart, MessageSquare } from "lucide-react";
+import { Boxes, FileText, Megaphone, ReceiptText, ShoppingCart, MessageSquare } from "lucide-react";
+import { GlobalSearch } from "@/components/layout/global-search";
 import { NotificationBell } from "@/components/layout/notification-bell";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import type { AppSession } from "@/lib/auth/session";
 import type { Branch, Notification } from "@/types/domain";
@@ -22,10 +22,7 @@ export function AppHeader({ session, branches, notifications, onChatOpen }: AppH
         <div className="w-10 lg:hidden" />
 
         <div className="hidden min-w-0 flex-1 items-center gap-3 md:flex">
-          <div className="relative w-full max-w-lg">
-            <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-primary" />
-            <Input className="border-blue-100 bg-blue-50/50 pe-3 ps-9" placeholder="بحث عام: صنف، فاتورة، مورد، عميل، منشور..." />
-          </div>
+          <GlobalSearch variant="desktop" />
           <Select className="max-w-64" defaultValue={session.branchId ?? "all"} aria-label="اختيار الفرع">
             <option value="all">كل الفروع</option>
             {branches.map((branch) => (
