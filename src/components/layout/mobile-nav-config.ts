@@ -66,7 +66,7 @@ export const mobileQuickActions = [
     description: "سجل فاتورة مورد مع الأصناف والكميات",
     href: "/dashboard/invoices",
     icon: ReceiptText,
-    className: "bg-blue-50 text-blue-700 border-blue-200",
+    className: "bg-primary-light text-primary border-primary-light",
   },
   {
     title: "طلب شراء",

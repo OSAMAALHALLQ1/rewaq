@@ -11,15 +11,15 @@ export default function RequestDemoPage() {
     <div className="min-h-screen bg-background">
       <SiteHeader />
       <main className="mx-auto grid max-w-6xl gap-8 px-4 py-16 lg:grid-cols-[0.9fr_1.1fr] lg:px-6">
-        <div>
-          <h1 className="text-4xl font-black">احجز عرضًا تجريبيًا</h1>
-          <p className="mt-4 text-lg leading-9 text-muted-foreground">
+        <div className="rounded-[2rem] bg-secondary p-8 text-white shadow-lift">
+          <h1 className="text-4xl font-black tracking-tight text-accent">احجز عرضًا تجريبيًا</h1>
+          <p className="mt-4 text-lg leading-9 text-white/75">
             أخبرنا عن عدد الفروع وحجم العمليات، وسنريك كيف تبدو إدارة المخزون والتكلفة والتسويق داخل
             رواق.
           </p>
-          <div className="mt-8 rounded-lg border bg-white p-5">
-            <h2 className="font-semibold">ماذا سنغطي؟</h2>
-            <ul className="mt-4 space-y-3 text-sm leading-7 text-muted-foreground">
+          <div className="mt-8 rounded-3xl border border-white/10 bg-white/10 p-5">
+            <h2 className="font-extrabold">ماذا سنغطي؟</h2>
+            <ul className="mt-4 space-y-3 text-sm leading-7 text-white/75">
               <li>تدفق إدخال المواد والموردين.</li>
               <li>استلام طلب شراء وتوليد stock movements.</li>
               <li>حساب تكلفة الطعام لوصفة وطبق قائمة.</li>

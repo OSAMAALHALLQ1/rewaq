@@ -62,15 +62,15 @@ export default function LandingPage() {
     <div className="min-h-screen bg-background">
       <SiteHeader />
       <main>
-        <section className="relative isolate overflow-hidden bg-slate-950 text-white">
+        <section className="relative isolate mx-auto mt-4 max-w-7xl overflow-hidden rounded-[2.5rem] bg-secondary text-white shadow-lift">
           <div className="pointer-events-none absolute inset-y-8 left-[-6rem] hidden w-[58rem] opacity-25 lg:block">
             <DashboardMockup />
           </div>
-          <div className="relative mx-auto flex min-h-[70vh] flex-col justify-center px-4 py-8 sm:min-h-[76vh] sm:py-12 lg:px-6">
-            <Badge tone="success" className="mb-4 w-fit sm:mb-5">
+          <div className="relative mx-auto flex min-h-[66vh] flex-col justify-center px-5 py-10 sm:min-h-[70vh] sm:py-14 lg:px-10">
+            <Badge tone="default" className="mb-4 w-fit border-white/15 bg-white/10 text-accent sm:mb-5">
               منصة عربية للمطاعم والكافيهات
             </Badge>
-            <h1 className="max-w-4xl text-3xl font-black leading-tight sm:text-4xl md:text-5xl lg:text-6xl">
+            <h1 className="max-w-4xl text-4xl font-black leading-tight tracking-tight text-accent sm:text-5xl md:text-6xl lg:text-7xl">
               رواق
             </h1>
             <p className="mt-3 max-w-3xl text-base leading-7 sm:text-lg sm:leading-9 md:text-xl text-slate-200">
@@ -96,9 +96,9 @@ export default function LandingPage() {
                 <Link
                   key={String(item)}
                   href={href}
-                  className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/5 p-3 text-sm font-medium text-slate-100 transition hover:bg-white/10"
+                  className="flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-slate-100 transition hover:bg-white/10"
                 >
-                  <Icon className="h-4 w-4 text-orange-300" />
+                  <Icon className="h-4 w-4 text-accent" />
                   {item}
                 </Link>
               ))}
@@ -106,7 +106,7 @@ export default function LandingPage() {
             <div className="mt-6 flex flex-wrap gap-4 text-sm text-slate-300">
               {["عزل البيانات", "متعدد العملاء", "قنوات اجتماعية متعددة"].map((item) => (
                 <span key={item} className="inline-flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-teal-300" />
+                  <CheckCircle2 className="h-4 w-4 text-accent" />
                   {item}
                 </span>
               ))}
@@ -114,18 +114,18 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <section className="border-y border-border bg-white py-14">
+        <section className="py-14">
           <div className="mx-auto grid max-w-7xl gap-6 px-4 lg:grid-cols-[0.9fr_1.1fr] lg:px-6">
             <div>
-              <Badge tone="success">ابدأ حسب نوع نشاطك</Badge>
-              <h2 className="mt-4 text-3xl font-bold">أجب عن 5 أسئلة، ورواق يرتب لك الداشبورد.</h2>
+              <Badge tone="default">ابدأ حسب نوع نشاطك</Badge>
+              <h2 className="mt-4 text-3xl font-extrabold tracking-tight">أجب عن 5 أسئلة، ورواق يرتب لك الداشبورد.</h2>
               <p className="mt-3 leading-7 text-muted-foreground">
                 ليس كل صاحب عمل يحتاج نفس الشاشة. الكافيه يريد سرعة كاشير وعروض، والمطعم المتوسط يحتاج تكلفة وموردين،
                 وصاحب الفروع يحتاج صلاحيات وتوزيع عمل.
               </p>
               <div className="mt-5 grid gap-3 sm:grid-cols-2">
                 {businessProfiles.map(([title, body]) => (
-                  <div key={title} className="rounded-lg border bg-slate-50 p-4">
+                  <div key={title} className="rounded-3xl border border-border bg-white p-4 shadow-soft">
                     <p className="font-semibold">{title}</p>
                     <p className="mt-1 text-sm leading-6 text-muted-foreground">{body}</p>
                   </div>
@@ -136,14 +136,14 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <section className="border-y border-border bg-white py-16">
+        <section className="border-y border-border/80 bg-white/60 py-16">
           <div className="mx-auto max-w-7xl px-4 lg:px-6">
             <div className="grid gap-4 md:grid-cols-4">
-              {problems.map((problem) => (
-                <Card key={problem}>
+              {problems.map((problem, index) => (
+                <Card key={problem} variant={index % 3 === 1 ? "dark" : index % 3 === 2 ? "primary" : "default"}>
                   <CardContent className="p-5">
                     <TrendingDown className="mb-4 h-5 w-5 text-destructive" />
-                    <p className="text-sm leading-7 text-slate-700">{problem}</p>
+                    <p className="text-sm leading-7 opacity-80">{problem}</p>
                   </CardContent>
                 </Card>
               ))}
@@ -153,8 +153,8 @@ export default function LandingPage() {
 
         <section id="features" className="mx-auto max-w-7xl px-4 py-16 lg:px-6">
           <div className="mb-8 max-w-2xl">
-            <Badge tone="warning">إدارة عمليات المطاعم</Badge>
-            <h2 className="mt-4 text-3xl font-bold">حل تشغيلي واضح، بدون تعقيد زائد.</h2>
+            <Badge tone="default">إدارة عمليات المطاعم</Badge>
+            <h2 className="mt-4 text-3xl font-extrabold tracking-tight">حل تشغيلي واضح، بدون تعقيد زائد.</h2>
             <p className="mt-3 text-slate-600">
               كل ميزة مصممة لتقليل العمل اليدوي وربط التكلفة اليومية بقرارات الشراء والتسويق.
             </p>
@@ -163,7 +163,7 @@ export default function LandingPage() {
             {features.map(({ title, description, icon: Icon }) => (
               <Card key={title}>
                 <CardHeader>
-                  <div className="mb-3 grid h-11 w-11 place-items-center rounded-lg bg-teal-50 text-primary">
+                  <div className="mb-3 grid h-11 w-11 place-items-center rounded-full bg-primary-light text-primary">
                     <Icon className="h-5 w-5" />
                   </div>
                   <CardTitle>{title}</CardTitle>
@@ -176,14 +176,14 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <section id="workflow" className="bg-slate-950 py-16 text-white">
+        <section id="workflow" className="mx-auto max-w-7xl rounded-[2rem] bg-secondary py-16 text-white shadow-lift">
           <div className="mx-auto max-w-7xl px-4 lg:px-6">
             <h2 className="text-3xl font-bold">كيف يعمل؟</h2>
             <div className="mt-8 grid gap-4 md:grid-cols-4">
               {["اربط الفروع والمستخدمين", "أدخل المواد والموردين", "احسب الوصفات والقائمة", "انشر العروض وتابع التقارير"].map(
                 (step, index) => (
-                  <div key={step} className="rounded-lg border border-white/10 bg-white/5 p-5">
-                    <span className="text-3xl font-black text-orange-300">{index + 1}</span>
+                  <div key={step} className="rounded-3xl border border-white/10 bg-white/5 p-5">
+                    <span className="text-4xl font-black text-accent">{index + 1}</span>
                     <p className="mt-4 leading-7 text-slate-200">{step}</p>
                   </div>
                 ),
@@ -212,11 +212,11 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <section className="bg-slate-50 py-16">
+        <section className="bg-muted py-16">
           <div className="mx-auto max-w-7xl px-4 lg:px-6">
             <div className="mb-8 max-w-3xl">
-              <Badge tone="warning">مقارنة عملية لغزة</Badge>
-              <h2 className="mt-4 text-3xl font-bold">رواق يأخذ أفضل فكرة من كل نظام، ثم يبسطها.</h2>
+              <Badge tone="default">مقارنة عملية لغزة</Badge>
+              <h2 className="mt-4 text-3xl font-extrabold tracking-tight">رواق يأخذ أفضل فكرة من كل نظام، ثم يبسطها.</h2>
               <p className="mt-3 leading-7 text-muted-foreground">
                 الهدف ليس تقليد Foodics أو الأصيل أو Aronium، بل جعل اختيار الداشبورد مناسبًا لحجم العمل ومستوى المحاسبة.
               </p>
@@ -257,12 +257,12 @@ export default function LandingPage() {
                 ["Growth", "₪249", "حتى 5 فروع، وصفات، وتسويق"],
                 ["Scale", "₪499", "صلاحيات وأتمتة وتوسع متقدم"],
               ].map(([name, price, desc]) => (
-                <Card key={name} className={name === "Growth" ? "border-primary shadow-lg" : ""}>
+                <Card key={name} variant={name === "Growth" ? "dark" : name === "Scale" ? "light" : "default"}>
                   <CardContent className="p-4 sm:p-6">
                     <h3 className="text-lg font-bold sm:text-xl">{name}</h3>
                     <p className="mt-3 text-2xl font-black sm:mt-4 sm:text-3xl">{price}</p>
                     <p className="mt-2 text-sm leading-6 text-muted-foreground sm:mt-3 sm:text-sm sm:leading-7">{desc}</p>
-                    <Button className="mt-4 w-full sm:mt-6" variant={name === "Growth" ? "default" : "outline"} asChild>
+                    <Button className="mt-4 w-full sm:mt-6" variant={name === "Growth" ? "light" : "default"} asChild>
                       <Link href="/register">اختيار الباقة</Link>
                     </Button>
                   </CardContent>
@@ -287,9 +287,9 @@ export default function LandingPage() {
         </section>
 
         <section className="mx-auto max-w-7xl px-4 pb-16 lg:px-6">
-          <div className="rounded-lg bg-primary px-6 py-10 text-white md:px-10">
+          <div className="rounded-[2rem] bg-secondary px-6 py-10 text-white shadow-lift md:px-10">
             <h2 className="text-3xl font-bold">جاهز ترى تكلفة الطبق قبل نهاية اليوم؟</h2>
-            <p className="mt-3 max-w-2xl text-teal-50">
+            <p className="mt-3 max-w-2xl text-white/75">
               شغّل نسخة MVP محليًا، طبّق migrations على Supabase، وابدأ بتجربة مطعم إيوان.
             </p>
             <Button className="mt-6 bg-white text-primary hover:bg-slate-100" asChild>

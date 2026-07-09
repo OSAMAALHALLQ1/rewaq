@@ -32,13 +32,13 @@ export function MobileHeader({
         <div className="fixed inset-0 z-30 bg-black/40" onClick={() => setSearchOpen(false)} />
       )}
 
-      <header className="sticky top-0 z-20 border-b border-border bg-white/95 backdrop-blur md:hidden">
+      <header className="sticky top-0 z-20 border-b border-border/80 bg-background/95 backdrop-blur md:hidden">
         {/* Main header bar */}
         <div className="flex items-center justify-between px-4 py-3">
           {/* Left: Logo & Organization */}
           <Link href="/" className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded bg-primary text-white text-sm font-bold">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-white text-sm font-bold">
                 ر
               </div>
               <div className="min-w-0">
@@ -52,23 +52,23 @@ export function MobileHeader({
           <div className="flex items-center gap-1">
             <button
               onClick={() => setSearchOpen(!searchOpen)}
-              className="p-2 hover:bg-slate-100 rounded-lg transition"
+              className="rounded-full p-2 transition hover:bg-primary-light"
               aria-label="بحث"
             >
-              <Search className="h-5 w-5 text-slate-600" />
+              <Search className="h-5 w-5 text-muted-foreground" />
             </button>
 
             {/* Glowing Chat Trigger Button for Mobile */}
             {onChatOpen && (
               <button
                 onClick={onChatOpen}
-                className="p-2 hover:bg-slate-100 rounded-lg transition relative"
+                className="rounded-full p-2 transition hover:bg-primary-light relative"
                 aria-label="الرسائل الداخلية"
               >
-                <MessageSquare className="h-5 w-5 text-slate-600" />
+                <MessageSquare className="h-5 w-5 text-muted-foreground" />
                 <span className="absolute top-1 end-1 flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-teal-500"></span>
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-accent"></span>
                 </span>
               </button>
             )}
@@ -79,10 +79,10 @@ export function MobileHeader({
               onClick={() => {
                 if (onMenuOpen) onMenuOpen();
               }}
-              className="p-2 hover:bg-slate-100 rounded-lg transition flex items-center gap-1"
+              className="rounded-full p-2 transition hover:bg-primary-light flex items-center gap-1"
               aria-label="القائمة"
             >
-              <Menu className="h-5 w-5 text-slate-600" />
+              <Menu className="h-5 w-5 text-muted-foreground" />
             </button>
           </div>
         </div>
@@ -93,7 +93,7 @@ export function MobileHeader({
             <span className="text-muted-foreground">الفرع:</span>
             <select
               defaultValue={session.branchId ?? "all"}
-              className="flex-1 rounded border border-input bg-white px-2 py-1 text-xs hover:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              className="flex-1 rounded-full border border-transparent bg-muted px-3 py-1.5 text-xs hover:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               suppressHydrationWarning
             >
               <option value="all">كل الفروع</option>
@@ -108,7 +108,7 @@ export function MobileHeader({
 
         {/* Search bar - slides in from top */}
         {searchOpen && (
-          <div className="px-4 py-3 border-t border-border bg-slate-50">
+          <div className="px-4 py-3 border-t border-border bg-muted">
             <GlobalSearch variant="mobile" autoFocus onNavigate={() => setSearchOpen(false)} />
           </div>
         )}

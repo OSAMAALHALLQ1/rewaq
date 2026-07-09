@@ -16,8 +16,8 @@ type AppHeaderProps = {
 
 export function AppHeader({ session, branches, notifications, onChatOpen }: AppHeaderProps) {
   return (
-    <header className="sticky top-0 z-20 border-b border-border bg-white/88 backdrop-blur">
-      <div className="flex min-h-16 items-center gap-2 px-3 md:gap-3 md:px-4 lg:px-6">
+    <header className="sticky top-0 z-20 border-b border-border/80 bg-background/88 backdrop-blur">
+      <div className="flex min-h-16 items-center gap-2 px-3 md:gap-3 md:px-5 lg:px-8">
         {/* Mobile spacer for menu button - handled in page-shell */}
         <div className="w-10 lg:hidden" />
 
@@ -73,13 +73,13 @@ export function AppHeader({ session, branches, notifications, onChatOpen }: AppH
               onClick={onChatOpen} 
               variant="ghost" 
               size="icon" 
-              className="text-slate-600 hover:text-primary relative hover:bg-slate-50 rounded-lg transition-all h-9 w-9" 
+              className="relative h-11 w-11 text-muted-foreground transition-all hover:bg-primary-light hover:text-primary" 
               title="الرسائل الداخلية"
             >
               <MessageSquare className="h-4.5 w-4.5" />
               <span className="absolute top-1 end-1 flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-teal-500"></span>
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-accent"></span>
               </span>
             </Button>
           )}

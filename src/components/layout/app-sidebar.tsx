@@ -106,10 +106,10 @@ export function AppSidebar({ activePath = "", mode = "app", role, onNavigate, on
   };
 
   return (
-    <aside className="flex h-full w-full flex-col bg-white">
+    <aside className="flex h-full w-full flex-col bg-muted">
       <div className="sticky top-0 flex h-full flex-col">
-        <Link href="/" className="flex items-center gap-3 border-b border-border px-5 py-5">
-          <span className="grid h-10 w-10 place-items-center rounded-lg bg-gradient-to-br from-blue-600 to-blue-500 text-white shadow-sm">
+        <Link href="/" className="flex items-center gap-3 border-b border-border/80 px-5 py-5">
+          <span className="grid h-10 w-10 place-items-center rounded-full bg-secondary text-white shadow-sm">
             <Layers className="h-5 w-5" />
           </span>
           <span>
@@ -119,7 +119,7 @@ export function AppSidebar({ activePath = "", mode = "app", role, onNavigate, on
         </Link>
 
         {mode === "app" ? (
-          <div className="border-b border-border px-3 py-3">
+          <div className="border-b border-border/80 px-3 py-3">
             <div className="grid grid-cols-2 gap-2">
               {quickLinks.map((item) => {
                 const Icon = item.icon;
@@ -127,7 +127,7 @@ export function AppSidebar({ activePath = "", mode = "app", role, onNavigate, on
                   <Link
                     key={item.href}
                     href={item.href}
-                    className="flex h-14 flex-col items-center justify-center gap-1 rounded-lg border border-blue-100 bg-blue-50/60 text-xs font-semibold text-blue-700 transition hover:border-primary/40 hover:bg-blue-100"
+                    className="flex h-14 flex-col items-center justify-center gap-1 rounded-2xl border border-primary-light bg-white text-xs font-bold text-primary transition hover:border-primary hover:bg-primary-light"
                   >
                     <Icon className="h-4 w-4" />
                     {item.title}
@@ -148,10 +148,10 @@ export function AppSidebar({ activePath = "", mode = "app", role, onNavigate, on
                 href={item.href}
                 onClick={handleLinkClick}
                 className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition",
+                  "flex items-center gap-3 rounded-full px-3 py-2.5 text-sm font-bold transition",
                   active
-                    ? "bg-primary text-white shadow-sm"
-                    : "text-slate-700 hover:bg-blue-50 hover:text-primary",
+                    ? "bg-secondary text-white shadow-sm"
+                    : "text-foreground hover:bg-white hover:text-primary",
                 )}
               >
                 <Icon className="h-4 w-4" />
@@ -170,7 +170,7 @@ export function AppSidebar({ activePath = "", mode = "app", role, onNavigate, on
                 <button
                   type="button"
                   onClick={() => toggleGroup(group.title)}
-                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs font-bold text-slate-500 transition hover:bg-slate-50 hover:text-primary"
+                  className="flex w-full items-center gap-2 rounded-full px-3 py-2 text-xs font-bold text-muted-foreground transition hover:bg-white hover:text-primary"
                   aria-expanded={open}
                 >
                   <GroupIcon className="h-4 w-4 shrink-0 text-primary/70" />
@@ -187,7 +187,7 @@ export function AppSidebar({ activePath = "", mode = "app", role, onNavigate, on
                   )}
                 >
                   <div className="overflow-hidden">
-                    <div className="ms-3 mt-0.5 space-y-0.5 border-s-2 border-blue-100 ps-2">
+                    <div className="ms-3 mt-1 space-y-1 border-s-2 border-primary-light ps-2">
                       {group.items.map((item) => {
                         const Icon = item.icon;
                         const active = isActive(item.href);
@@ -204,16 +204,16 @@ export function AppSidebar({ activePath = "", mode = "app", role, onNavigate, on
                               }
                             }}
                             className={cn(
-                              "flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition",
+                              "flex items-center gap-2.5 rounded-full px-3 py-2 text-sm font-bold transition",
                               active
-                                ? "bg-blue-50 text-primary"
-                                : "text-slate-600 hover:bg-slate-50 hover:text-slate-950",
+                                ? "bg-primary text-white"
+                                : "text-muted-foreground hover:bg-white hover:text-foreground",
                             )}
                           >
                             <Icon className={cn("h-4 w-4 shrink-0", active && "text-primary")} />
                             <span className="flex-1 truncate">{item.title}</span>
                             {item.badge && (
-                              <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
+                              <span className="rounded-full bg-primary-light px-2 py-0.5 text-[10px] font-bold text-primary-light-foreground">
                                 {item.badge}
                               </span>
                             )}
@@ -228,8 +228,8 @@ export function AppSidebar({ activePath = "", mode = "app", role, onNavigate, on
           })}
         </nav>
 
-        <div className="border-t border-border p-4">
-          <div className="rounded-lg bg-gradient-to-br from-blue-50 to-slate-50 p-3">
+        <div className="border-t border-border/80 p-4">
+          <div className="rounded-3xl bg-white p-4 shadow-soft">
             <div className="flex items-center gap-2 text-sm font-semibold text-primary">
               <Layers className="h-4 w-4" />
               عزل البيانات جاهز

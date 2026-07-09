@@ -61,9 +61,9 @@ export function ResponsivePageShell({
 
 
 
-      <div className="flex relative min-h-screen">
+      <div className="relative flex min-h-screen bg-background">
         {/* Desktop Sidebar - visible on md+ */}
-        <div className="hidden md:flex shrink-0 w-64 xl:w-72 border-s border-border bg-white">
+        <div className="hidden w-64 shrink-0 border-s border-border/80 bg-muted md:flex xl:w-72">
           <AppSidebar 
             mode={mode} 
             role={session.role}
@@ -82,7 +82,7 @@ export function ResponsivePageShell({
           </div>
 
           {/* Main Content Area */}
-          <main className="flex-1 mx-auto w-full max-w-7xl px-3 py-4 md:px-4 md:py-6 lg:px-6 pb-24 md:pb-6">
+          <main className="mx-auto w-full max-w-7xl flex-1 px-3 py-4 pb-24 md:px-5 md:py-6 md:pb-6 lg:px-8">
             {children}
           </main>
         </div>

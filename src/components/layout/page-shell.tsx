@@ -25,7 +25,7 @@ export function PageShellClient({
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="flex relative">
+    <div className="relative flex min-h-screen bg-background">
       {/* Mobile Overlay */}
       <div
         className={`fixed inset-0 z-40 bg-slate-950/50 backdrop-blur-sm transition-opacity lg:hidden ${
@@ -37,14 +37,14 @@ export function PageShellClient({
 
       {/* Sidebar - end-0 = left side in RTL */}
       <div
-        className={`fixed inset-y-0 end-0 z-50 w-72 shrink-0 border-s border-border bg-white transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 lg:z-30 ${
+        className={`fixed inset-y-0 end-0 z-50 w-72 shrink-0 border-s border-border/80 bg-muted transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 lg:z-30 ${
           sidebarOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
         {/* Mobile close button */}
         <button
           onClick={() => setSidebarOpen(false)}
-          className="lg:hidden absolute top-4 end-4 z-10 flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-600 transition hover:bg-slate-200"
+          className="absolute top-4 end-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white text-muted-foreground shadow-soft transition hover:bg-primary-light hover:text-primary lg:hidden"
           aria-label="إغلاق القائمة"
         >
           <X className="h-5 w-5" />
@@ -56,7 +56,7 @@ export function PageShellClient({
       {/* Main Content */}
       <div className="min-w-0 flex-1 flex flex-col">
         <AppHeader session={session} branches={branches} notifications={notifications} />
-        <main className="mx-auto w-full max-w-7xl px-3 py-4 md:px-4 md:py-6 lg:px-6">
+        <main className="mx-auto w-full max-w-7xl px-3 py-4 md:px-5 md:py-6 lg:px-8">
           {children}
         </main>
       </div>

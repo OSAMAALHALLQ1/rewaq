@@ -20,7 +20,43 @@ import {
 } from "recharts";
 import type { ReportPoint } from "@/types/domain";
 
-const colors = ["#2563eb", "#0ea5e9", "#16a34a", "#f59e0b", "#8b5cf6", "#dc2626"];
+const colors = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)"];
+const axisStyle = { fill: "var(--muted-foreground)", fontSize: 12 };
+const gridColor = "rgba(91, 107, 133, 0.18)";
+const roundedBarRadius: [number, number, number, number] = [999, 999, 999, 999];
+
+type TooltipFormatter = (value: unknown, name?: string) => [string, string];
+
+function ChartTooltip({
+  active,
+  payload,
+  label,
+  formatter,
+}: {
+  active?: boolean;
+  payload?: Array<{ value?: unknown; name?: string; dataKey?: string }>;
+  label?: string;
+  formatter: TooltipFormatter;
+}) {
+  if (!active || !payload?.length) return null;
+
+  return (
+    <div className="rounded-2xl bg-secondary px-4 py-3 text-xs text-secondary-foreground shadow-lift">
+      {label ? <p className="mb-2 font-extrabold text-accent">{label}</p> : null}
+      <div className="space-y-1">
+        {payload.map((item) => {
+          const [value, name] = formatter(item.value, item.dataKey ?? item.name);
+          return (
+            <p key={`${item.dataKey ?? item.name}-${value}`} className="flex items-center justify-between gap-4">
+              <span className="text-white/70">{name}</span>
+              <span className="font-extrabold tabular-nums">{value}</span>
+            </p>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 function ChartFrame({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
@@ -31,7 +67,7 @@ function ChartFrame({ children }: { children: React.ReactNode }) {
   }, []);
 
   if (!mounted) {
-    return <div className="h-72 min-h-72 rounded-lg bg-slate-50" />;
+    return <div className="h-72 min-h-72 rounded-3xl bg-muted" />;
   }
 
   return <div className="h-72 min-h-72 w-full min-w-0">{children}</div>;
@@ -47,7 +83,7 @@ export function CategoryPieChart({ data }: { data: ReportPoint[] }) {
               <Cell key={entry.label} fill={colors[index % colors.length]} />
             ))}
           </Pie>
-          <Tooltip formatter={(value) => [`₪${Number(value).toLocaleString("ar-PS")}`, "القيمة"]} />
+          <Tooltip content={<ChartTooltip formatter={(value) => [`₪${Number(value).toLocaleString("ar-PS")}`, "القيمة"]} />} />
           <Legend verticalAlign="bottom" height={36} />
         </PieChart>
       </ResponsiveContainer>
@@ -62,15 +98,15 @@ export function PurchaseAreaChart({ data }: { data: ReportPoint[] }) {
         <AreaChart data={data}>
           <defs>
             <linearGradient id="purchase" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#0f766e" stopOpacity={0.32} />
-              <stop offset="95%" stopColor="#0f766e" stopOpacity={0} />
+              <stop offset="5%" stopColor="var(--chart-2)" stopOpacity={0.28} />
+              <stop offset="95%" stopColor="var(--chart-2)" stopOpacity={0} />
             </linearGradient>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" vertical={false} />
-          <XAxis dataKey="label" tickLine={false} axisLine={false} />
-          <YAxis tickLine={false} axisLine={false} width={48} />
-          <Tooltip formatter={(value) => [`₪${Number(value).toLocaleString("ar-PS")}`, "مشتريات"]} />
-          <Area type="monotone" dataKey="value" stroke="#0f766e" fill="url(#purchase)" strokeWidth={2} />
+          <CartesianGrid stroke={gridColor} strokeDasharray="3 3" vertical={false} />
+          <XAxis dataKey="label" tickLine={false} axisLine={false} tick={axisStyle} />
+          <YAxis tickLine={false} axisLine={false} width={48} tick={axisStyle} />
+          <Tooltip content={<ChartTooltip formatter={(value) => [`₪${Number(value).toLocaleString("ar-PS")}`, "مشتريات"]} />} />
+          <Area type="monotone" dataKey="value" stroke="var(--chart-2)" fill="url(#purchase)" strokeWidth={3} />
         </AreaChart>
       </ResponsiveContainer>
     </ChartFrame>
@@ -82,11 +118,11 @@ export function FoodCostLineChart({ data }: { data: ReportPoint[] }) {
     <ChartFrame>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" vertical={false} />
-          <XAxis dataKey="label" tickLine={false} axisLine={false} />
-          <YAxis tickLine={false} axisLine={false} width={44} />
-          <Tooltip formatter={(value) => [`${Number(value).toFixed(1)}%`, "تكلفة الطعام"]} />
-          <Line type="monotone" dataKey="value" stroke="#f97316" strokeWidth={3} dot={{ r: 4 }} />
+          <CartesianGrid stroke={gridColor} strokeDasharray="3 3" vertical={false} />
+          <XAxis dataKey="label" tickLine={false} axisLine={false} tick={axisStyle} />
+          <YAxis tickLine={false} axisLine={false} width={44} tick={axisStyle} />
+          <Tooltip content={<ChartTooltip formatter={(value) => [`${Number(value).toFixed(1)}%`, "تكلفة الطعام"]} />} />
+          <Line type="monotone" dataKey="value" stroke="var(--chart-3)" strokeWidth={3} dot={{ r: 4, fill: "var(--chart-3)" }} />
         </LineChart>
       </ResponsiveContainer>
     </ChartFrame>
@@ -104,25 +140,25 @@ export function FinanceAreaChart({
         <AreaChart data={data}>
           <defs>
             <linearGradient id="revenue" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#2563eb" stopOpacity={0.32} />
-              <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
+              <stop offset="5%" stopColor="var(--chart-2)" stopOpacity={0.3} />
+              <stop offset="95%" stopColor="var(--chart-2)" stopOpacity={0} />
             </linearGradient>
             <linearGradient id="expenses" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.28} />
-              <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+              <stop offset="5%" stopColor="var(--chart-5)" stopOpacity={0.32} />
+              <stop offset="95%" stopColor="var(--chart-5)" stopOpacity={0} />
             </linearGradient>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" vertical={false} />
-          <XAxis dataKey="label" tickLine={false} axisLine={false} />
-          <YAxis tickLine={false} axisLine={false} width={48} />
+          <CartesianGrid stroke={gridColor} strokeDasharray="3 3" vertical={false} />
+          <XAxis dataKey="label" tickLine={false} axisLine={false} tick={axisStyle} />
+          <YAxis tickLine={false} axisLine={false} width={48} tick={axisStyle} />
           <Tooltip
-            formatter={(value, name) => [
+            content={<ChartTooltip formatter={(value, name) => [
               `${Number(value).toLocaleString("ar-EG")} ₪`,
               name === "revenue" ? "الإيرادات" : "المصروفات",
-            ]}
+            ]} />}
           />
-          <Area type="monotone" dataKey="revenue" stroke="#2563eb" fill="url(#revenue)" strokeWidth={2} />
-          <Area type="monotone" dataKey="expenses" stroke="#f59e0b" fill="url(#expenses)" strokeWidth={2} />
+          <Area type="monotone" dataKey="revenue" stroke="var(--chart-2)" fill="url(#revenue)" strokeWidth={3} />
+          <Area type="monotone" dataKey="expenses" stroke="var(--chart-5)" fill="url(#expenses)" strokeWidth={3} />
         </AreaChart>
       </ResponsiveContainer>
     </ChartFrame>
@@ -134,11 +170,15 @@ export function FinanceBarChart({ data }: { data: ReportPoint[] }) {
     <ChartFrame>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-          <XAxis dataKey="label" tickLine={false} axisLine={false} />
-          <YAxis tickLine={false} axisLine={false} width={48} />
-          <Tooltip formatter={(value) => [`${Number(value).toLocaleString("ar-EG")} ₪`, "القيمة"]} />
-          <Bar dataKey="value" fill="#2563eb" radius={[8, 8, 8, 8]} />
+          <CartesianGrid stroke={gridColor} strokeDasharray="3 3" horizontal={false} />
+          <XAxis dataKey="label" tickLine={false} axisLine={false} tick={axisStyle} />
+          <YAxis tickLine={false} axisLine={false} width={48} tick={axisStyle} />
+          <Tooltip content={<ChartTooltip formatter={(value) => [`${Number(value).toLocaleString("ar-EG")} ₪`, "القيمة"]} />} />
+          <Bar dataKey="value" radius={roundedBarRadius} barSize={34}>
+            {data.map((entry, index) => (
+              <Cell key={entry.label} fill={colors[index % colors.length]} />
+            ))}
+          </Bar>
         </BarChart>
       </ResponsiveContainer>
     </ChartFrame>
@@ -150,11 +190,15 @@ export function WasteBarChart({ data }: { data: ReportPoint[] }) {
     <ChartFrame>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} layout="vertical">
-          <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-          <XAxis type="number" tickLine={false} axisLine={false} />
-          <YAxis dataKey="label" type="category" tickLine={false} axisLine={false} width={150} />
-          <Tooltip formatter={(value) => [`₪${Number(value).toLocaleString("ar-PS")}`, "هدر"]} />
-          <Bar dataKey="value" fill="#dc2626" radius={[8, 8, 8, 8]} />
+          <CartesianGrid stroke={gridColor} strokeDasharray="3 3" horizontal={false} />
+          <XAxis type="number" tickLine={false} axisLine={false} tick={axisStyle} />
+          <YAxis dataKey="label" type="category" tickLine={false} axisLine={false} width={150} tick={axisStyle} />
+          <Tooltip content={<ChartTooltip formatter={(value) => [`₪${Number(value).toLocaleString("ar-PS")}`, "هدر"]} />} />
+          <Bar dataKey="value" radius={roundedBarRadius} barSize={26}>
+            {data.map((entry, index) => (
+              <Cell key={entry.label} fill={colors[(index + 1) % colors.length]} />
+            ))}
+          </Bar>
         </BarChart>
       </ResponsiveContainer>
     </ChartFrame>

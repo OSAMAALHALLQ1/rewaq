@@ -11,10 +11,10 @@ import type { Notification } from "@/types/domain";
 // Map notification types to custom Arabic icons and styles
 const notificationConfig: Record<string, { title: string; icon: any; color: string }> = {
   low_stock: { title: "📉 نقص في المخزون", icon: AlertTriangle, color: "text-amber-500" },
-  price_increase: { title: "📈 ارتفاع أسعار المورد", icon: AlertCircle, color: "text-rose-500" },
+  price_increase: { title: "📈 ارتفاع أسعار المورد", icon: AlertCircle, color: "text-destructive" },
   high_food_cost: { title: "⚠️ تكلفة وجبات مرتفعة", icon: AlertCircle, color: "text-red-600" },
   purchase_received: { title: "📦 تم استلام بضاعة", icon: CheckCircle2, color: "text-emerald-500" },
-  waste_logged: { title: "🗑️ تسجيل هدر جديد", icon: Info, color: "text-blue-500" },
+  waste_logged: { title: "🗑️ تسجيل هدر جديد", icon: Info, color: "text-primary" },
   publish_failed: { title: "❌ فشل النشر التلقائي", icon: AlertCircle, color: "text-red-500" },
 };
 
@@ -170,8 +170,8 @@ export function NotificationBell({ notifications: initialNotifications }: { noti
       </Button>
 
       {isOpen && (
-        <div className="absolute end-0 mt-2.5 w-80 max-w-sm rounded-xl border border-slate-100 bg-white shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-          <div className="flex items-center justify-between border-b border-slate-50 px-4 py-3 bg-slate-50/50">
+        <div className="absolute end-0 mt-2.5 w-80 max-w-sm rounded-3xl border border-border bg-white shadow-lift z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="flex items-center justify-between border-b border-slate-50 px-4 py-3 bg-muted/70">
             <span className="font-semibold text-xs text-slate-900">التنبيهات الفورية</span>
             {unread.length > 0 && (
               <button
@@ -203,10 +203,10 @@ export function NotificationBell({ notifications: initialNotifications }: { noti
                   <div
                     key={notification.id}
                     className={`flex items-start gap-3 p-3 transition-colors text-right relative ${
-                      isUnread ? "bg-slate-50 hover:bg-slate-100/70" : "hover:bg-slate-50/50"
+                      isUnread ? "bg-slate-50 hover:bg-slate-100/70" : "hover:bg-muted/70"
                     }`}
                   >
-                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-white shadow-sm border border-slate-100">
+                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white shadow-sm border border-slate-100">
                       <Icon className={`h-4.5 w-4.5 ${config.color}`} />
                     </span>
                     

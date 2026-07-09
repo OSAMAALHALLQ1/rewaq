@@ -50,17 +50,19 @@ export function BusinessFitForm() {
     return dashboardCopy[businessType];
   }, [branches, businessType, priority]);
 
+  const fieldClass = "h-11 w-full rounded-2xl border border-transparent bg-muted px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary";
+
   return (
-    <Card className="border-primary/30">
+    <Card className="border-primary-light">
       <CardHeader>
         <CardTitle>تعبئة بيانات النشاط</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="grid gap-3 md:grid-cols-2">
-          <label className="space-y-2 text-sm font-medium">
+          <label className="space-y-2 text-sm font-bold">
             نوع النشاط
             <select
-              className="h-11 w-full rounded-lg border bg-white px-3 text-sm"
+              className={fieldClass}
               value={businessType}
               onChange={(event) => setBusinessType(event.target.value as keyof typeof dashboardCopy)}
             >
@@ -71,23 +73,23 @@ export function BusinessFitForm() {
               <option value="other">متجر/عمل آخر</option>
             </select>
           </label>
-          <label className="space-y-2 text-sm font-medium">
+          <label className="space-y-2 text-sm font-bold">
             عدد الفروع
             <input
-              className="h-11 w-full rounded-lg border px-3 text-sm"
+              className={fieldClass}
               inputMode="numeric"
               min="1"
               value={branches}
               onChange={(event) => setBranches(event.target.value)}
             />
           </label>
-          <label className="space-y-2 text-sm font-medium">
+          <label className="space-y-2 text-sm font-bold">
             متوسط الطلبات اليومي
-            <input className="h-11 w-full rounded-lg border px-3 text-sm" placeholder="مثال: 120" inputMode="numeric" />
+            <input className={fieldClass} placeholder="مثال: 120" inputMode="numeric" />
           </label>
-          <label className="space-y-2 text-sm font-medium">
+          <label className="space-y-2 text-sm font-bold">
             أهم احتياج
-            <select className="h-11 w-full rounded-lg border bg-white px-3 text-sm" value={priority} onChange={(event) => setPriority(event.target.value)}>
+            <select className={fieldClass} value={priority} onChange={(event) => setPriority(event.target.value)}>
               <option value="pos">كاشير سريع</option>
               <option value="accounting">محاسبة وموردين</option>
               <option value="inventory">مخزون وتكاليف</option>
@@ -95,8 +97,8 @@ export function BusinessFitForm() {
             </select>
           </label>
         </div>
-        <div className="mt-4 rounded-lg bg-teal-50 p-4 text-sm leading-7 text-primary">
-          <p className="font-bold">{recommendation.title}</p>
+        <div className="mt-4 rounded-3xl bg-primary-light p-4 text-sm leading-7 text-primary-light-foreground">
+          <p className="font-extrabold">{recommendation.title}</p>
           <p className="mt-1">{recommendation.body}</p>
         </div>
         <Button className="mt-4 w-full" asChild>

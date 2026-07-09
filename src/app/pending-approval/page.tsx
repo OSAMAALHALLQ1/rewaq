@@ -18,13 +18,13 @@ export default function PendingApprovalPage() {
       }
     >
       <div className="space-y-4 text-center">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary-light text-primary">
           <Clock3 className="h-7 w-7" />
         </div>
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm leading-7 text-amber-900">
+        <div className="rounded-2xl border border-warning/25 bg-amber-50 p-4 text-sm leading-7 text-amber-900">
           حسابك بانتظار موافقة الإدارة. بعد الموافقة ستتمكن من الدخول إلى الموقع.
         </div>
-        <div className="flex items-start gap-3 rounded-lg border bg-slate-50 p-4 text-start text-sm leading-6 text-muted-foreground">
+        <div className="flex items-start gap-3 rounded-2xl border border-border bg-muted p-4 text-start text-sm leading-6 text-muted-foreground">
           <MailCheck className="mt-0.5 h-5 w-5 text-primary" />
           <p>تم إرسال إشعار إلى بريد الإدارة لمراجعة طلبك، وستصلك رسالة عند قبول الحساب.</p>
         </div>

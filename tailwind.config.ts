@@ -24,6 +24,10 @@ const config: Config = {
           DEFAULT: "var(--primary)",
           foreground: "var(--primary-foreground)",
         },
+        "primary-light": {
+          DEFAULT: "var(--primary-light)",
+          foreground: "var(--primary-light-foreground)",
+        },
         secondary: {
           DEFAULT: "var(--secondary)",
           foreground: "var(--secondary-foreground)",
@@ -54,9 +58,18 @@ const config: Config = {
         },
       },
       borderRadius: {
+        "3xl": "1.5rem",
+        "4xl": "2rem",
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+      },
+      boxShadow: {
+        soft: "0 18px 50px rgba(11, 18, 32, 0.06)",
+        lift: "0 24px 70px rgba(11, 18, 32, 0.10)",
+      },
+      letterSpacing: {
+        tight: "0",
       },
       fontFamily: {
         sans: ["var(--font-noto-arabic)", "Segoe UI", "Arial", "sans-serif"],

@@ -9,7 +9,7 @@ export function MobileBottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-white md:hidden">
+    <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-border/80 bg-white/95 backdrop-blur md:hidden">
       <div className="flex items-stretch justify-around">
         {mobileMainNav.map((item) => {
           const Icon = item.icon;
@@ -21,10 +21,10 @@ export function MobileBottomNav() {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex-1 flex flex-col items-center justify-center gap-1 py-3 px-2 text-xs font-semibold transition-colors border-t-2 border-transparent",
+                "flex flex-1 flex-col items-center justify-center gap-1 px-2 py-3 text-xs font-bold transition-colors",
                 isActive
-                  ? "border-t-primary text-primary bg-blue-50/50"
-                  : "text-muted-foreground hover:text-slate-900 hover:bg-slate-50"
+                  ? "text-primary"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
               )}
               aria-label={item.label}
             >

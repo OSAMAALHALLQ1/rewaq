@@ -176,7 +176,7 @@ export function InternalChatDrawer({
       {/* Header */}
       <div className="p-4 border-b border-slate-800 bg-slate-950/80 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <MessageSquare className="h-5 w-5 text-teal-400" />
+          <MessageSquare className="h-5 w-5 text-accent" />
           <h2 className="font-bold text-sm tracking-wide">المراسلة الداخلية الفورية</h2>
         </div>
         <Button variant="ghost" size="icon" onClick={onClose} className="text-slate-400 hover:text-slate-200">
@@ -236,7 +236,7 @@ export function InternalChatDrawer({
 
       {/* Monitor Alert for Managers */}
       {isManager && (
-        <div className="bg-teal-950/20 border-b border-teal-950/30 px-3 py-1.5 text-[10px] text-teal-400/90 flex items-center gap-1.5 shrink-0 justify-center">
+        <div className="bg-primary/10 border-b border-primary/20 px-3 py-1.5 text-[10px] text-accent/90 flex items-center gap-1.5 shrink-0 justify-center">
           <Eye className="h-3 w-3" />
           <span>نمط الرقابة النشط: المدير يرى كل محادثات الأقسام الخاصة والعامة.</span>
         </div>
@@ -275,7 +275,7 @@ export function InternalChatDrawer({
                 <div
                   className={`p-3 rounded-2xl text-xs leading-relaxed shadow-sm relative ${
                     isMe
-                      ? "bg-teal-600 text-white rounded-te-none"
+                      ? "bg-primary text-white rounded-te-none"
                       : "bg-slate-800 text-slate-100 rounded-ts-none border border-slate-750"
                   }`}
                 >
@@ -287,7 +287,7 @@ export function InternalChatDrawer({
                       hour: "2-digit",
                       minute: "2-digit",
                     })}
-                    {isMe && <CheckCheck className="h-2.5 w-2.5 text-teal-300" />}
+                    {isMe && <CheckCheck className="h-2.5 w-2.5 text-accent" />}
                   </span>
                 </div>
               </div>
@@ -309,10 +309,10 @@ export function InternalChatDrawer({
             }...`}
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
-            className="flex-1 bg-slate-900 border-slate-800 text-slate-100 focus:border-teal-500/50 text-xs h-10 rounded-lg placeholder:text-slate-600"
+            className="flex-1 bg-slate-900 border-slate-800 text-slate-100 focus:border-primary/50 text-xs h-10 rounded-lg placeholder:text-slate-600"
             required
           />
-          <Button type="submit" size="icon" className="h-10 w-10 bg-teal-600 hover:bg-teal-700 text-white">
+          <Button type="submit" size="icon" className="h-10 w-10 bg-primary hover:bg-blue-800 text-white">
             <Send className="h-4 w-4" />
           </Button>
         </div>

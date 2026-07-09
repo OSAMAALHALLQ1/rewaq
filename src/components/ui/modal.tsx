@@ -23,13 +23,13 @@ export function Modal({ open, title, description, children, onClose, className }
         aria-modal="true"
         aria-label={title}
         className={cn(
-          "max-h-[88vh] w-full overflow-hidden rounded-t-2xl border bg-white shadow-2xl sm:max-w-2xl sm:rounded-2xl",
+          "max-h-[88vh] w-full overflow-hidden rounded-t-3xl border border-border bg-white shadow-lift sm:max-w-2xl sm:rounded-3xl",
           className,
         )}
       >
-        <div className="flex items-start justify-between gap-4 border-b p-4">
+        <div className="flex items-start justify-between gap-4 border-b border-border p-5">
           <div>
-            <h2 className="text-lg font-bold">{title}</h2>
+            <h2 className="text-lg font-extrabold">{title}</h2>
             {description ? <p className="mt-1 text-sm leading-6 text-muted-foreground">{description}</p> : null}
           </div>
           <Button type="button" variant="ghost" size="icon" onClick={onClose} aria-label="إغلاق">

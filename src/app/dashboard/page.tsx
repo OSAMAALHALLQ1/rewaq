@@ -32,16 +32,16 @@ function money(value: number) {
   return `${value.toLocaleString("ar-EG")} ₪`;
 }
 
-const TILE_TONES = {
-  blue: "bg-blue-50 text-blue-600",
-  emerald: "bg-emerald-50 text-emerald-600",
-  amber: "bg-amber-50 text-amber-600",
-  sky: "bg-sky-50 text-sky-600",
-  violet: "bg-violet-50 text-violet-600",
-  rose: "bg-rose-50 text-rose-600",
+const TILE_STYLES = {
+  blue: { card: "light", icon: "bg-white text-primary", text: "text-foreground", muted: "text-muted-foreground" },
+  emerald: { card: "dark", icon: "bg-white/10 text-accent", text: "text-white", muted: "text-white/70" },
+  amber: { card: "primary", icon: "bg-white/15 text-white", text: "text-white", muted: "text-white/75" },
+  sky: { card: "default", icon: "bg-primary-light text-primary", text: "text-foreground", muted: "text-muted-foreground" },
+  violet: { card: "muted", icon: "bg-white text-primary", text: "text-foreground", muted: "text-muted-foreground" },
+  rose: { card: "light", icon: "bg-secondary text-white", text: "text-foreground", muted: "text-muted-foreground" },
 } as const;
 
-type TileTone = keyof typeof TILE_TONES;
+type TileTone = keyof typeof TILE_STYLES;
 
 const QUICK_ACCESS: Array<{ label: string; description: string; href: string; icon: LucideIcon; tone: TileTone }> = [
   { label: "نقطة البيع", description: "شاشة الكاشير والبيع السريع", href: "/d/pos", icon: MonitorSmartphone, tone: "blue" },
@@ -55,7 +55,7 @@ const QUICK_ACCESS: Array<{ label: string; description: string; href: string; ic
 function SectionHeading({ title }: { title: string }) {
   return (
     <div className="mb-3 flex items-center gap-3">
-      <h2 className="text-sm font-bold text-foreground">{title}</h2>
+      <h2 className="text-sm font-extrabold text-foreground">{title}</h2>
       <span className="h-px flex-1 bg-border" />
     </div>
   );
@@ -76,15 +76,17 @@ function StatTile({
   tone: TileTone;
   emphasize?: boolean;
 }) {
+  const style = TILE_STYLES[tone];
+
   return (
-    <Card>
-      <CardContent className="flex items-start justify-between gap-3 p-4">
+    <Card variant={style.card}>
+      <CardContent className="flex items-start justify-between gap-3 p-5">
         <div className="min-w-0">
-          <p className="text-xs font-medium text-muted-foreground">{label}</p>
-          <p className={cn("mt-2 font-black tracking-tight", emphasize ? "text-2xl" : "text-xl")}>{value}</p>
-          <p className="mt-2 text-[11px] leading-4 text-muted-foreground">{hint}</p>
+          <p className={cn("text-xs font-bold", style.muted)}>{label}</p>
+          <p className={cn("mt-2 font-black tracking-tight tabular-nums", emphasize ? "text-3xl" : "text-2xl", style.text)}>{value}</p>
+          <p className={cn("mt-2 text-[11px] leading-4", style.muted)}>{hint}</p>
         </div>
-        <div className={cn("shrink-0 rounded-xl p-2.5", TILE_TONES[tone])}>
+        <div className={cn("shrink-0 rounded-full p-3", style.icon)}>
           <Icon className={emphasize ? "h-5 w-5" : "h-4 w-4"} />
         </div>
       </CardContent>
@@ -141,44 +143,48 @@ export default async function DashboardPage() {
         }
       />
 
-      {/* وصول سريع للأقسام الأساسية */}
-      <section className="mb-5">
+      <section className="mb-6">
         <SectionHeading title="وصول سريع" />
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-          {QUICK_ACCESS.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="group relative overflow-hidden rounded-xl border border-border bg-white p-4 shadow-[0_10px_30px_rgba(15,23,42,0.04)] transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-[0_16px_40px_rgba(15,23,42,0.09)]"
-            >
-              <div className={cn("inline-flex h-10 w-10 items-center justify-center rounded-lg", TILE_TONES[item.tone])}>
-                <item.icon className="h-5 w-5" />
-              </div>
-              <p className="mt-3 text-sm font-bold leading-5 text-foreground">{item.label}</p>
-              <p className="mt-1 text-[11px] leading-4 text-muted-foreground">{item.description}</p>
-              <ArrowLeft className="absolute left-3 top-3 h-3.5 w-3.5 text-muted-foreground/0 transition-all group-hover:-translate-x-0.5 group-hover:text-muted-foreground/50" />
-            </Link>
-          ))}
+          {QUICK_ACCESS.map((item) => {
+            const style = TILE_STYLES[item.tone];
+
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="group relative overflow-hidden rounded-3xl border border-border bg-white p-4 shadow-soft transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lift"
+              >
+                <div className={cn("inline-flex h-11 w-11 items-center justify-center rounded-full", style.icon)}>
+                  <item.icon className="h-5 w-5" />
+                </div>
+                <p className="mt-3 text-sm font-extrabold leading-5 text-foreground">{item.label}</p>
+                <p className="mt-1 text-[11px] leading-4 text-muted-foreground">{item.description}</p>
+                <span className="absolute left-3 top-3 grid h-8 w-8 place-items-center rounded-full border border-dashed border-secondary/30 text-muted-foreground/0 transition-all group-hover:-translate-x-0.5 group-hover:text-muted-foreground">
+                  <ArrowLeft className="h-3.5 w-3.5" />
+                </span>
+              </Link>
+            );
+          })}
         </div>
       </section>
 
-      {/* المؤشرات المالية الرئيسية */}
-      <section className="mb-5">
+      <section className="mb-6">
         <SectionHeading title="الأداء المالي" />
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <StatTile label="مبيعات اليوم" value={money(data.todaySales)} hint="فواتير العملاء اليوم" icon={TrendingUp} tone="emerald" emphasize />
-          <StatTile label="مبيعات الشهر" value={money(data.monthSales)} hint="إجمالي إيرادات الشهر" icon={Coins} tone="blue" emphasize />
-          <StatTile label="صافي ربح الشهر" value={money(data.monthNetProfit)} hint="بعد خصم التكاليف والمصروفات" icon={PiggyBank} tone="emerald" emphasize />
+          <StatTile label="مبيعات الشهر" value={money(data.monthSales)} hint="إجمالي إيرادات الشهر" icon={Coins} tone="amber" emphasize />
+          <StatTile label="صافي ربح الشهر" value={money(data.monthNetProfit)} hint="بعد خصم التكاليف والمصروفات" icon={PiggyBank} tone="blue" emphasize />
           <StatTile label="السيولة النقدية" value={money(liquidity)} hint="نقدية + أرصدة البنوك" icon={Banknote} tone="sky" emphasize />
         </div>
       </section>
 
-      <section className="mb-5">
+      <section className="mb-6">
         <SectionHeading title="السيولة والمخزون" />
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <StatTile label="الذمم المدينة" value={money(data.customerReceivable)} hint="مستحق من العملاء" icon={Wallet} tone="sky" />
-          <StatTile label="الذمم الدائنة" value={money(data.supplierPayable)} hint="مستحق للموردين" icon={Scale} tone="amber" />
-          <StatTile label="قيمة المخزون" value={money(data.inventoryValue)} hint="تكلفة الأصناف الحالية" icon={PackageSearch} tone="violet" />
+          <StatTile label="الذمم الدائنة" value={money(data.supplierPayable)} hint="مستحق للموردين" icon={Scale} tone="violet" />
+          <StatTile label="قيمة المخزون" value={money(data.inventoryValue)} hint="تكلفة الأصناف الحالية" icon={PackageSearch} tone="blue" />
           <StatTile label="أرصدة مسودة" value={String(data.draftEntries)} hint="قيود بانتظار الترحيل" icon={FileText} tone="amber" />
         </div>
       </section>
@@ -193,7 +199,7 @@ export default async function DashboardPage() {
             <FinanceAreaChart data={trendData} />
           </CardContent>
         </Card>
-        <Card>
+        <Card variant="light">
           <CardHeader>
             <CardTitle>توزيع الأصول</CardTitle>
           </CardHeader>
@@ -212,32 +218,32 @@ export default async function DashboardPage() {
             <FinanceBarChart data={comparisonData} />
           </CardContent>
         </Card>
-        <Card>
+        <Card variant="dark">
           <CardHeader className="flex-row items-center justify-between gap-2 space-y-0">
             <CardTitle>فواتير موردين مستحقة</CardTitle>
-            <Landmark className="h-5 w-5 text-primary" />
+            <Landmark className="h-5 w-5 text-accent" />
           </CardHeader>
           <CardContent className="space-y-2">
             {data.unpaidSupplierInvoices.length === 0 ? (
-              <p className="text-sm text-muted-foreground">لا توجد فواتير مستحقة.</p>
+              <p className="text-sm text-white/70">لا توجد فواتير مستحقة.</p>
             ) : (
               data.unpaidSupplierInvoices.map((inv) => (
                 <Link
                   key={inv.id}
                   href="/dashboard/invoices"
-                  className="flex items-center justify-between gap-2 rounded-lg border bg-white p-3 transition hover:border-primary/40 hover:bg-blue-50"
+                  className="flex items-center justify-between gap-2 rounded-2xl border border-white/10 bg-white/10 p-3 transition hover:bg-white/15"
                 >
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold">{inv.supplierName}</p>
-                    <p className="text-xs text-muted-foreground">{inv.invoiceNumber}</p>
+                    <p className="truncate text-sm font-bold">{inv.supplierName}</p>
+                    <p className="text-xs text-white/60">{inv.invoiceNumber}</p>
                   </div>
-                  <span className="shrink-0 text-sm font-bold text-primary">{money(inv.total)}</span>
+                  <span className="shrink-0 text-sm font-extrabold text-accent">{money(inv.total)}</span>
                 </Link>
               ))
             )}
-            <div className="flex items-center justify-between border-t pt-3 text-sm">
-              <span className="font-semibold">الإجمالي المستحق</span>
-              <span className="font-bold text-primary">{money(data.unpaidSupplierInvoicesTotal)}</span>
+            <div className="flex items-center justify-between border-t border-white/10 pt-3 text-sm">
+              <span className="font-bold">الإجمالي المستحق</span>
+              <span className="font-extrabold text-accent">{money(data.unpaidSupplierInvoicesTotal)}</span>
             </div>
           </CardContent>
         </Card>

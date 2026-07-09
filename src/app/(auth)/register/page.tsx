@@ -30,7 +30,7 @@ export default function RegisterPage() {
         </div>
         <div className="grid gap-2">
           <Label htmlFor="businessType">نوع النشاط</Label>
-          <select id="businessType" name="businessType" className="h-11 rounded-lg border bg-white px-3 text-sm" required>
+          <select id="businessType" name="businessType" className="h-11 rounded-full border border-transparent bg-muted px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary" required>
             <option value="restaurant">مطعم</option>
             <option value="cafe">كافيه</option>
             <option value="retail">متجر</option>
@@ -50,7 +50,7 @@ export default function RegisterPage() {
           <Label htmlFor="password">كلمة المرور</Label>
           <Input id="password" name="password" type="password" minLength={8} required />
         </div>
-        <div className="rounded-lg border bg-teal-50 p-3 text-sm leading-6 text-primary">
+        <div className="rounded-2xl border border-primary-light bg-primary-light p-3 text-sm leading-6 text-primary-light-foreground">
           بعد التسجيل: تصلك رسالة تفعيل على البريد، ثم تتم مراجعة الطلب والموافقة عليه قبل الدخول للداشبورد.
         </div>
       </ActionForm>

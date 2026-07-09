@@ -30,7 +30,7 @@ export function Tabs({
 
 export function TabsList({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={cn("flex items-center gap-1 rounded-lg border bg-muted/40 p-1", className)}>
+    <div className={cn("flex items-center gap-1 rounded-full border border-border bg-muted p-1", className)}>
       {children}
     </div>
   );
@@ -45,10 +45,10 @@ export function TabsTrigger({ value, children, className }: { value: string; chi
       type="button"
       onClick={() => ctx.onChange(value)}
       className={cn(
-        "relative flex items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-bold transition-all",
+        "relative flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-bold transition-all",
         active
-          ? "bg-background text-foreground shadow-sm"
-          : "text-muted-foreground hover:bg-background/60 hover:text-foreground",
+          ? "bg-secondary text-secondary-foreground shadow-sm"
+          : "text-muted-foreground hover:bg-white hover:text-foreground",
         className
       )}
     >

@@ -28,7 +28,7 @@ export default async function LoginPage({
     >
       <ActionForm action={loginAction} submitLabel="دخول" className="space-y-4">
         {approval === "pending" ? (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-800">
+          <div className="rounded-2xl border border-warning/25 bg-amber-50 p-3 text-sm leading-6 text-amber-800">
             حسابك مسجل، لكنه بانتظار موافقة الإدارة قبل فتح لوحة التحكم.
           </div>
         ) : null}
@@ -45,17 +45,17 @@ export default async function LoginPage({
           </div>
           <Input id="password" name="password" type="password" required />
         </div>
-        <div className="rounded-lg border bg-slate-50 p-3 text-sm leading-6 text-muted-foreground">
+        <div className="rounded-2xl border border-border bg-muted p-3 text-sm leading-6 text-muted-foreground">
           صاحب الحساب يستطيع بعد الدخول دعوة الكاشير وأمين المخزن بالإيميل وكود دعوة، وكل شخص يدخل بلوحته وصلاحيته.
         </div>
       </ActionForm>
 
       <div className="relative my-5">
         <div className="absolute inset-0 flex items-center">
-          <span className="w-full border-t border-slate-200" />
+          <span className="w-full border-t border-border" />
         </div>
         <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-white px-3 text-slate-400 font-bold">أو تجربة سريعة للنظام</span>
+          <span className="bg-white px-3 font-bold text-muted-foreground">أو تجربة سريعة للنظام</span>
         </div>
       </div>
 

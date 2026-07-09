@@ -213,10 +213,10 @@ export function GlobalSearch({ variant = "desktop", autoFocus, className, onNavi
           onKeyDown={handleKeyDown}
           placeholder="بحث عام: صنف، فاتورة، مورد، عميل، وصفة، صفحة..."
           className={cn(
-            "w-full rounded-lg border text-sm placeholder-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary",
+            "w-full rounded-full border border-transparent bg-muted text-sm placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary",
             variant === "desktop"
-              ? "h-10 border-blue-100 bg-blue-50/50 ps-9 pe-9"
-              : "border-input bg-white py-2 ps-9 pe-9",
+              ? "h-11 ps-10 pe-10"
+              : "py-2.5 ps-10 pe-10",
           )}
         />
         {hasQuery && (
@@ -239,7 +239,7 @@ export function GlobalSearch({ variant = "desktop", autoFocus, className, onNavi
         <div
           id={listboxId}
           className={cn(
-            "z-50 overflow-hidden rounded-xl border border-border bg-white shadow-[0_16px_40px_rgba(15,23,42,0.12)]",
+            "z-50 overflow-hidden rounded-3xl border border-border bg-white shadow-lift",
             variant === "desktop" ? "absolute inset-x-0 top-full mt-2" : "static mt-2",
           )}
         >
@@ -313,11 +313,11 @@ export function GlobalSearch({ variant = "desktop", autoFocus, className, onNavi
                               onMouseEnter={() => setActiveIndex(flatIndex)}
                               onClick={() => go(item.href)}
                               className={cn(
-                                "flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-start transition-colors",
-                                isActive ? "bg-blue-50" : "hover:bg-slate-50",
+                                "flex w-full items-center gap-3 rounded-2xl px-2.5 py-2 text-start transition-colors",
+                                isActive ? "bg-primary-light" : "hover:bg-muted",
                               )}
                             >
-                              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-primary">
+                              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-light text-primary">
                                 <GroupIcon className="h-4 w-4" />
                               </span>
                               <span className="min-w-0 flex-1">
