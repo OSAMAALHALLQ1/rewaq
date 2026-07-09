@@ -43,7 +43,7 @@ export default function AdminLoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <div className="w-full max-w-md rounded-[2rem] border border-border bg-white p-8 shadow-lift">
+      <div className="w-full max-w-md rounded-2xl border border-border bg-white p-8 shadow-lift">
         <div className="mb-8 flex justify-center">
           <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary-light text-primary">
             <Lock size={32} />

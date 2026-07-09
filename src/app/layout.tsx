@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
-import { Geist_Mono, Noto_Sans_Arabic } from "next/font/google";
+import { Geist_Mono, Tajawal } from "next/font/google";
 import "./globals.css";
 
-const arabicSans = Noto_Sans_Arabic({
-  variable: "--font-noto-arabic",
+const arabicSans = Tajawal({
+  variable: "--font-tajawal",
   subsets: ["arabic"],
+  weight: ["200", "300", "400", "500", "700", "800", "900"],
   display: "swap",
 });
 

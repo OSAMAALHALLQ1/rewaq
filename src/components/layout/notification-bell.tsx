@@ -170,7 +170,7 @@ export function NotificationBell({ notifications: initialNotifications }: { noti
       </Button>
 
       {isOpen && (
-        <div className="absolute end-0 mt-2.5 w-80 max-w-sm rounded-3xl border border-border bg-white shadow-lift z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+        <div className="absolute end-0 mt-2.5 w-80 max-w-sm rounded-2xl border border-border bg-white shadow-lift z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
           <div className="flex items-center justify-between border-b border-slate-50 px-4 py-3 bg-muted/70">
             <span className="font-semibold text-xs text-slate-900">التنبيهات الفورية</span>
             {unread.length > 0 && (

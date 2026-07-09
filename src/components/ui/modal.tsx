@@ -23,7 +23,7 @@ export function Modal({ open, title, description, children, onClose, className }
         aria-modal="true"
         aria-label={title}
         className={cn(
-          "max-h-[88vh] w-full overflow-hidden rounded-t-3xl border border-border bg-white shadow-lift sm:max-w-2xl sm:rounded-3xl",
+          "max-h-[88vh] w-full overflow-hidden rounded-t-2xl border border-border bg-white shadow-lift sm:max-w-2xl sm:rounded-2xl",
           className,
         )}
       >

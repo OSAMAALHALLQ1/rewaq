@@ -14,7 +14,7 @@ const cardVariants: Record<CardVariant, string> = {
 export function Card({ className, variant = "default", ...props }: React.HTMLAttributes<HTMLDivElement> & { variant?: CardVariant }) {
   return (
     <div
-      className={cn("rounded-3xl border shadow-soft", cardVariants[variant], className)}
+      className={cn("rounded-2xl border shadow-soft", cardVariants[variant], className)}
       {...props}
     />
   );

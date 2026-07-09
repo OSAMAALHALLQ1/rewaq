@@ -63,7 +63,7 @@ export default function LandingPage() {
       <SiteHeader />
       <main className="overflow-hidden">
         <section className="mx-auto mt-4 max-w-7xl px-3 sm:px-4 lg:px-6">
-          <div className="relative overflow-hidden rounded-[2.5rem] bg-secondary text-white shadow-lift">
+          <div className="relative overflow-hidden rounded-[1.75rem] bg-secondary text-white shadow-lift">
             <div className="grid min-h-[calc(100vh-7rem)] items-center gap-8 px-5 py-8 sm:px-8 lg:grid-cols-[0.82fr_1.18fr] lg:px-10 lg:py-10">
               <div className="relative z-10">
                 <Badge tone="default" className="mb-5 w-fit border-white/15 bg-white/10 text-accent">
@@ -187,7 +187,7 @@ export default function LandingPage() {
         </section>
 
         <section id="workflow" className="mx-auto my-16 max-w-7xl px-4 lg:px-6">
-          <div className="rounded-[2.25rem] bg-secondary p-6 text-white shadow-lift sm:p-8 lg:p-10">
+          <div className="rounded-[1.5rem] bg-secondary p-6 text-white shadow-lift sm:p-8 lg:p-10">
             <div className="grid gap-8 lg:grid-cols-[0.75fr_1.25fr] lg:items-end">
               <div>
                 <Badge className="border-white/15 bg-white/10 text-accent">كيف يعمل؟</Badge>
@@ -303,7 +303,7 @@ export default function LandingPage() {
         </section>
 
         <section className="mx-auto max-w-7xl px-4 pb-16 lg:px-6">
-          <div className="rounded-[2.25rem] bg-secondary px-6 py-10 text-white shadow-lift md:px-10">
+          <div className="rounded-[1.5rem] bg-secondary px-6 py-10 text-white shadow-lift md:px-10">
             <h2 className="text-4xl font-black tracking-tight">جاهز ترى تكلفة الطبق قبل نهاية اليوم؟</h2>
             <p className="mt-3 max-w-2xl leading-8 text-white/75">
               شغّل نسخة MVP محليًا، طبّق migrations على Supabase، وابدأ بتجربة مطعم إيوان.

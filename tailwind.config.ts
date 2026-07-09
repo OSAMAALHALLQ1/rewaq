@@ -58,8 +58,8 @@ const config: Config = {
         },
       },
       borderRadius: {
-        "3xl": "1.5rem",
-        "4xl": "2rem",
+        "3xl": "1.125rem",
+        "4xl": "1.375rem",
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
@@ -72,7 +72,7 @@ const config: Config = {
         tight: "0",
       },
       fontFamily: {
-        sans: ["var(--font-noto-arabic)", "Segoe UI", "Arial", "sans-serif"],
+        sans: ["var(--font-tajawal)", "Segoe UI", "Arial", "sans-serif"],
         mono: ["var(--font-geist-mono)", "ui-monospace", "monospace"],
       },
     },

@@ -108,7 +108,7 @@ export function MobileMenu({ mode = "app", role, onClose, onChatOpen }: MobileMe
                   key={item.href}
                   href={item.href}
                   onClick={handleLinkClick}
-                  className="flex h-20 flex-col items-center justify-center gap-1.5 rounded-3xl border border-primary-light bg-white text-sm font-bold text-primary transition hover:border-primary hover:bg-primary-light"
+                  className="flex h-20 flex-col items-center justify-center gap-1.5 rounded-2xl border border-primary-light bg-white text-sm font-bold text-primary transition hover:border-primary hover:bg-primary-light"
                 >
                   <Icon className="h-5 w-5" />
                   {item.title}

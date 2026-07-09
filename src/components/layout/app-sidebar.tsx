@@ -229,7 +229,7 @@ export function AppSidebar({ activePath = "", mode = "app", role, onNavigate, on
         </nav>
 
         <div className="border-t border-border/80 p-4">
-          <div className="rounded-3xl bg-white p-4 shadow-soft">
+          <div className="rounded-2xl bg-white p-4 shadow-soft">
             <div className="flex items-center gap-2 text-sm font-semibold text-primary">
               <Layers className="h-4 w-4" />
               عزل البيانات جاهز

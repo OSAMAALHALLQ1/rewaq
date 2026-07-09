@@ -239,7 +239,7 @@ export function GlobalSearch({ variant = "desktop", autoFocus, className, onNavi
         <div
           id={listboxId}
           className={cn(
-            "z-50 overflow-hidden rounded-3xl border border-border bg-white shadow-lift",
+            "z-50 overflow-hidden rounded-2xl border border-border bg-white shadow-lift",
             variant === "desktop" ? "absolute inset-x-0 top-full mt-2" : "static mt-2",
           )}
         >

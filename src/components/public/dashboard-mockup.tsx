@@ -10,8 +10,8 @@ export function DashboardMockup() {
   ] as const;
 
   return (
-    <div className="w-full rounded-[2rem] border border-white/15 bg-white/10 p-2 shadow-lift backdrop-blur">
-      <div className="overflow-hidden rounded-[1.55rem] border border-border bg-background">
+    <div className="w-full rounded-[1.35rem] border border-white/15 bg-white/10 p-2 shadow-lift backdrop-blur">
+      <div className="overflow-hidden rounded-[1rem] border border-border bg-background">
         <div className="flex items-center justify-between border-b border-border bg-white px-4 py-3">
           <div>
             <p className="text-xs font-bold text-muted-foreground">لوحة اليوم</p>
