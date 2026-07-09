@@ -329,7 +329,7 @@ export function GlobalSearch({ variant = "desktop", autoFocus, className, onNavi
                                 )}
                               </span>
                               {item.meta && (
-                                <span className="shrink-0 text-[11px] text-muted-foreground">{item.meta}</span>
+                                <span className="max-w-[38%] shrink-0 truncate text-[11px] text-muted-foreground">{item.meta}</span>
                               )}
                             </button>
                           );

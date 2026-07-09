@@ -5,7 +5,8 @@ import { getInventoryData } from "@/server/queries/inventory";
 import { getPurchasingData } from "@/server/queries/purchasing";
 import { getCustomerInvoicesData } from "@/server/queries/sales";
 import { getRecipesData } from "@/server/queries/recipes";
-import { pinnedNav, appNav } from "@/components/layout/nav-config";
+import { PAGE_INDEX } from "@/lib/search/page-index";
+import { tokenize, scoreMatch } from "@/lib/search/match";
 import { formatCurrency } from "@/lib/utils";
 
 export type SearchResultItem = {
@@ -37,31 +38,10 @@ const STATUS_LABELS: Record<string, string> = {
   flagged: "بحاجة مراجعة",
 };
 
-function normalize(text: string | null | undefined): string {
-  return (text ?? "")
-    .toLowerCase()
-    .replace(/[إأآا]/g, "ا")
-    .replace(/ى/g, "ي")
-    .replace(/ة/g, "ه")
-    .replace(/[ً-ْ]/g, "")
-    .trim();
-}
-
-function matches(query: string, ...fields: Array<string | null | undefined>): boolean {
-  return fields.some((field) => field && normalize(field).includes(query));
-}
-
-function rank(query: string, title: string) {
-  const normTitle = normalize(title);
-  if (normTitle === query) return 0;
-  if (normTitle.startsWith(query)) return 1;
-  return 2;
-}
-
-function buildGroup(key: string, label: string, items: SearchResultItem[], query: string, limit = 6): SearchResultGroup | null {
-  if (items.length === 0) return null;
-  const sorted = [...items].sort((a, b) => rank(query, a.title) - rank(query, b.title));
-  return { key, label, items: sorted.slice(0, limit) };
+function buildGroup(key: string, label: string, scored: Array<{ item: SearchResultItem; score: number }>, limit = 6): SearchResultGroup | null {
+  if (scored.length === 0) return null;
+  const sorted = [...scored].sort((a, b) => b.score - a.score);
+  return { key, label, items: sorted.slice(0, limit).map((s) => s.item) };
 }
 
 export async function GET(request: Request) {
@@ -80,7 +60,10 @@ export async function GET(request: Request) {
     }
   }
 
-  const query = normalize(rawQuery);
+  const tokens = tokenize(rawQuery);
+  if (tokens.length === 0) {
+    return NextResponse.json({ success: true, query: rawQuery, totalCount: 0, groups: [] });
+  }
 
   const [inventory, purchasing, customerInvoices, recipesBundle] = await Promise.all([
     getInventoryData().catch(() => null),
@@ -91,127 +74,206 @@ export async function GET(request: Request) {
 
   const groups: SearchResultGroup[] = [];
 
-  // ── الصفحات والأقسام ──
-  const pageItems: SearchResultItem[] = [];
-  for (const item of pinnedNav) {
-    if (matches(query, item.title)) {
-      pageItems.push({ id: item.href, title: item.title, href: item.href, subtitle: "الرئيسية" });
-    }
-  }
-  for (const group of appNav) {
-    for (const item of group.items) {
-      if (matches(query, item.title)) {
-        pageItems.push({ id: item.href, title: item.title, href: item.href, subtitle: group.title });
-      }
-    }
-  }
-  const pagesGroup = buildGroup("pages", "الصفحات والأقسام", pageItems, query, 8);
+  // ── الصفحات والأقسام (فهرس شامل بالمحتوى والمرادفات) ──
+  const pageScored = PAGE_INDEX.flatMap((page) => {
+    const score = scoreMatch(tokens, [
+      [page.title, 3],
+      [page.keywords.join(" "), 2],
+      [page.description, 1.5],
+      [page.section, 1],
+    ]);
+    if (score === null) return [];
+    return [{
+      score,
+      item: {
+        id: page.href,
+        title: page.title,
+        subtitle: page.section,
+        meta: page.description,
+        href: page.href,
+      } satisfies SearchResultItem,
+    }];
+  });
+  const pagesGroup = buildGroup("pages", "الصفحات والأقسام", pageScored, 8);
   if (pagesGroup) groups.push(pagesGroup);
 
   // ── الأصناف والمخزون ──
   if (inventory) {
-    const items: SearchResultItem[] = inventory.items
-      .filter((it) => matches(query, it.name, it.sku, it.categoryName, it.primarySupplierName))
-      .map((it) => ({
-        id: it.id,
-        title: it.name,
-        subtitle: it.categoryName || "بدون فئة",
-        meta: formatCurrency(it.averageCost || it.lastPurchasePrice || 0),
-        href: `/dashboard/inventory/${it.id}`,
-      }));
-    const g = buildGroup("inventory", "الأصناف والمخزون", items, query);
+    const itemScored = inventory.items.flatMap((it) => {
+      const score = scoreMatch(tokens, [
+        [it.name, 3],
+        [it.sku, 2],
+        [it.categoryName, 1.5],
+        [it.primarySupplierName, 1],
+      ]);
+      if (score === null) return [];
+      return [{
+        score,
+        item: {
+          id: it.id,
+          title: it.name,
+          subtitle: it.categoryName || "بدون فئة",
+          meta: formatCurrency(it.averageCost || it.lastPurchasePrice || 0),
+          href: `/dashboard/inventory/${it.id}`,
+        } satisfies SearchResultItem,
+      }];
+    });
+    const g = buildGroup("inventory", "الأصناف والمخزون", itemScored);
     if (g) groups.push(g);
 
-    const warehouseItems: SearchResultItem[] = inventory.branches
-      .filter((b) => matches(query, b.name, b.city, b.address, b.manager))
-      .map((b) => ({
-        id: b.id,
-        title: b.name,
-        subtitle: b.city || undefined,
-        meta: STATUS_LABELS[b.status] ?? b.status,
-        href: `/dashboard/warehouses/${b.id}`,
-      }));
-    const wg = buildGroup("warehouses", "المستودعات والفروع", warehouseItems, query, 4);
+    const warehouseScored = inventory.branches.flatMap((b) => {
+      const score = scoreMatch(tokens, [
+        [b.name, 3],
+        [b.city, 1.5],
+        [b.address, 1],
+        [b.manager, 1],
+      ]);
+      if (score === null) return [];
+      return [{
+        score,
+        item: {
+          id: b.id,
+          title: b.name,
+          subtitle: b.city || undefined,
+          meta: STATUS_LABELS[b.status] ?? b.status,
+          href: `/dashboard/warehouses/${b.id}`,
+        } satisfies SearchResultItem,
+      }];
+    });
+    const wg = buildGroup("warehouses", "المستودعات والفروع", warehouseScored, 4);
     if (wg) groups.push(wg);
   }
 
   // ── الموردون وفواتير التوريد وطلبيات الشراء ──
   if (purchasing) {
-    const supplierItems: SearchResultItem[] = purchasing.suppliers
-      .filter((s) => matches(query, s.name, s.phone, s.email, s.address))
-      .map((s) => ({
-        id: s.id,
-        title: s.name,
-        subtitle: s.phone || s.address || undefined,
-        href: `/dashboard/suppliers`,
-      }));
-    const sg = buildGroup("suppliers", "الموردون", supplierItems, query, 5);
+    const supplierScored = purchasing.suppliers.flatMap((s) => {
+      const score = scoreMatch(tokens, [
+        [s.name, 3],
+        [s.phone, 2],
+        [s.email, 1.5],
+        [s.address, 1],
+      ]);
+      if (score === null) return [];
+      return [{
+        score,
+        item: {
+          id: s.id,
+          title: s.name,
+          subtitle: s.phone || s.address || undefined,
+          href: `/dashboard/suppliers`,
+        } satisfies SearchResultItem,
+      }];
+    });
+    const sg = buildGroup("suppliers", "الموردون", supplierScored, 5);
     if (sg) groups.push(sg);
 
-    const invoiceItems: SearchResultItem[] = purchasing.invoices
-      .filter((inv) => matches(query, inv.invoiceNumber, inv.supplierName))
-      .map((inv) => ({
-        id: inv.id,
-        title: inv.invoiceNumber,
-        subtitle: inv.supplierName,
-        meta: `${STATUS_LABELS[inv.status] ?? inv.status} · ${formatCurrency(inv.total)}`,
-        href: `/dashboard/invoices`,
-      }));
-    const ig = buildGroup("supplierInvoices", "فواتير التوريد", invoiceItems, query, 5);
+    const invoiceScored = purchasing.invoices.flatMap((inv) => {
+      const score = scoreMatch(tokens, [
+        [inv.invoiceNumber, 3],
+        [inv.supplierName, 2],
+      ]);
+      if (score === null) return [];
+      return [{
+        score,
+        item: {
+          id: inv.id,
+          title: inv.invoiceNumber,
+          subtitle: inv.supplierName,
+          meta: `${STATUS_LABELS[inv.status] ?? inv.status} · ${formatCurrency(inv.total)}`,
+          href: `/dashboard/invoices`,
+        } satisfies SearchResultItem,
+      }];
+    });
+    const ig = buildGroup("supplierInvoices", "فواتير التوريد", invoiceScored, 5);
     if (ig) groups.push(ig);
 
-    const orderItems: SearchResultItem[] = purchasing.purchaseOrders
-      .filter((o) => matches(query, o.supplierName, o.branchName, o.id))
-      .map((o) => ({
-        id: o.id,
-        title: `طلبية ${o.supplierName}`,
-        subtitle: o.branchName,
-        meta: `${STATUS_LABELS[o.status] ?? o.status} · ${formatCurrency(o.total)}`,
-        href: `/dashboard/purchase-orders`,
-      }));
-    const og = buildGroup("purchaseOrders", "طلبيات الشراء", orderItems, query, 5);
+    const orderScored = purchasing.purchaseOrders.flatMap((o) => {
+      const score = scoreMatch(tokens, [
+        [o.supplierName, 3],
+        [o.branchName, 1.5],
+        [o.id, 1],
+      ]);
+      if (score === null) return [];
+      return [{
+        score,
+        item: {
+          id: o.id,
+          title: `طلبية ${o.supplierName}`,
+          subtitle: o.branchName,
+          meta: `${STATUS_LABELS[o.status] ?? o.status} · ${formatCurrency(o.total)}`,
+          href: `/dashboard/purchase-orders`,
+        } satisfies SearchResultItem,
+      }];
+    });
+    const og = buildGroup("purchaseOrders", "طلبيات الشراء", orderScored, 5);
     if (og) groups.push(og);
   }
 
   // ── فواتير العملاء ──
   if (customerInvoices) {
-    const items: SearchResultItem[] = customerInvoices.invoices
-      .filter((inv) => matches(query, inv.invoiceNumber, inv.customerName, inv.customerPhone))
-      .map((inv) => ({
-        id: inv.id,
-        title: inv.customerName || inv.invoiceNumber,
-        subtitle: inv.invoiceNumber,
-        meta: `${STATUS_LABELS[inv.status] ?? inv.status} · ${formatCurrency(inv.total)}`,
-        href: `/dashboard/customer-invoices/${inv.id}`,
-      }));
-    const g = buildGroup("customerInvoices", "فواتير وعملاء", items, query);
+    const invScored = customerInvoices.invoices.flatMap((inv) => {
+      const score = scoreMatch(tokens, [
+        [inv.customerName, 3],
+        [inv.invoiceNumber, 2.5],
+        [inv.customerPhone, 2],
+      ]);
+      if (score === null) return [];
+      return [{
+        score,
+        item: {
+          id: inv.id,
+          title: inv.customerName || inv.invoiceNumber,
+          subtitle: inv.invoiceNumber,
+          meta: `${STATUS_LABELS[inv.status] ?? inv.status} · ${formatCurrency(inv.total)}`,
+          href: `/dashboard/customer-invoices/${inv.id}`,
+        } satisfies SearchResultItem,
+      }];
+    });
+    const g = buildGroup("customerInvoices", "فواتير وعملاء", invScored);
     if (g) groups.push(g);
   }
 
   // ── الوصفات وقائمة الطعام ──
   if (recipesBundle) {
-    const recipeItems: SearchResultItem[] = recipesBundle.recipes
-      .filter((r) => matches(query, r.name, r.category))
-      .map((r) => ({
-        id: r.id,
-        title: r.name,
-        subtitle: r.category,
-        meta: `${formatCurrency(r.costPerServing)} / الحصة`,
-        href: `/dashboard/recipes/${r.id}`,
-      }));
-    const rg = buildGroup("recipes", "الوصفات", recipeItems, query, 5);
+    const recipeScored = recipesBundle.recipes.flatMap((r) => {
+      const score = scoreMatch(tokens, [
+        [r.name, 3],
+        [r.category, 1.5],
+        [r.ingredients.map((ing) => ing.itemName).join(" "), 1],
+      ]);
+      if (score === null) return [];
+      return [{
+        score,
+        item: {
+          id: r.id,
+          title: r.name,
+          subtitle: r.category,
+          meta: `${formatCurrency(r.costPerServing)} / الحصة`,
+          href: `/dashboard/recipes/${r.id}`,
+        } satisfies SearchResultItem,
+      }];
+    });
+    const rg = buildGroup("recipes", "الوصفات", recipeScored, 5);
     if (rg) groups.push(rg);
 
-    const menuItems: SearchResultItem[] = recipesBundle.menuItems
-      .filter((m) => matches(query, m.name, m.recipeName))
-      .map((m) => ({
-        id: m.id,
-        title: m.name,
-        subtitle: m.recipeName || undefined,
-        meta: formatCurrency(m.sellingPrice),
-        href: `/dashboard/menu-items/${m.id}`,
-      }));
-    const mg = buildGroup("menuItems", "قائمة الطعام", menuItems, query, 5);
+    const menuScored = recipesBundle.menuItems.flatMap((m) => {
+      const score = scoreMatch(tokens, [
+        [m.name, 3],
+        [m.recipeName, 1.5],
+      ]);
+      if (score === null) return [];
+      return [{
+        score,
+        item: {
+          id: m.id,
+          title: m.name,
+          subtitle: m.recipeName || undefined,
+          meta: formatCurrency(m.sellingPrice),
+          href: `/dashboard/menu-items/${m.id}`,
+        } satisfies SearchResultItem,
+      }];
+    });
+    const mg = buildGroup("menuItems", "قائمة الطعام", menuScored, 5);
     if (mg) groups.push(mg);
   }
 
