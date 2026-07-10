@@ -8,6 +8,8 @@ type Props = {
   searchParams: Promise<{ customerId?: string }>;
 };
 
+export const dynamic = "force-dynamic";
+
 export default async function ReceivablesPage({ searchParams }: Props) {
   const session = await getCurrentSession();
   if (!["super_admin", "organization_owner", "accountant"].includes(session.role)) {

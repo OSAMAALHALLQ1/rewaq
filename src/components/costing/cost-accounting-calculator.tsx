@@ -435,71 +435,73 @@ export function CostAccountingCalculator() {
             </div>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>المادة</TableHead>
-                  <TableHead>المستودع</TableHead>
-                  <TableHead>المرحلة</TableHead>
-                  <TableHead>الكمية</TableHead>
-                  <TableHead>الوحدة</TableHead>
-                  <TableHead>سعر الوحدة</TableHead>
-                  <TableHead>التصافي</TableHead>
-                  <TableHead>الهدر</TableHead>
-                  <TableHead>التكلفة</TableHead>
-                  <TableHead>حذف</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {totals.enrichedRecipe.map((row) => (
-                  <TableRow key={row.id}>
-                    <TableCell className="min-w-40">
-                      <Input value={row.name} onChange={(event) => updateRecipe(row.id, { name: event.target.value })} />
-                    </TableCell>
-                    <TableCell className="min-w-36">
-                      <Select value={row.warehouse} onChange={(event) => updateRecipe(row.id, { warehouse: event.target.value as WarehouseKey })}>
-                        <option value="general">{warehouseLabels.general}</option>
-                        <option value="kitchen">{warehouseLabels.kitchen}</option>
-                      </Select>
-                    </TableCell>
-                    <TableCell className="min-w-36">
-                      <Select value={row.stage} onChange={(event) => updateRecipe(row.id, { stage: event.target.value as StageKey })}>
-                        <option value="prep">{stageLabels.prep}</option>
-                        <option value="cook">{stageLabels.cook}</option>
-                        <option value="pack">{stageLabels.pack}</option>
-                      </Select>
-                    </TableCell>
-                    <TableCell className="min-w-28">
-                      <Input type="number" min={0} value={row.quantity} onChange={(event) => updateRecipe(row.id, { quantity: toNumber(event.target.value) })} />
-                    </TableCell>
-                    <TableCell className="min-w-24">
-                      <Input value={row.unit} onChange={(event) => updateRecipe(row.id, { unit: event.target.value })} />
-                    </TableCell>
-                    <TableCell className="min-w-28">
-                      <Input type="number" min={0} value={row.unitCost} onChange={(event) => updateRecipe(row.id, { unitCost: toNumber(event.target.value) })} />
-                    </TableCell>
-                    <TableCell className="min-w-24">
-                      <Input type="number" min={0} value={row.yieldPercent} onChange={(event) => updateRecipe(row.id, { yieldPercent: toNumber(event.target.value) })} />
-                    </TableCell>
-                    <TableCell className="min-w-24">
-                      <Input type="number" min={0} value={row.wastePercent} onChange={(event) => updateRecipe(row.id, { wastePercent: toNumber(event.target.value) })} />
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap font-semibold">{formatCurrency(row.loadedCost)}</TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setRecipeRows((current) => current.filter((item) => item.id !== row.id))}
-                        disabled={recipeRows.length === 1}
-                        aria-label="حذف المادة"
-                      >
-                        <Trash2 className="h-4 w-4 text-red-600" />
-                      </Button>
-                    </TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>المادة</TableHead>
+                    <TableHead>المستودع</TableHead>
+                    <TableHead>المرحلة</TableHead>
+                    <TableHead>الكمية</TableHead>
+                    <TableHead>الوحدة</TableHead>
+                    <TableHead>سعر الوحدة</TableHead>
+                    <TableHead>التصافي</TableHead>
+                    <TableHead>الهدر</TableHead>
+                    <TableHead>التكلفة</TableHead>
+                    <TableHead>حذف</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {totals.enrichedRecipe.map((row) => (
+                    <TableRow key={row.id}>
+                      <TableCell className="min-w-40">
+                        <Input value={row.name} onChange={(event) => updateRecipe(row.id, { name: event.target.value })} />
+                      </TableCell>
+                      <TableCell className="min-w-36">
+                        <Select value={row.warehouse} onChange={(event) => updateRecipe(row.id, { warehouse: event.target.value as WarehouseKey })}>
+                          <option value="general">{warehouseLabels.general}</option>
+                          <option value="kitchen">{warehouseLabels.kitchen}</option>
+                        </Select>
+                      </TableCell>
+                      <TableCell className="min-w-36">
+                        <Select value={row.stage} onChange={(event) => updateRecipe(row.id, { stage: event.target.value as StageKey })}>
+                          <option value="prep">{stageLabels.prep}</option>
+                          <option value="cook">{stageLabels.cook}</option>
+                          <option value="pack">{stageLabels.pack}</option>
+                        </Select>
+                      </TableCell>
+                      <TableCell className="min-w-28">
+                        <Input type="number" min={0} value={row.quantity} onChange={(event) => updateRecipe(row.id, { quantity: toNumber(event.target.value) })} />
+                      </TableCell>
+                      <TableCell className="min-w-24">
+                        <Input value={row.unit} onChange={(event) => updateRecipe(row.id, { unit: event.target.value })} />
+                      </TableCell>
+                      <TableCell className="min-w-28">
+                        <Input type="number" min={0} value={row.unitCost} onChange={(event) => updateRecipe(row.id, { unitCost: toNumber(event.target.value) })} />
+                      </TableCell>
+                      <TableCell className="min-w-24">
+                        <Input type="number" min={0} value={row.yieldPercent} onChange={(event) => updateRecipe(row.id, { yieldPercent: toNumber(event.target.value) })} />
+                      </TableCell>
+                      <TableCell className="min-w-24">
+                        <Input type="number" min={0} value={row.wastePercent} onChange={(event) => updateRecipe(row.id, { wastePercent: toNumber(event.target.value) })} />
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap font-semibold">{formatCurrency(row.loadedCost)}</TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setRecipeRows((current) => current.filter((item) => item.id !== row.id))}
+                          disabled={recipeRows.length === 1}
+                          aria-label="حذف المادة"
+                        >
+                          <Trash2 className="h-4 w-4 text-red-600" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
 
@@ -577,40 +579,42 @@ export function CostAccountingCalculator() {
             />
           </CardHeader>
           <CardContent className="space-y-4">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>البند</TableHead>
-                  <TableHead>المبلغ</TableHead>
-                  <TableHead>أساس التوزيع</TableHead>
-                  <TableHead>النسبة</TableHead>
-                  <TableHead>المحمل</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {overheadRows.map((row) => (
-                  <TableRow key={row.id}>
-                    <TableCell className="min-w-44">
-                      <Input value={row.name} onChange={(event) => updateOverhead(row.id, { name: event.target.value })} />
-                    </TableCell>
-                    <TableCell className="min-w-28">
-                      <Input type="number" min={0} value={row.amount} onChange={(event) => updateOverhead(row.id, { amount: toNumber(event.target.value) })} />
-                    </TableCell>
-                    <TableCell className="min-w-36">
-                      <Select value={row.basis} onChange={(event) => updateOverhead(row.id, { basis: event.target.value as BasisKey })}>
-                        <option value="units">{basisLabels.units}</option>
-                        <option value="minutes">{basisLabels.minutes}</option>
-                        <option value="revenue">{basisLabels.revenue}</option>
-                      </Select>
-                    </TableCell>
-                    <TableCell className="min-w-24">
-                      <Input type="number" min={0} value={row.sharePercent} onChange={(event) => updateOverhead(row.id, { sharePercent: toNumber(event.target.value) })} />
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap font-semibold">{formatCurrency(row.amount * (row.sharePercent / 100))}</TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>البند</TableHead>
+                    <TableHead>المبلغ</TableHead>
+                    <TableHead>أساس التوزيع</TableHead>
+                    <TableHead>النسبة</TableHead>
+                    <TableHead>المحمل</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {overheadRows.map((row) => (
+                    <TableRow key={row.id}>
+                      <TableCell className="min-w-44">
+                        <Input value={row.name} onChange={(event) => updateOverhead(row.id, { name: event.target.value })} />
+                      </TableCell>
+                      <TableCell className="min-w-28">
+                        <Input type="number" min={0} value={row.amount} onChange={(event) => updateOverhead(row.id, { amount: toNumber(event.target.value) })} />
+                      </TableCell>
+                      <TableCell className="min-w-36">
+                        <Select value={row.basis} onChange={(event) => updateOverhead(row.id, { basis: event.target.value as BasisKey })}>
+                          <option value="units">{basisLabels.units}</option>
+                          <option value="minutes">{basisLabels.minutes}</option>
+                          <option value="revenue">{basisLabels.revenue}</option>
+                        </Select>
+                      </TableCell>
+                      <TableCell className="min-w-24">
+                        <Input type="number" min={0} value={row.sharePercent} onChange={(event) => updateOverhead(row.id, { sharePercent: toNumber(event.target.value) })} />
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap font-semibold">{formatCurrency(row.amount * (row.sharePercent / 100))}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
 
@@ -662,40 +666,42 @@ export function CostAccountingCalculator() {
             />
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>الصنف</TableHead>
-                  <TableHead>السعر</TableHead>
-                  <TableHead>المبيعات</TableHead>
-                  <TableHead>التكلفة</TableHead>
-                  <TableHead>هامش المساهمة</TableHead>
-                  <TableHead>التصنيف</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {totals.menuEngineering.map((row) => (
-                  <TableRow key={row.id}>
-                    <TableCell className="min-w-40">
-                      <Input value={row.name} onChange={(event) => updateMenu(row.id, { name: event.target.value })} />
-                    </TableCell>
-                    <TableCell className="min-w-24">
-                      <Input type="number" min={0} value={row.price} onChange={(event) => updateMenu(row.id, { price: toNumber(event.target.value) })} />
-                    </TableCell>
-                    <TableCell className="min-w-24">
-                      <Input type="number" min={0} value={row.expectedSales} onChange={(event) => updateMenu(row.id, { expectedSales: toNumber(event.target.value) })} />
-                    </TableCell>
-                    <TableCell className="min-w-24">
-                      <Input type="number" min={0} value={row.cost} onChange={(event) => updateMenu(row.id, { cost: toNumber(event.target.value) })} />
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap font-semibold">{formatCurrency(row.contributionMargin)}</TableCell>
-                    <TableCell>
-                      <Badge tone={row.tone}>{row.label}</Badge>
-                    </TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>الصنف</TableHead>
+                    <TableHead>السعر</TableHead>
+                    <TableHead>المبيعات</TableHead>
+                    <TableHead>التكلفة</TableHead>
+                    <TableHead>هامش المساهمة</TableHead>
+                    <TableHead>التصنيف</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {totals.menuEngineering.map((row) => (
+                    <TableRow key={row.id}>
+                      <TableCell className="min-w-40">
+                        <Input value={row.name} onChange={(event) => updateMenu(row.id, { name: event.target.value })} />
+                      </TableCell>
+                      <TableCell className="min-w-24">
+                        <Input type="number" min={0} value={row.price} onChange={(event) => updateMenu(row.id, { price: toNumber(event.target.value) })} />
+                      </TableCell>
+                      <TableCell className="min-w-24">
+                        <Input type="number" min={0} value={row.expectedSales} onChange={(event) => updateMenu(row.id, { expectedSales: toNumber(event.target.value) })} />
+                      </TableCell>
+                      <TableCell className="min-w-24">
+                        <Input type="number" min={0} value={row.cost} onChange={(event) => updateMenu(row.id, { cost: toNumber(event.target.value) })} />
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap font-semibold">{formatCurrency(row.contributionMargin)}</TableCell>
+                      <TableCell>
+                        <Badge tone={row.tone}>{row.label}</Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
 

@@ -84,7 +84,7 @@ export default function TablesWorkspaceClient({ initialTables, branches }: Table
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const selectedTable = tables.find((t) => t.id === selectedTableId) || tables[0];
+  const selectedTable = tables.find((t) => t.id === selectedTableId) || tables[0] || null;
   const occupiedTables = tables.filter((t) => t.status === "occupied");
   const openTotal = occupiedTables.reduce((sum, t) => sum + t.currentTotal, 0);
 
@@ -94,6 +94,7 @@ export default function TablesWorkspaceClient({ initialTables, branches }: Table
   };
 
   const handleOpenTable = async () => {
+    if (!selectedTable) return;
     if (!waiterName.trim()) {
       setError("الرجاء إدخال اسم الجرسون");
       return;
@@ -126,6 +127,7 @@ export default function TablesWorkspaceClient({ initialTables, branches }: Table
   };
 
   const handleAddOrder = async () => {
+    if (!selectedTable) return;
     const item = CATALOG_ITEMS.find(c => c.id === selectedCatalogId);
     if (!item) return;
 
@@ -166,6 +168,7 @@ export default function TablesWorkspaceClient({ initialTables, branches }: Table
   };
 
   const handleMerge = async () => {
+    if (!selectedTable) return;
     if (!targetTableId) {
       setError("الرجاء اختيار الطاولة المستهدفة للدمج");
       return;
@@ -211,6 +214,7 @@ export default function TablesWorkspaceClient({ initialTables, branches }: Table
   };
 
   const handleChangeStatus = async (status: RestaurantTableStatus) => {
+    if (!selectedTable) return;
     setBusy(true);
     setError(null);
     try {
@@ -304,7 +308,7 @@ export default function TablesWorkspaceClient({ initialTables, branches }: Table
                           key={t.id}
                           type="button"
                           onClick={() => handleSelectTable(t.id)}
-                          className={`min-h-36 rounded-xl border p-4 text-start transition flex flex-col justify-between ${tableColors(t.status, t.id === selectedTable.id)}`}
+                          className={`min-h-36 rounded-xl border p-4 text-start transition flex flex-col justify-between ${tableColors(t.status, t.id === selectedTable?.id)}`}
                         >
                           <div className="flex items-start justify-between gap-2 w-full">
                             <div>
@@ -334,139 +338,149 @@ export default function TablesWorkspaceClient({ initialTables, branches }: Table
         </Card>
 
         {/* Right Sidebar: selected table operations details */}
-        <Card className="border-slate-200/60 shadow-md rounded-2xl overflow-hidden bg-white">
-          <CardHeader className="py-4 border-b border-slate-100 bg-slate-50/50 flex flex-row items-center justify-between">
-            <CardTitle className="text-sm font-black text-slate-800">
-              طاولة {formatNumber(selectedTable.number)}
-            </CardTitle>
-            <Badge tone={statusTones[selectedTable.status]} className="font-bold text-xs">
-              {statusLabels[selectedTable.status]}
-            </Badge>
-          </CardHeader>
-          <CardContent className="p-5 space-y-4 text-right">
-            {error && (
-              <div className="flex items-center gap-2 p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-xs font-semibold">
-                <AlertTriangle className="h-4 w-4 shrink-0" />
-                <span>{error}</span>
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-3 text-xs">
-              <div className="rounded-xl bg-slate-50/70 border border-slate-100 p-3">
-                <p className="text-muted-foreground mb-1">المنطقة</p>
-                <p className="font-bold text-slate-800">{selectedTable.zone}</p>
-              </div>
-              <div className="rounded-xl bg-slate-50/70 border border-slate-100 p-3">
-                <p className="text-muted-foreground mb-1">عدد المقاعد</p>
-                <p className="font-bold text-slate-800">{formatNumber(selectedTable.seats)}</p>
-              </div>
-              <div className="rounded-xl bg-slate-50/70 border border-slate-100 p-3">
-                <p className="text-muted-foreground mb-1">الجرسون</p>
-                <p className="font-bold text-slate-800">{selectedTable.waiterName ?? "غير معين"}</p>
-              </div>
-              <div className="rounded-xl bg-slate-50/70 border border-slate-100 p-3">
-                <p className="text-muted-foreground mb-1">عدد الضيوف</p>
-                <p className="font-bold text-slate-800">{selectedTable.guests ? formatNumber(selectedTable.guests) : "0"}</p>
-              </div>
+        {!selectedTable ? (
+          <Card className="border-slate-200/60 shadow-md rounded-2xl overflow-hidden bg-white p-8 text-center text-slate-400">
+            <div className="flex flex-col items-center justify-center py-12">
+              <Table2 className="h-12 w-12 text-slate-300 mb-4" />
+              <p className="font-bold text-sm text-slate-600 mb-1">لا توجد طاولة محددة</p>
+              <p className="text-xs text-slate-450">الرجاء إضافة طاولات أولاً لتمكين العمليات التشغيلية.</p>
             </div>
-
-            {/* Table order items list */}
-            {selectedTable.status === "occupied" && (
-              <div className="rounded-xl border border-slate-150 p-4 space-y-3 bg-slate-50/30">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                  <h3 className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
-                    <Table2 className="h-4 w-4 text-rose-500" />
-                    طلبات الطاولة
-                  </h3>
-                  {selectedTable.openedAt && (
-                    <span className="flex items-center gap-1 text-[10px] text-slate-400">
-                      <Clock3 className="h-3 w-3" />
-                      {new Date(selectedTable.openedAt).toLocaleTimeString("ar-PS", { hour: "2-digit", minute: "2-digit" })}
-                    </span>
-                  )}
+          </Card>
+        ) : (
+          <Card className="border-slate-200/60 shadow-md rounded-2xl overflow-hidden bg-white">
+            <CardHeader className="py-4 border-b border-slate-100 bg-slate-50/50 flex flex-row items-center justify-between">
+              <CardTitle className="text-sm font-black text-slate-800">
+                طاولة {formatNumber(selectedTable.number)}
+              </CardTitle>
+              <Badge tone={statusTones[selectedTable.status]} className="font-bold text-xs">
+                {statusLabels[selectedTable.status]}
+              </Badge>
+            </CardHeader>
+            <CardContent className="p-5 space-y-4 text-right">
+              {error && (
+                <div className="flex items-center gap-2 p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-xs font-semibold">
+                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                  <span>{error}</span>
                 </div>
-
-                {!(selectedTable.orderItems?.length) ? (
-                  <p className="py-8 text-center text-xs text-slate-450">لا توجد طلبات مسجلة على الطاولة بعد.</p>
-                ) : (
-                  <div className="divide-y divide-slate-100 max-h-48 overflow-y-auto">
-                    {selectedTable.orderItems.map((item, idx) => (
-                      <div key={idx} className="flex items-center justify-between py-2 text-xs">
-                        <div>
-                          <p className="font-bold text-slate-850">{item.name}</p>
-                          <p className="text-[10px] text-slate-400 mt-0.5">الكمية: {formatNumber(item.quantity)}</p>
-                        </div>
-                        <p className="font-bold text-slate-800">{formatCurrency(item.total)}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                
-                <div className="bg-primary text-primary-foreground p-3 rounded-lg flex justify-between items-center text-xs font-black">
-                  <span>الحساب الحالي:</span>
-                  <span className="font-mono text-sm">{formatCurrency(selectedTable.currentTotal)}</span>
-                </div>
-              </div>
-            )}
-
-            {/* Operational Actions Triggers */}
-            <div className="pt-2 flex flex-col gap-2">
-              {selectedTable.status === "available" && (
-                <>
-                  <Button onClick={() => setOpenModal(true)} disabled={busy} className="w-full h-10 font-bold bg-green-600 hover:bg-green-750">
-                    <Users className="h-4 w-4 ml-1" />
-                    فتح الطاولة واستقبال ضيوف
-                  </Button>
-                  <Button onClick={() => handleChangeStatus("reserved")} disabled={busy} variant="outline" className="w-full h-10 text-amber-600 border-amber-200 bg-amber-50/20 hover:bg-amber-50">
-                    حجز الطاولة
-                  </Button>
-                </>
               )}
 
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div className="rounded-xl bg-slate-50/70 border border-slate-100 p-3">
+                  <p className="text-muted-foreground mb-1">المنطقة</p>
+                  <p className="font-bold text-slate-800">{selectedTable.zone}</p>
+                </div>
+                <div className="rounded-xl bg-slate-50/70 border border-slate-100 p-3">
+                  <p className="text-muted-foreground mb-1">عدد المقاعد</p>
+                  <p className="font-bold text-slate-800">{formatNumber(selectedTable.seats)}</p>
+                </div>
+                <div className="rounded-xl bg-slate-50/70 border border-slate-100 p-3">
+                  <p className="text-muted-foreground mb-1">الجرسون</p>
+                  <p className="font-bold text-slate-800">{selectedTable.waiterName ?? "غير معين"}</p>
+                </div>
+                <div className="rounded-xl bg-slate-50/70 border border-slate-100 p-3">
+                  <p className="text-muted-foreground mb-1">عدد الضيوف</p>
+                  <p className="font-bold text-slate-800">{selectedTable.guests ? formatNumber(selectedTable.guests) : "0"}</p>
+                </div>
+              </div>
+
+              {/* Table order items list */}
               {selectedTable.status === "occupied" && (
-                <>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button onClick={() => setAddOrderModal(true)} disabled={busy} className="h-10 bg-slate-900 hover:bg-black font-bold">
-                      <Plus className="h-4 w-4 ml-1" /> إضافة طلب
-                    </Button>
-                    <Button onClick={() => setMergeModal(true)} disabled={busy} variant="outline" className="h-10 font-bold border-slate-350 hover:bg-slate-50 text-slate-700">
-                      <ArrowLeftRight className="h-4 w-4 ml-1" /> دمج طاولات
-                    </Button>
+                <div className="rounded-xl border border-slate-150 p-4 space-y-3 bg-slate-50/30">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                    <h3 className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
+                      <Table2 className="h-4 w-4 text-rose-500" />
+                      طلبات الطاولة
+                    </h3>
+                    {selectedTable.openedAt && (
+                      <span className="flex items-center gap-1 text-[10px] text-slate-400">
+                        <Clock3 className="h-3 w-3" />
+                        {new Date(selectedTable.openedAt).toLocaleTimeString("ar-PS", { hour: "2-digit", minute: "2-digit" })}
+                      </span>
+                    )}
                   </div>
-                  <Button asChild className="w-full h-10 bg-rose-600 hover:bg-rose-750 text-white font-bold">
-                    <Link href={`/d/pos?tableId=${selectedTable.id}`}>
-                      إغلاق الفاتورة والدفع
-                    </Link>
-                  </Button>
-                  <Button onClick={() => handleChangeStatus("needs_cleaning")} disabled={busy} variant="ghost" className="w-full h-10 text-slate-550 hover:text-slate-750">
-                    إخلاء الطاولة وتعيين كتحتاج تنظيف
-                  </Button>
-                </>
+
+                  {!(selectedTable.orderItems?.length) ? (
+                    <p className="py-8 text-center text-xs text-slate-450">لا توجد طلبات مسجلة على الطاولة بعد.</p>
+                  ) : (
+                    <div className="divide-y divide-slate-100 max-h-48 overflow-y-auto">
+                      {selectedTable.orderItems.map((item, idx) => (
+                        <div key={idx} className="flex items-center justify-between py-2 text-xs">
+                          <div>
+                            <p className="font-bold text-slate-850">{item.name}</p>
+                            <p className="text-[10px] text-slate-400 mt-0.5">الكمية: {formatNumber(item.quantity)}</p>
+                          </div>
+                          <p className="font-bold text-slate-800">{formatCurrency(item.total)}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  <div className="bg-primary text-primary-foreground p-3 rounded-lg flex justify-between items-center text-xs font-black">
+                    <span>الحساب الحالي:</span>
+                    <span className="font-mono text-sm">{formatCurrency(selectedTable.currentTotal)}</span>
+                  </div>
+                </div>
               )}
 
-              {selectedTable.status === "reserved" && (
-                <>
-                  <Button onClick={() => setOpenModal(true)} disabled={busy} className="w-full h-10 font-bold bg-amber-600 hover:bg-amber-700 text-white">
-                    حضور الزبون وفتح الطاولة
-                  </Button>
-                  <Button onClick={() => handleChangeStatus("available")} disabled={busy} variant="outline" className="w-full h-10 text-rose-600 border-rose-200 bg-rose-50/20 hover:bg-rose-50">
-                    <Ban className="h-4 w-4 ml-1" /> إلغاء الحجز
-                  </Button>
-                </>
-              )}
+              {/* Operational Actions Triggers */}
+              <div className="pt-2 flex flex-col gap-2">
+                {selectedTable.status === "available" && (
+                  <>
+                    <Button onClick={() => setOpenModal(true)} disabled={busy} className="w-full h-10 font-bold bg-green-600 hover:bg-green-750">
+                      <Users className="h-4 w-4 ml-1" />
+                      فتح الطاولة واستقبال ضيوف
+                    </Button>
+                    <Button onClick={() => handleChangeStatus("reserved")} disabled={busy} variant="outline" className="w-full h-10 text-amber-600 border-amber-200 bg-amber-50/20 hover:bg-amber-50">
+                      حجز الطاولة
+                    </Button>
+                  </>
+                )}
 
-              {selectedTable.status === "needs_cleaning" && (
-                <Button onClick={() => handleChangeStatus("available")} disabled={busy} className="w-full h-10 bg-green-600 hover:bg-green-700 font-bold text-white">
-                  <CheckCircle className="h-4 w-4 ml-1" /> تم التنظيف وجاهزة للاستقبال
-                </Button>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+                {selectedTable.status === "occupied" && (
+                  <>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button onClick={() => setAddOrderModal(true)} disabled={busy} className="h-10 bg-slate-900 hover:bg-black font-bold">
+                        <Plus className="h-4 w-4 ml-1" /> إضافة طلب
+                      </Button>
+                      <Button onClick={() => setMergeModal(true)} disabled={busy} variant="outline" className="h-10 font-bold border-slate-350 hover:bg-slate-50 text-slate-700">
+                        <ArrowLeftRight className="h-4 w-4 ml-1" /> دمج طاولات
+                      </Button>
+                    </div>
+                    <Button asChild className="w-full h-10 bg-rose-600 hover:bg-rose-750 text-white font-bold">
+                      <Link href={`/d/pos?tableId=${selectedTable.id}`}>
+                        إغلاق الفاتورة والدفع
+                      </Link>
+                    </Button>
+                    <Button onClick={() => handleChangeStatus("needs_cleaning")} disabled={busy} variant="ghost" className="w-full h-10 text-slate-550 hover:text-slate-750">
+                      إخلاء الطاولة وتعيين كتحتاج تنظيف
+                    </Button>
+                  </>
+                )}
+
+                {selectedTable.status === "reserved" && (
+                  <>
+                    <Button onClick={() => setOpenModal(true)} disabled={busy} className="w-full h-10 font-bold bg-amber-600 hover:bg-amber-700 text-white">
+                      حضور الزبون وفتح الطاولة
+                    </Button>
+                    <Button onClick={() => handleChangeStatus("available")} disabled={busy} variant="outline" className="w-full h-10 text-rose-600 border-rose-200 bg-rose-50/20 hover:bg-rose-50">
+                      <Ban className="h-4 w-4 ml-1" /> إلغاء الحجز
+                    </Button>
+                  </>
+                )}
+
+                {selectedTable.status === "needs_cleaning" && (
+                  <Button onClick={() => handleChangeStatus("available")} disabled={busy} className="w-full h-10 bg-green-600 hover:bg-green-700 font-bold text-white">
+                    <CheckCircle className="h-4 w-4 ml-1" /> تم التنظيف وجاهزة للاستقبال
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* ═══════════ OPEN TABLE MODAL ═══════════ */}
-      {openModal && (
+      {openModal && selectedTable && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col text-right">
             <div className="bg-green-600 text-white px-5 py-4 flex items-center justify-between shrink-0">
@@ -513,7 +527,7 @@ export default function TablesWorkspaceClient({ initialTables, branches }: Table
       )}
 
       {/* ═══════════ ADD ORDER MODAL ═══════════ */}
-      {addOrderModal && (
+      {addOrderModal && selectedTable && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col text-right">
             <div className="bg-slate-900 text-white px-5 py-4 flex items-center justify-between shrink-0">
@@ -563,7 +577,7 @@ export default function TablesWorkspaceClient({ initialTables, branches }: Table
       )}
 
       {/* ═══════════ MERGE TABLES MODAL ═══════════ */}
-      {mergeModal && (
+      {mergeModal && selectedTable && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col text-right">
             <div className="bg-[#1e40af] text-white px-5 py-4 flex items-center justify-between shrink-0">

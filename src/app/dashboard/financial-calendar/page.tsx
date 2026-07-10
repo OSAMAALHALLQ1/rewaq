@@ -11,16 +11,20 @@ import { formatCurrency, formatNumber, formatPercent } from "@/lib/utils";
 import { getFinancialCalendarData } from "@/server/queries/app";
 import type { FinancialCalendarDay } from "@/types/domain";
 
+export const dynamic = "force-dynamic";
+
 const weekDays = ["السبت", "الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة"];
 
 export default async function FinancialCalendarPage() {
   const { days, branches } = await getFinancialCalendarData();
-  const selectedDay = days[days.length - 1];
-  const monthSales = days.reduce((sum, day) => sum + day.salesTotal, 0);
-  const monthExpenses = days.reduce((sum, day) => sum + day.expensesTotal, 0);
+  const hasData = days && days.length > 0;
+
+  const selectedDay = hasData ? days[days.length - 1] : null;
+  const monthSales = hasData ? days.reduce((sum, day) => sum + day.salesTotal, 0) : 0;
+  const monthExpenses = hasData ? days.reduce((sum, day) => sum + day.expensesTotal, 0) : 0;
   const monthProfit = monthSales - monthExpenses;
-  const bestDay = days.reduce((best, day) => (day.netProfit > best.netProfit ? day : best), days[0]);
-  const lossDays = days.filter((day) => day.netProfit < 0).length;
+  const bestDay = hasData ? days.reduce((best, day) => (day.netProfit > best.netProfit ? day : best), days[0]) : null;
+  const lossDays = hasData ? days.filter((day) => day.netProfit < 0).length : 0;
 
   return (
     <>
@@ -64,7 +68,7 @@ export default async function FinancialCalendarPage() {
           icon={WalletCards}
           tone={monthProfit >= 0 ? "success" : "danger"}
         />
-        <MetricCard label="أيام خاسرة" value={formatNumber(lossDays)} description={`أفضل يوم ${formatCurrency(bestDay.netProfit)}`} icon={CalendarDays} tone="danger" />
+        <MetricCard label="أيام خاسرة" value={formatNumber(lossDays)} description={bestDay ? `أفضل يوم ${formatCurrency(bestDay.netProfit)}` : "لا توجد بيانات"} icon={CalendarDays} tone="danger" />
       </div>
 
       <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
@@ -90,13 +94,20 @@ export default async function FinancialCalendarPage() {
               {Array.from({ length: 31 }).map((_, index) => {
                 const dayNumber = index + 1;
                 const day = days.find((item) => Number(item.date.slice(-2)) === dayNumber);
-                return <CalendarCell key={dayNumber} dayNumber={dayNumber} day={day} selected={day?.date === selectedDay.date} />;
+                return <CalendarCell key={dayNumber} dayNumber={dayNumber} day={day} selected={day?.date === selectedDay?.date} />;
               })}
             </div>
           </CardContent>
         </Card>
 
-        <DayDetails day={selectedDay} />
+        {selectedDay ? (
+          <DayDetails day={selectedDay} />
+        ) : (
+          <Card className="flex flex-col items-center justify-center p-8 text-center text-slate-400">
+            <CalendarDays className="h-10 w-10 text-slate-300 mb-2" />
+            <p className="font-bold text-sm">لا توجد تفاصيل متاحة لليوم المختار</p>
+          </Card>
+        )}
       </div>
 
       <Card className="mt-4">
@@ -112,10 +123,18 @@ export default async function FinancialCalendarPage() {
           </div>
           <div className="rounded-lg border p-4">
             <p className="text-sm text-muted-foreground">هامش صافي الربح لليوم المختار</p>
-            <p className="mt-2 text-3xl font-black text-primary">{formatPercent((selectedDay.netProfit / selectedDay.salesTotal) * 100)}</p>
-            <p className="mt-2 text-sm text-muted-foreground">
-              {formatCurrency(selectedDay.salesTotal)} - {formatCurrency(selectedDay.expensesTotal)} = {formatCurrency(selectedDay.netProfit)}
+            <p className="mt-2 text-3xl font-black text-primary">
+              {selectedDay && selectedDay.salesTotal > 0
+                ? formatPercent((selectedDay.netProfit / selectedDay.salesTotal) * 100)
+                : "0%"}
             </p>
+            {selectedDay ? (
+              <p className="mt-2 text-sm text-muted-foreground">
+                {formatCurrency(selectedDay.salesTotal)} - {formatCurrency(selectedDay.expensesTotal)} = {formatCurrency(selectedDay.netProfit)}
+              </p>
+            ) : (
+              <p className="mt-2 text-sm text-muted-foreground">لا توجد مبيعات في اليوم المختار</p>
+            )}
           </div>
         </CardContent>
       </Card>

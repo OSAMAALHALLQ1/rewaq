@@ -8,6 +8,8 @@ type Props = {
   searchParams: Promise<{ supplierId?: string }>;
 };
 
+export const dynamic = "force-dynamic";
+
 export default async function PayablesPage({ searchParams }: Props) {
   const session = await getCurrentSession();
 
