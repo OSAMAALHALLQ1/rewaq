@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
   Armchair, CircleDollarSign, Clock3, Plus, Table2, Users,
   X, CheckCircle, AlertTriangle, ArrowLeftRight, Ban
@@ -12,15 +11,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatCurrency, formatNumber } from "@/lib/utils";
 import { PageHeader } from "@/components/page-header";
 import { MetricCard } from "@/components/metric-card";
 import {
   openTableSession,
   updateTableStatus,
-  addOrderToTable,
-  mergeTables
+  mergeTables,
+  createRestaurantTable,
 } from "@/server/actions/tables";
 import type { RestaurantTable, RestaurantTableStatus } from "@/types/domain";
 
@@ -53,39 +51,38 @@ const tableColors = (status: RestaurantTableStatus, isSelected: boolean) => {
   return `${base} ${isSelected ? "ring-2 ring-primary border-primary" : ""}`;
 };
 
-// Mock catalog for table orders
-const CATALOG_ITEMS = [
-  { id: "1", name: "برجر كلاسيك", price: 30 },
-  { id: "2", name: "بطاطا مقلية عائلية", price: 15 },
-  { id: "3", name: "كوكا كولا", price: 6 },
-  { id: "4", name: "وجبة شاورما دبل", price: 40 },
-  { id: "5", name: "أرز بخاري باللحم", price: 55 },
-];
-
 export default function TablesWorkspaceClient({ initialTables, branches }: TablesWorkspaceProps) {
-  const router = useRouter();
-  const [tables, setTables] = useState<RestaurantTable[]>(initialTables);
-  const [selectedTableId, setSelectedTableId] = useState<string>(
-    initialTables.find((t) => t.status === "occupied")?.id || initialTables[0]?.id || ""
+  // Data from a newly migrated or partially populated tenant may contain
+  // incomplete rows. Do not let one malformed row take down the whole floor
+  // plan while the user is trying to manage the remaining tables.
+  const sanitizedTables = initialTables.filter(
+    (table): table is RestaurantTable => Boolean(table && table.id && Number.isFinite(Number(table.number))),
   );
+  const [tables, setTables] = useState<RestaurantTable[]>(sanitizedTables);
+  const [selectedTableId, setSelectedTableId] = useState<string>(
+    sanitizedTables.find((t) => t.status === "occupied")?.id || sanitizedTables[0]?.id || ""
+  );
+  const [selectedBranchId, setSelectedBranchId] = useState(branches[0]?.id ?? "all");
 
   // Modal control states
   const [openModal, setOpenModal] = useState(false);
   const [waiterName, setWaiterName] = useState("");
   const [guestsCount, setGuestsCount] = useState(2);
 
-  const [addOrderModal, setAddOrderModal] = useState(false);
-  const [selectedCatalogId, setSelectedCatalogId] = useState("1");
-  const [orderQty, setOrderQty] = useState(1);
-
   const [mergeModal, setMergeModal] = useState(false);
   const [targetTableId, setTargetTableId] = useState("");
+
+  const [createTableModal, setCreateTableModal] = useState(false);
+  const [newTableNumber, setNewTableNumber] = useState(Math.max(...sanitizedTables.map((table) => table.number), 0) + 1);
+  const [newTableZone, setNewTableZone] = useState("الصالة");
+  const [newTableSeats, setNewTableSeats] = useState(4);
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const selectedTable = tables.find((t) => t.id === selectedTableId) || tables[0] || null;
-  const occupiedTables = tables.filter((t) => t.status === "occupied");
+  const visibleTables = selectedBranchId === "all" ? tables : tables.filter((table) => table.branchId === selectedBranchId);
+  const selectedTable = visibleTables.find((t) => t.id === selectedTableId) || visibleTables[0] || null;
+  const occupiedTables = visibleTables.filter((t) => t.status === "occupied");
   const openTotal = occupiedTables.reduce((sum, t) => sum + t.currentTotal, 0);
 
   const handleSelectTable = (id: string) => {
@@ -121,47 +118,6 @@ export default function TablesWorkspaceClient({ initialTables, branches }: Table
       }
     } catch {
       setError("فشل فتح الطاولة");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleAddOrder = async () => {
-    if (!selectedTable) return;
-    const item = CATALOG_ITEMS.find(c => c.id === selectedCatalogId);
-    if (!item) return;
-
-    setBusy(true);
-    setError(null);
-    try {
-      const res = await addOrderToTable(selectedTable.id, [{ name: item.name, quantity: orderQty, price: item.price }]);
-      if (res && res.success) {
-        setTables(prev => prev.map(t => {
-          if (t.id === selectedTable.id) {
-            const existing = [...(t.orderItems || [])];
-            const existItem = existing.find(i => i.name === item.name);
-            if (existItem) {
-              existItem.quantity += orderQty;
-              existItem.total += item.price * orderQty;
-            } else {
-              existing.push({ name: item.name, quantity: orderQty, total: item.price * orderQty });
-            }
-            return {
-              ...t,
-              status: "occupied",
-              currentTotal: (t.currentTotal || 0) + (item.price * orderQty),
-              orderItems: existing,
-            };
-          }
-          return t;
-        }));
-        setAddOrderModal(false);
-        setOrderQty(1);
-      } else {
-        setError(res?.error || "فشل إضافة الطلب");
-      }
-    } catch {
-      setError("فشل إضافة الطلب");
     } finally {
       setBusy(false);
     }
@@ -239,25 +195,44 @@ export default function TablesWorkspaceClient({ initialTables, branches }: Table
     }
   };
 
+  const handleCreateTable = async () => {
+    const branchId = selectedBranchId === "all" ? branches[0]?.id : selectedBranchId;
+    if (!branchId) {
+      setError("أضف فرعًا أولًا قبل إنشاء طاولة");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await createRestaurantTable(branchId, newTableNumber, newTableZone, newTableSeats);
+      if (result.success && result.table) {
+        setTables((current) => [...current, result.table!]);
+        setSelectedTableId(result.table.id);
+        setNewTableNumber((current) => current + 1);
+        setCreateTableModal(false);
+      } else {
+        setError(result.error ?? "تعذر إنشاء الطاولة");
+      }
+    } catch {
+      setError("تعذر إنشاء الطاولة");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <>
       <PageHeader
         title="إدارة الطاولات والصالة"
         description="التحكم الفوري بطاولات الخدمة، توزيع الجرسونات والضيوف، تفاصيل الحساب المفتوح، وتمرير الطلبات لنقاط البيع للدفع."
-        actions={
-          <Button asChild>
-            <Link href="/d/pos">
-              <CircleDollarSign className="h-4 w-4" />
-              شاشة بيع الكاشير
-            </Link>
-          </Button>
-        }
+        actions={<div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => setCreateTableModal(true)}><Plus className="h-4 w-4" />إضافة طاولة</Button><Button asChild><Link href="/d/pos"><CircleDollarSign className="h-4 w-4" />شاشة بيع الكاشير</Link></Button></div>}
       />
 
       <Card className="mb-4">
         <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
           <div className="flex items-center gap-3">
-            <Select className="max-w-72" defaultValue={branches[0]?.id}>
+            <Select className="max-w-72" value={selectedBranchId} onChange={(event) => setSelectedBranchId(event.target.value)}>
+              <option value="all">كل الفروع</option>
               {branches.map((branch) => (
                 <option key={branch.id} value={branch.id}>
                   {branch.name}
@@ -275,13 +250,13 @@ export default function TablesWorkspaceClient({ initialTables, branches }: Table
       </Card>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="إجمالي الطاولات" value={formatNumber(tables.length)} description="كل مناطق الصالة" icon={Table2} />
+        <MetricCard label="إجمالي الطاولات" value={formatNumber(visibleTables.length)} description={selectedBranchId === "all" ? "كل مناطق الصالة" : "الفرع المحدد"} icon={Table2} />
         <MetricCard label="طاولات مشغولة" value={formatNumber(occupiedTables.length)} description="جلسات طعام نشطة" icon={Users} tone="danger" />
-        <MetricCard label="طاولات فارغة" value={formatNumber(tables.filter((t) => t.status === "available").length)} description="جاهزة للاستقبال" icon={Armchair} tone="success" />
+        <MetricCard label="طاولات فارغة" value={formatNumber(visibleTables.filter((t) => t.status === "available").length)} description="جاهزة للاستقبال" icon={Armchair} tone="success" />
         <MetricCard label="قيمة الحساب المفتوح" value={formatCurrency(openTotal)} description="طلبات قيد التحضير والتسليم" icon={CircleDollarSign} tone="warning" />
       </div>
 
-      <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_420px] items-start">
+      <div className="mt-4 grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,420px)] items-start">
         {/* Main Floor Layout map */}
         <Card className="border-slate-200/60 shadow-sm rounded-2xl bg-white/50 backdrop-blur">
           <CardHeader className="py-4 border-b border-slate-100 bg-slate-50/50">
@@ -292,16 +267,16 @@ export default function TablesWorkspaceClient({ initialTables, branches }: Table
           </CardHeader>
           <CardContent className="p-5">
             <div className="grid gap-6">
-              {Array.from(new Set(tables.map((t) => t.zone))).map((zone) => (
+              {Array.from(new Set(visibleTables.map((t) => t.zone))).map((zone) => (
                 <section key={zone} className="rounded-xl border border-slate-150 bg-white p-4">
                   <div className="mb-3.5 flex items-center justify-between border-b border-slate-50 pb-2">
                     <h3 className="font-black text-slate-800 text-xs">{zone}</h3>
                     <span className="text-[10px] bg-slate-100 text-slate-500 font-bold px-2 py-0.5 rounded-full">
-                      {formatNumber(tables.filter((t) => t.zone === zone).length)} طاولات
+                      {formatNumber(visibleTables.filter((t) => t.zone === zone).length)} طاولات
                     </span>
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    {tables
+                    {visibleTables
                       .filter((t) => t.zone === zone)
                       .map((t) => (
                         <button
@@ -439,8 +414,10 @@ export default function TablesWorkspaceClient({ initialTables, branches }: Table
                 {selectedTable.status === "occupied" && (
                   <>
                     <div className="grid grid-cols-2 gap-2">
-                      <Button onClick={() => setAddOrderModal(true)} disabled={busy} className="h-10 bg-slate-900 hover:bg-black font-bold">
-                        <Plus className="h-4 w-4 ml-1" /> إضافة طلب
+                      <Button asChild className="h-10 bg-slate-900 font-bold hover:bg-black">
+                        <Link href={`/d/pos?tableId=${selectedTable.id}`}>
+                          <Plus className="ml-1 h-4 w-4" /> إضافة طلب بالكاشير
+                        </Link>
                       </Button>
                       <Button onClick={() => setMergeModal(true)} disabled={busy} variant="outline" className="h-10 font-bold border-slate-350 hover:bg-slate-50 text-slate-700">
                         <ArrowLeftRight className="h-4 w-4 ml-1" /> دمج طاولات
@@ -480,6 +457,19 @@ export default function TablesWorkspaceClient({ initialTables, branches }: Table
       </div>
 
       {/* ═══════════ OPEN TABLE MODAL ═══════════ */}
+      {createTableModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-white text-right shadow-2xl">
+            <div className="flex items-center justify-between bg-primary px-5 py-4 text-white"><h2 className="flex items-center gap-2 text-base font-bold"><Plus className="h-5 w-5" />إضافة طاولة جديدة</h2><button onClick={() => setCreateTableModal(false)} className="rounded p-1 hover:bg-white/20" aria-label="إغلاق"><X className="h-5 w-5" /></button></div>
+            <div className="space-y-4 p-5">
+              <label className="block space-y-2 text-xs font-bold text-slate-600">رقم الطاولة<Input type="number" min={1} value={newTableNumber} onChange={(event) => setNewTableNumber(Number(event.target.value))} /></label>
+              <label className="block space-y-2 text-xs font-bold text-slate-600">المنطقة<Input value={newTableZone} onChange={(event) => setNewTableZone(event.target.value)} placeholder="مثال: التراس" /></label>
+              <label className="block space-y-2 text-xs font-bold text-slate-600">عدد المقاعد<Input type="number" min={1} value={newTableSeats} onChange={(event) => setNewTableSeats(Number(event.target.value))} /></label>
+              <div className="flex gap-2 pt-2"><Button className="flex-1" onClick={handleCreateTable} disabled={busy}>حفظ الطاولة</Button><Button className="flex-1" variant="outline" onClick={() => setCreateTableModal(false)}>إلغاء</Button></div>
+            </div>
+          </div>
+        </div>
+      )}
       {openModal && selectedTable && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col text-right">
@@ -526,56 +516,6 @@ export default function TablesWorkspaceClient({ initialTables, branches }: Table
         </div>
       )}
 
-      {/* ═══════════ ADD ORDER MODAL ═══════════ */}
-      {addOrderModal && selectedTable && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col text-right">
-            <div className="bg-slate-900 text-white px-5 py-4 flex items-center justify-between shrink-0">
-              <h2 className="font-bold text-base flex items-center gap-2"><Plus className="h-5 w-5" /> إضافة طلب للطاولة {selectedTable.number}</h2>
-              <button onClick={() => setAddOrderModal(false)} className="hover:bg-white/20 p-1 rounded transition-colors">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="p-5 space-y-4">
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-600 block">الصنف:</label>
-                <Select
-                  value={selectedCatalogId}
-                  onChange={(e) => setSelectedCatalogId(e.target.value)}
-                  className="bg-slate-50 border-slate-200"
-                >
-                  {CATALOG_ITEMS.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.name} ({formatCurrency(item.price)})
-                    </option>
-                  ))}
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-600 block">الكمية:</label>
-                <Input
-                  type="number"
-                  min={1}
-                  value={orderQty}
-                  onChange={(e) => setOrderQty(Number(e.target.value))}
-                  className="bg-slate-50 border-slate-200 font-bold text-center"
-                />
-              </div>
-
-              <div className="pt-2 flex gap-2">
-                <Button onClick={handleAddOrder} disabled={busy} className="flex-1 bg-slate-900 hover:bg-black text-white h-10 font-bold">
-                  إضافة
-                </Button>
-                <Button onClick={() => setAddOrderModal(false)} variant="outline" className="flex-1 h-10 border-slate-200">
-                  إلغاء
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* ═══════════ MERGE TABLES MODAL ═══════════ */}
       {mergeModal && selectedTable && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
@@ -595,7 +535,7 @@ export default function TablesWorkspaceClient({ initialTables, branches }: Table
                   className="bg-slate-50 border-slate-200"
                 >
                   <option value="">-- اختر طاولة --</option>
-                  {tables
+                  {visibleTables
                     .filter((t) => t.id !== selectedTable.id && t.status === "occupied")
                     .map((t) => (
                       <option key={t.id} value={t.id}>

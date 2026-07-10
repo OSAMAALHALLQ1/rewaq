@@ -325,8 +325,8 @@ export function CostAccountingCalculator() {
   const varianceTone = totals.totalVariance > 0 ? "danger" : totals.totalVariance < 0 ? "success" : "muted";
 
   return (
-    <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+    <div className="max-w-full min-w-0 space-y-6 overflow-x-clip">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 [&>*]:min-w-0">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm text-muted-foreground">تكلفة المواد المحملة</CardTitle>
@@ -389,7 +389,7 @@ export function CostAccountingCalculator() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5 [&>*]:min-w-0">
             <label className="space-y-2 text-sm font-medium text-slate-700 xl:col-span-2">
               <span>اسم المنتج أو الوجبة</span>
               <Input value={productName} onChange={(event) => setProductName(event.target.value)} />
@@ -402,7 +402,7 @@ export function CostAccountingCalculator() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 2xl:grid-cols-[1.25fr_0.75fr]">
+      <div className="grid gap-6 2xl:grid-cols-[1.25fr_0.75fr] [&>*]:min-w-0">
         <Card>
           <CardHeader>
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -505,7 +505,7 @@ export function CostAccountingCalculator() {
           </CardContent>
         </Card>
 
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
           <Card>
             <CardHeader>
               <SectionTitle
@@ -569,7 +569,7 @@ export function CostAccountingCalculator() {
         </div>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-2">
+      <div className="grid gap-6 xl:grid-cols-2 [&>*]:min-w-0">
         <Card>
           <CardHeader>
             <SectionTitle
@@ -656,7 +656,7 @@ export function CostAccountingCalculator() {
         </Card>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-2">
+      <div className="grid gap-6 xl:grid-cols-2 [&>*]:min-w-0">
         <Card>
           <CardHeader>
             <SectionTitle

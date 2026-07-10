@@ -328,6 +328,9 @@ export type SmartSavingsFeature = {
 };
 
 export type DigitalReceiptShare = {
+  id?: string;
+  invoiceId?: string;
+  shareToken?: string;
   invoiceNumber: string;
   customerName: string;
   total: number;
@@ -500,6 +503,7 @@ export type FinancialCalendarExpense = {
 
 export type FinancialCalendarDay = {
   date: string;
+  branchId?: string;
   branchName: string;
   salesTotal: number;
   expensesTotal: number;

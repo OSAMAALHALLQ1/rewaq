@@ -212,7 +212,7 @@ export async function getSocialPost(id: string) {
     async (admin, scope) => {
       const [postRow, targetRows] = await Promise.all([
         admin.from("social_posts").select("*").eq("id", id).eq("organization_id", scope.organizationId).single(),
-        admin.from("social_post_targets").select("*").eq("post_id", id),
+        admin.from("social_post_targets").select("*").eq("social_post_id", id).eq("organization_id", scope.organizationId),
       ]);
 
       if (!postRow.data) return null;

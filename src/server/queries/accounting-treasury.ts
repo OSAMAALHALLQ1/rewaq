@@ -106,7 +106,7 @@ export async function getVoucherData(): Promise<VoucherData> {
         .from("customer_invoices")
         .select("id, invoice_number, total, issued_at, status, customer_name")
         .eq("organization_id", scope.organizationId)
-        .eq("status", "unpaid")
+        .eq("status", "issued")
         .order("issued_at", { ascending: false })
         .limit(50),
       (admin as any)
@@ -117,6 +117,14 @@ export async function getVoucherData(): Promise<VoucherData> {
         .order("created_at", { ascending: false })
         .limit(12),
     ]);
+
+    if (cashResult.error) throw new Error(cashResult.error.message);
+    if (accountsResult.error) throw new Error(accountsResult.error.message);
+    if (supplierResult.error) throw new Error(supplierResult.error.message);
+    if (customerResult.error) throw new Error(customerResult.error.message);
+    if (payableResult.error) throw new Error(payableResult.error.message);
+    if (receivableResult.error) throw new Error(receivableResult.error.message);
+    if (recentResult.error) throw new Error(recentResult.error.message);
 
     const customersMap = new Map<string, string>();
     for (const row of customerResult.data ?? []) {
@@ -224,13 +232,14 @@ export async function getReceivablesData(customerId?: string): Promise<Receivabl
       .from("customer_invoices")
       .select("id, invoice_number, customer_name, total, issued_at, status")
       .eq("organization_id", scope.organizationId)
-      .neq("status", "void")
-      .neq("status", "cancelled")
-      .neq("status", "paid");
+      .eq("status", "issued");
     if (customerId) query = query.eq("customer_name", customerId);
 
     const { data: invoiceRows, error } = await query.order("issued_at", { ascending: false });
-    if (error) throw new Error(error.message);
+    if (error) {
+      console.error("[receivables]", error.message);
+      return demoReceivables;
+    }
 
     const openInvoices: Array<{ id: string; invoiceNumber: string; customerName: string; dueDate: string; balanceDue: number; bucket: AgingBucketKey }> = (invoiceRows ?? []).map((inv: any) => {
       const bucket = ageBucket(inv.issued_at ?? asOf, asOf);

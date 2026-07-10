@@ -209,6 +209,13 @@ export async function getAccountingDashboardData(): Promise<AccountingDashboardD
         .limit(6),
     ]);
 
+    if (todayInvoices.error) throw new Error(todayInvoices.error.message);
+    if (monthInvoices.error) throw new Error(monthInvoices.error.message);
+    if (openShiftsResult.error) throw new Error(openShiftsResult.error.message);
+    if (draftEntriesResult.error) throw new Error(draftEntriesResult.error.message);
+    if (unpaidInvoicesResult.error) throw new Error(unpaidInvoicesResult.error.message);
+    if (recentEntriesResult.error) throw new Error(recentEntriesResult.error.message);
+
     const sumTotals = (rows: Array<{ total: number | string | null }> | null) =>
       (rows ?? []).reduce((sum, row) => sum + numberValue(row.total), 0);
 

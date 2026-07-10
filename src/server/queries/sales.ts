@@ -37,6 +37,7 @@ import type {
   Organization,
   Recipe,
   SalesShift,
+  DigitalReceiptShare,
 } from "@/types/domain";
 
 // ============================================================================
@@ -316,49 +317,68 @@ export async function getCustomerInvoice(id: string) {
 /**
  * Get digital receipt shares
  */
-export async function getDigitalReceiptShares() {
+export async function getDigitalReceiptShares(): Promise<DigitalReceiptShare[]> {
   if (isDemoMode()) {
     return [
       {
         id: "share-1",
         invoiceId: "inv-1",
         shareToken: "abc123",
-        total: 85,
-        receiptUrl: "/r/customer-invoices/inv-1",
-        sentAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-        status: "ready" as const,
+        invoiceNumber: "فاتورة-٢٠٢٦٠٥-١٩١٥",
+        customerName: "عميل نقدي",
+        total: 55,
+        receiptUrl: "https://rewaq.app/r/202605-1915",
+        sentAt: "2026-05-16T19:15:00Z",
+        status: "viewed" as const,
       },
     ];
   }
 
-  return withAdminScope(
+  return withAdminScope<DigitalReceiptShare[]>(
     [
       {
         id: "share-1",
         invoiceId: "inv-1",
         shareToken: "abc123",
-        total: 85,
-        receiptUrl: "/r/customer-invoices/inv-1",
-        sentAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-        status: "ready" as const,
+        invoiceNumber: "فاتورة-٢٠٢٦٠٥-١٩١٥",
+        customerName: "عميل نقدي",
+        total: 55,
+        receiptUrl: "https://rewaq.app/r/202605-1915",
+        sentAt: "2026-05-16T19:15:00Z",
+        status: "viewed" as const,
       },
     ],
     async (admin, scope) => {
-      const { data } = await admin
+      const { data, error } = await admin
         .from("digital_receipt_shares")
-        .select("*")
+        .select(`
+          id,
+          invoice_id,
+          share_token,
+          total,
+          status,
+          sent_at,
+          customer_invoices (
+            invoice_number,
+            customer_name
+          )
+        `)
         .eq("organization_id", scope.organizationId)
         .order("created_at", { ascending: false })
         .limit(50);
+
+      if (error) throw new Error(error.message);
 
       return (data ?? []).map((row: any) => ({
         id: row.id,
         invoiceId: row.invoice_id,
         shareToken: row.share_token,
+        invoiceNumber: row.customer_invoices?.invoice_number ?? "بدون رقم",
+        customerName: row.customer_invoices?.customer_name ?? "عميل غير معروف",
         total: numberValue(row.total),
         receiptUrl: `/r/customer-invoices/${row.invoice_id}`,
         sentAt: row.sent_at,
-        status: row.status === "viewed" ? "viewed" as const : "ready" as const,
+        status: row.status as "ready" | "viewed" | "sent",
       }));
     },
   );

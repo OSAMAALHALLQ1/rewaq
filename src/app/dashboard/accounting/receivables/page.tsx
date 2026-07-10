@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/page-header";
 import { getCurrentSession } from "@/lib/auth/session";
-import { getReceivablesData } from "@/server/queries/accounting-treasury";
+import { getReceivablesData, type ReceivablesData } from "@/server/queries/accounting-treasury";
 import { ReceivablesClient } from "@/components/accounting/receivables-client";
 
 type Props = {
@@ -17,7 +17,18 @@ export default async function ReceivablesPage({ searchParams }: Props) {
   }
 
   const params = await searchParams;
-  const data = await getReceivablesData(params.customerId || undefined);
+  let data: ReceivablesData;
+  try {
+    data = await getReceivablesData(params.customerId || undefined);
+  } catch (error) {
+    console.error("[receivables page]", error);
+    data = {
+      totalReceivable: 0,
+      agingTotals: { current: 0, d1_30: 0, d31_60: 0, d61_90: 0, d90plus: 0 },
+      customers: [],
+      openInvoices: [],
+    };
+  }
 
   return (
     <>

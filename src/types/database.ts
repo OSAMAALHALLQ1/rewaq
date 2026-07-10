@@ -2525,6 +2525,30 @@ export type Database = {
           },
         ];
       };
+      restaurant_tables: {
+        Row: { id: string; organization_id: string; branch_id: string; number: number; name: string | null; zone: string; seats: number; capacity: number | null; status: string; opened_at: string | null; waiter_name: string | null; guests: number | null; current_total: number; created_at: string; updated_at: string; };
+        Insert: { id?: string; organization_id: string; branch_id: string; number?: number; name?: string | null; zone?: string; seats?: number; capacity?: number | null; status?: string; opened_at?: string | null; waiter_name?: string | null; guests?: number | null; current_total?: number; created_at?: string; updated_at?: string; };
+        Update: { id?: string; organization_id?: string; branch_id?: string; number?: number; name?: string | null; zone?: string; seats?: number; capacity?: number | null; status?: string; opened_at?: string | null; waiter_name?: string | null; guests?: number | null; current_total?: number; created_at?: string; updated_at?: string; };
+        Relationships: [];
+      };
+      financial_calendar_days: {
+        Row: { id: string; organization_id: string; branch_id: string; date: string; sales_total: number; expenses_total: number; net_profit: number; cash_sales: number; card_sales: number; created_at: string; updated_at: string; };
+        Insert: { id?: string; organization_id: string; branch_id: string; date: string; sales_total?: number; expenses_total?: number; net_profit?: number; cash_sales?: number; card_sales?: number; created_at?: string; updated_at?: string; };
+        Update: { id?: string; organization_id?: string; branch_id?: string; date?: string; sales_total?: number; expenses_total?: number; net_profit?: number; cash_sales?: number; card_sales?: number; created_at?: string; updated_at?: string; };
+        Relationships: [];
+      };
+      financial_calendar_sales: {
+        Row: { id: string; organization_id: string; branch_id: string; date: string; item_name: string; quantity: number; revenue: number; created_at: string; };
+        Insert: { id?: string; organization_id: string; branch_id: string; date: string; item_name?: string; quantity?: number; revenue?: number; created_at?: string; };
+        Update: { id?: string; organization_id?: string; branch_id?: string; date?: string; item_name?: string; quantity?: number; revenue?: number; created_at?: string; };
+        Relationships: [];
+      };
+      financial_calendar_expenses: {
+        Row: { id: string; organization_id: string; branch_id: string; date: string; category: string; amount: number; notes: string | null; created_at: string; };
+        Insert: { id?: string; organization_id: string; branch_id: string; date: string; category?: string; amount?: number; notes?: string | null; created_at?: string; };
+        Update: { id?: string; organization_id?: string; branch_id?: string; date?: string; category?: string; amount?: number; notes?: string | null; created_at?: string; };
+        Relationships: [];
+      };
     };
     Views: {
       amwali_daily_summary: {

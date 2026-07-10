@@ -32,6 +32,7 @@ import {
   groupBy,
   numberValue,
   oneOf,
+  sumBy,
   type AdminClient,
 } from "./_shared/utils";
 import { mapPurchaseOrder, mapStockMovement, mapSupplier } from "./_shared/mappers";
@@ -448,13 +449,16 @@ export async function getSupportTickets(status?: "open" | "pending" | "closed") 
   );
 }
 
+import { getDigitalReceiptShares } from "./sales";
+
 /**
  * Get smart savings features
  */
 export async function getSmartSavingsData(): Promise<SmartSavingsBundle> {
+  const receipts = await getDigitalReceiptShares();
   return {
     features: demoSmartSavingsFeatures,
-    receipts: demoDigitalReceiptShares,
+    receipts,
   };
 }
 
@@ -551,10 +555,15 @@ export async function getBillPaymentsData(): Promise<BillPaymentsBundle> {
     async (admin, scope) => {
       const [billRows, batchRows, mandateRows, runRows] = await Promise.all([
         (admin as any).from("payable_bills").select("*").eq("organization_id", scope.organizationId).order("due_date"),
-        (admin as any).from("bill_payment_batches").select("*").eq("organization_id", scope.organizationId).order("scheduled_at", { ascending: false }),
+        (admin as any).from("bill_payment_batches").select("*").eq("organization_id", scope.organizationId).order("scheduled_for", { ascending: false }),
         (admin as any).from("direct_debit_mandates").select("*").eq("organization_id", scope.organizationId),
         (admin as any).from("direct_debit_runs").select("*").eq("organization_id", scope.organizationId).order("executed_at", { ascending: false }),
       ]);
+
+      if (billRows.error) throw new Error(billRows.error.message);
+      if (batchRows.error) throw new Error(batchRows.error.message);
+      if (mandateRows.error) throw new Error(mandateRows.error.message);
+      if (runRows.error) throw new Error(runRows.error.message);
 
       return {
         bills: (billRows.data ?? []).map((row: any) => ({
@@ -627,14 +636,22 @@ export async function getAmwaliData(): Promise<AmwaliData> {
     },
     async (admin, scope) => {
       // Fetch real financial data
+      // `summary_date` and `entry_date` are `date` columns, so they must be
+      // compared against a plain YYYY-MM-DD value, not a full ISO timestamp.
+      const windowStart = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
       const [salesRows, costRows, branchRows] = await Promise.all([
-        (admin as any).from("sales_daily_summaries").select("*").eq("organization_id", scope.organizationId).gte("date", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()),
-        (admin as any).from("daily_cost_entries").select("*").eq("organization_id", scope.organizationId).gte("date", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()),
+        admin.from("sales_daily_summaries").select("*").eq("organization_id", scope.organizationId).gte("summary_date", windowStart),
+        admin.from("daily_cost_entries").select("*").eq("organization_id", scope.organizationId).gte("entry_date", windowStart),
         admin.from("branches").select("*").eq("organization_id", scope.organizationId),
       ]);
 
-      const totalSales = (salesRows.data ?? []).reduce((sum: number, row: any) => sum + numberValue(row.total_sales), 0);
-      const totalCost = (costRows.data ?? []).reduce((sum: number, row: any) => sum + numberValue(row.total_cost), 0);
+      if (salesRows.error) throw new Error(salesRows.error.message);
+      if (costRows.error) throw new Error(costRows.error.message);
+      if (branchRows.error) throw new Error(branchRows.error.message);
+
+      const totalSales = sumBy(salesRows.data ?? [], (row) => numberValue(row.sales_total));
+      const totalCost = sumBy(costRows.data ?? [], (row) => numberValue(row.amount));
       const foodCostPercent = totalSales > 0 ? (totalCost / totalSales) * 100 : 0;
       const netProfit = Math.round((totalSales - totalCost) * 0.85);
 
@@ -676,42 +693,69 @@ export async function getTablesData(): Promise<TablesBundle> {
     return { tables: demoRestaurantTables, branches: demoBranches };
   }
 
-  return withAdminScope<TablesBundle>({ tables: demoRestaurantTables, branches: demoBranches }, async (admin, scope) => {
-    const [tableRows, branchRows] = await Promise.all([
-      admin.from("restaurant_tables").select("*").eq("organization_id", scope.organizationId).order("name"),
-      admin.from("branches").select("*").eq("organization_id", scope.organizationId).order("name"),
-    ]);
+  return withAdminScope<TablesBundle>({ tables: [], branches: [] }, async (admin, scope) => {
+    let dbBranches: Array<{
+      id: string;
+      organizationId: string;
+      name: string;
+      city: string;
+      address: string;
+      manager: string;
+      status: "active" | "inactive";
+    }> = [];
 
-    const dbBranches = (branchRows.data ?? []).map((row: any) => ({
-      id: row.id,
-      organizationId: row.organization_id,
-      name: row.name,
-      city: row.city ?? "",
-      address: row.address ?? "",
-      manager: row.manager_name ?? "",
-      status: row.status === "inactive" || row.status === "archived" ? ("inactive" as const) : ("active" as const),
-    }));
+    try {
+      const { data: branchRows, error: branchError } = await admin
+        .from("branches")
+        .select("*")
+        .eq("organization_id", scope.organizationId)
+        .order("name");
+      if (!branchError) {
+        dbBranches = (branchRows ?? []).map((row: any) => ({
+          id: row.id,
+          organizationId: row.organization_id,
+          name: row.name,
+          city: row.city ?? "",
+          address: row.address ?? "",
+          manager: row.manager_name ?? "",
+          status: row.status === "inactive" || row.status === "archived" ? ("inactive" as const) : ("active" as const),
+        }));
+      }
+    } catch (error) {
+      console.error("[tables] branches query failed", error);
+    }
 
     const branchesMap = new Map(dbBranches.map((b) => [b.id, b]));
 
-    return {
-      branches: dbBranches,
-      tables: (tableRows.data ?? []).map((row: any) => ({
-        id: row.id,
-        organizationId: row.organization_id,
-        branchId: row.branch_id,
-        branchName: branchesMap.get(row.branch_id)?.name ?? "فرع غير معروف",
-        number: Number(row.number ?? row.name ?? 0),
-        zone: row.zone ?? "الصالة",
-        seats: row.seats ?? row.capacity ?? 4,
-        status: row.status ?? "available",
-        openedAt: row.opened_at ?? undefined,
-        waiterName: row.waiter_name ?? undefined,
-        guests: row.guests ?? undefined,
-        currentTotal: numberValue(row.current_total),
-        orderItems: [],
-      })),
-    };
+    let tables: TablesBundle["tables"] = [];
+    try {
+      const { data: tableRows, error: tableError } = await admin
+        .from("restaurant_tables")
+        .select("*")
+        .eq("organization_id", scope.organizationId)
+        .order("number");
+      if (!tableError) {
+        tables = (tableRows ?? []).map((row: any) => ({
+          id: row.id,
+          organizationId: row.organization_id,
+          branchId: row.branch_id,
+          branchName: branchesMap.get(row.branch_id)?.name ?? "فرع غير معروف",
+          number: Number(row.number ?? row.name ?? 0),
+          zone: row.zone ?? "الصالة",
+          seats: row.seats ?? row.capacity ?? 4,
+          status: row.status ?? "available",
+          openedAt: row.opened_at ?? undefined,
+          waiterName: row.waiter_name ?? undefined,
+          guests: row.guests ?? undefined,
+          currentTotal: numberValue(row.current_total),
+          orderItems: [],
+        }));
+      }
+    } catch (error) {
+      console.error("[tables] restaurant_tables query failed", error);
+    }
+
+    return { branches: dbBranches, tables };
   });
 }
 
@@ -723,45 +767,80 @@ export async function getFinancialCalendarData(): Promise<FinancialCalendarBundl
     return { days: demoFinancialCalendar, branches: demoBranches };
   }
 
-  return withAdminScope<FinancialCalendarBundle>({ days: demoFinancialCalendar, branches: demoBranches }, async (admin, scope) => {
-    const [calendarRows, saleRows, expenseRows, branchRows] = await Promise.all([
-      (admin as any).from("financial_calendar_days").select("*").eq("organization_id", scope.organizationId).order("date", { ascending: false }).limit(60),
-      (admin as any).from("financial_calendar_sales").select("*").eq("organization_id", scope.organizationId),
-      (admin as any).from("financial_calendar_expenses").select("*").eq("organization_id", scope.organizationId),
-      admin.from("branches").select("*").eq("organization_id", scope.organizationId).order("name"),
-    ]);
+  return withAdminScope<FinancialCalendarBundle>({ days: [], branches: [] }, async (admin, scope) => {
+    let dbBranches: Array<{
+      id: string;
+      organizationId: string;
+      name: string;
+      city: string;
+      address: string;
+      manager: string;
+      status: "active" | "inactive";
+    }> = [];
 
-    const dbBranches = (branchRows.data ?? []).map((row: any) => ({
-      id: row.id,
-      organizationId: row.organization_id,
-      name: row.name,
-      city: row.city ?? "",
-      address: row.address ?? "",
-      manager: row.manager_name ?? "",
-      status: row.status === "inactive" || row.status === "archived" ? ("inactive" as const) : ("active" as const),
-    }));
+    try {
+      const { data: branchRows, error: branchError } = await admin
+        .from("branches")
+        .select("*")
+        .eq("organization_id", scope.organizationId)
+        .order("name");
+      if (branchError) throw new Error(branchError.message);
+      dbBranches = (branchRows ?? []).map((row: any) => ({
+        id: row.id,
+        organizationId: row.organization_id,
+        name: row.name,
+        city: row.city ?? "",
+        address: row.address ?? "",
+        manager: row.manager_name ?? "",
+        status: row.status === "inactive" || row.status === "archived" ? ("inactive" as const) : ("active" as const),
+      }));
+    } catch (error) {
+      console.error("[financial-calendar] branches query failed", error);
+      throw error;
+    }
 
     const branchesMap = new Map(dbBranches.map((b) => [b.id, b]));
 
+    let calendarRows: any[] = [];
+    let saleRows: any[] = [];
+    let expenseRows: any[] = [];
+    try {
+      const [calRes, saleRes, expenseRes] = await Promise.all([
+        (admin as any).from("financial_calendar_days").select("*").eq("organization_id", scope.organizationId).order("date", { ascending: false }).limit(60),
+        (admin as any).from("financial_calendar_sales").select("*").eq("organization_id", scope.organizationId),
+        (admin as any).from("financial_calendar_expenses").select("*").eq("organization_id", scope.organizationId),
+      ]);
+      if (calRes.error) throw new Error(calRes.error.message);
+      if (saleRes.error) throw new Error(saleRes.error.message);
+      if (expenseRes.error) throw new Error(expenseRes.error.message);
+      calendarRows = calRes?.data ?? [];
+      saleRows = saleRes?.data ?? [];
+      expenseRows = expenseRes?.data ?? [];
+    } catch (error) {
+      console.error("[financial-calendar] calendar queries failed", error);
+      throw error;
+    }
+
     return {
       branches: dbBranches,
-      days: (calendarRows.data ?? []).map((row: any) => ({
+      days: calendarRows.map((row: any) => ({
         date: row.date,
+        branchId: row.branch_id,
         branchName: branchesMap.get(row.branch_id)?.name ?? "فرع غير معروف",
         salesTotal: numberValue(row.sales_total),
         expensesTotal: numberValue(row.expenses_total),
         netProfit: numberValue(row.net_profit),
         cashSales: numberValue(row.cash_sales),
         cardSales: numberValue(row.card_sales),
-        sales: (saleRows.data ?? [])
-          .filter((sale: any) => sale.date === row.date)
+        sales: saleRows
+          .filter((sale: any) => sale.date === row.date && sale.branch_id === row.branch_id)
           .map((sale: any) => ({
             itemName: sale.item_name ?? "",
             quantity: numberValue(sale.quantity),
             revenue: numberValue(sale.revenue),
           })),
-        expenses: (expenseRows.data ?? [])
-          .filter((expense: any) => expense.date === row.date)
+        expenses: expenseRows
+          .filter((expense: any) => expense.date === row.date && expense.branch_id === row.branch_id)
           .map((expense: any) => ({
             category: expense.category ?? "مصروفات أخرى",
             amount: numberValue(expense.amount),
@@ -800,6 +879,11 @@ export async function getOperationsData(): Promise<OperationsBundle> {
         admin.from("branches").select("*").eq("organization_id", scope.organizationId).order("name"),
         admin.from("inventory_items").select("*").eq("organization_id", scope.organizationId).order("name"),
       ]);
+
+      if (wasteRows.error) throw new Error(wasteRows.error.message);
+      if (transferRows.error) throw new Error(transferRows.error.message);
+      if (branchRows.error) throw new Error(branchRows.error.message);
+      if (itemRows.error) throw new Error(itemRows.error.message);
 
       const dbBranches = (branchRows.data ?? []).map((row: any) => ({
         id: row.id,
@@ -1042,6 +1126,9 @@ export async function getCatalogData(): Promise<CatalogBundle> {
         admin.from("catalog_items").select("*").eq("organization_id", scope.organizationId).order("name"),
         admin.from("units").select("*").eq("organization_id", scope.organizationId),
       ]);
+
+      if (itemRows.error) throw new Error(itemRows.error.message);
+      if (unitRows.error) throw new Error(unitRows.error.message);
 
       return {
         items: (itemRows.data ?? []).map((row: any) => ({

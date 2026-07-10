@@ -44,6 +44,11 @@ async function loadDashboardData(admin: AdminClient, organizationId: string) {
     admin.from("notifications").select("*").eq("organization_id", organizationId).order("created_at", { ascending: false }).limit(10),
   ]);
 
+  if (inventoryItems.error) throw new Error(inventoryItems.error.message);
+  if (purchaseOrderRows.error) throw new Error(purchaseOrderRows.error.message);
+  if (wasteRows.error) throw new Error(wasteRows.error.message);
+  if (notificationRows.error) throw new Error(notificationRows.error.message);
+
   // Calculate metrics
   const lowStockItems = inventoryItems.data?.filter(item => {
     const avgCost = numberValue(item.average_cost);
@@ -54,6 +59,7 @@ async function loadDashboardData(admin: AdminClient, organizationId: string) {
   const openPurchaseOrders = purchaseOrderRows.data?.length ?? 0;
   // Calculate food cost from recipes
   const recipes = await admin.from("recipes").select("*").eq("organization_id", organizationId);
+  if (recipes.error) throw new Error(recipes.error.message);
   const totalRecipeCost = (recipes.data ?? []).reduce((sum: number, recipe: any) => sum + numberValue(recipe.total_cost), 0);
   const avgFoodCost = recipes.data?.length ? (totalRecipeCost / recipes.data.length) : 0;
 
@@ -137,12 +143,14 @@ export async function getNotifications(): Promise<Notification[]> {
   return withAdminScope(
     demoNotifications,
     async (admin, scope) => {
-      const { data } = await admin
+      const { data, error } = await admin
         .from("notifications")
         .select("*")
         .eq("organization_id", scope.organizationId)
         .order("created_at", { ascending: false })
         .limit(20);
+
+      if (error) throw new Error(error.message);
 
       return (data ?? []).map((row: any) => ({
         id: row.id,
@@ -184,6 +192,11 @@ export async function getDashboardStats() {
         admin.from("purchase_orders").select("id", { count: "exact", head: true }).eq("organization_id", scope.organizationId).in("status", ["draft", "sent"]),
         admin.from("invoices").select("id", { count: "exact", head: true }).eq("organization_id", scope.organizationId).in("status", ["draft", "matched"]),
       ]);
+
+      if (wasteRows.error) throw new Error(wasteRows.error.message);
+      if (movementRows.error) throw new Error(movementRows.error.message);
+      if (poRows.error) throw new Error(poRows.error.message);
+      if (invoiceRows.error) throw new Error(invoiceRows.error.message);
 
       return {
         wasteLogsCount: wasteRows.count ?? 0,

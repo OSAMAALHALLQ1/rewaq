@@ -2084,6 +2084,7 @@ export const demoFinancialCalendar: FinancialCalendarDay[] = financialCalendarSe
   const date = `2026-05-${String(day).padStart(2, "0")}`;
   return {
     date,
+    branchId: day % 2 === 0 ? demoBranches[0].id : demoBranches[1].id,
     branchName: day % 2 === 0 ? demoBranches[0].name : demoBranches[1].name,
     salesTotal,
     expensesTotal,

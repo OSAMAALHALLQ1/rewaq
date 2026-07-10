@@ -1,4 +1,5 @@
-import { CalendarDays, Download, TrendingDown, TrendingUp, WalletCards } from "lucide-react";
+import Link from "next/link";
+import { CalendarDays, Filter, TrendingDown, TrendingUp, WalletCards } from "lucide-react";
 import { MetricCard } from "@/components/metric-card";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -15,34 +16,54 @@ export const dynamic = "force-dynamic";
 
 const weekDays = ["السبت", "الأحد", "الإثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة"];
 
-export default async function FinancialCalendarPage() {
-  const { days, branches } = await getFinancialCalendarData();
-  const hasData = days && days.length > 0;
+type Props = {
+  searchParams: Promise<{ month?: string; branchId?: string; day?: string }>;
+};
 
-  const selectedDay = hasData ? days[days.length - 1] : null;
-  const monthSales = hasData ? days.reduce((sum, day) => sum + day.salesTotal, 0) : 0;
-  const monthExpenses = hasData ? days.reduce((sum, day) => sum + day.expensesTotal, 0) : 0;
+export default async function FinancialCalendarPage({ searchParams }: Props) {
+  const params = await searchParams;
+  let days: import("@/types/domain").FinancialCalendarDay[] = [];
+  let branches: Array<{ id: string; name: string }> = [];
+  try {
+    const data = await getFinancialCalendarData();
+    days = data.days;
+    branches = data.branches;
+  } catch (error) {
+    console.error("[financial-calendar page]", error);
+  }
+  const latestMonth = days.reduce((latest, day) => (day.date.slice(0, 7) > latest ? day.date.slice(0, 7) : latest), "");
+  const selectedMonth = /^\d{4}-\d{2}$/.test(params.month ?? "") ? String(params.month) : latestMonth || new Date().toISOString().slice(0, 7);
+  const selectedBranchId = params.branchId && params.branchId !== "all" ? params.branchId : undefined;
+  const filteredDays = days.filter((day) => day.date.startsWith(selectedMonth) && (!selectedBranchId || day.branchId === selectedBranchId));
+  const hasData = filteredDays.length > 0;
+
+  const selectedDay = filteredDays.find((day) => day.date === params.day) ?? filteredDays[0] ?? null;
+  const monthSales = filteredDays.reduce((sum, day) => sum + day.salesTotal, 0);
+  const monthExpenses = filteredDays.reduce((sum, day) => sum + day.expensesTotal, 0);
   const monthProfit = monthSales - monthExpenses;
-  const bestDay = hasData ? days.reduce((best, day) => (day.netProfit > best.netProfit ? day : best), days[0]) : null;
-  const lossDays = hasData ? days.filter((day) => day.netProfit < 0).length : 0;
+  const bestDay = hasData ? filteredDays.reduce((best, day) => (day.netProfit > best.netProfit ? day : best), filteredDays[0]) : null;
+  const lossDays = filteredDays.filter((day) => day.netProfit < 0).length;
+  const daysInMonth = new Date(Number(selectedMonth.slice(0, 4)), Number(selectedMonth.slice(5, 7)), 0).getDate();
+  const leadingDays = (new Date(`${selectedMonth}-01T12:00:00`).getDay() + 1) % 7;
+  const monthLabel = new Intl.DateTimeFormat("ar-PS", { month: "long", year: "numeric" }).format(new Date(`${selectedMonth}-01T12:00:00`));
 
   return (
     <>
       <PageHeader
         title="التقويم المالي"
         description="تقويم شهري يوضح مبيعات كل يوم، مصاريفه، وصافي الربح بلمحة واحدة."
-        actions={
-          <Button variant="outline">
-            <Download className="h-4 w-4" />
-            تصدير التقرير
-          </Button>
-        }
       />
 
       <Card className="mb-4">
-        <CardContent className="flex flex-wrap gap-3 p-4">
-          <Input className="max-w-44" type="month" defaultValue="2026-05" />
-          <Select className="max-w-64" defaultValue="all">
+        <CardContent className="p-4">
+          <form className="flex flex-wrap items-end gap-3" action="/dashboard/financial-calendar">
+          <label className="grid gap-1 text-xs font-semibold text-muted-foreground">
+            الشهر
+            <Input className="max-w-44" name="month" type="month" defaultValue={selectedMonth} />
+          </label>
+          <label className="grid gap-1 text-xs font-semibold text-muted-foreground">
+            الفرع
+          <Select className="max-w-64" name="branchId" defaultValue={selectedBranchId ?? "all"}>
             <option value="all">كل الفروع</option>
             {branches.map((branch) => (
               <option key={branch.id} value={branch.id}>
@@ -50,11 +71,9 @@ export default async function FinancialCalendarPage() {
               </option>
             ))}
           </Select>
-          <Select className="max-w-64" defaultValue="net_profit">
-            <option value="net_profit">عرض صافي الربح</option>
-            <option value="sales">عرض المبيعات</option>
-            <option value="expenses">عرض المصاريف</option>
-          </Select>
+          </label>
+          <Button type="submit"><Filter className="h-4 w-4" />تطبيق</Button>
+          </form>
         </CardContent>
       </Card>
 
@@ -76,7 +95,7 @@ export default async function FinancialCalendarPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <CalendarDays className="h-5 w-5 text-primary" />
-              مايو ٢٠٢٦
+              {monthLabel}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -88,13 +107,14 @@ export default async function FinancialCalendarPage() {
               ))}
             </div>
             <div className="grid grid-cols-7 gap-2">
-              {Array.from({ length: 2 }).map((_, index) => (
+              {Array.from({ length: leadingDays }).map((_, index) => (
                 <div key={`empty-${index}`} className="min-h-28 rounded-lg border border-dashed bg-slate-50" />
               ))}
-              {Array.from({ length: 31 }).map((_, index) => {
+              {Array.from({ length: daysInMonth }).map((_, index) => {
                 const dayNumber = index + 1;
-                const day = days.find((item) => Number(item.date.slice(-2)) === dayNumber);
-                return <CalendarCell key={dayNumber} dayNumber={dayNumber} day={day} selected={day?.date === selectedDay?.date} />;
+                const day = filteredDays.find((item) => Number(item.date.slice(-2)) === dayNumber);
+                const query = new URLSearchParams({ month: selectedMonth, ...(selectedBranchId ? { branchId: selectedBranchId } : {}), ...(day ? { day: day.date } : {}) });
+                return <CalendarCell key={dayNumber} dayNumber={dayNumber} day={day} selected={day?.date === selectedDay?.date} href={`/dashboard/financial-calendar?${query.toString()}`} />;
               })}
             </div>
           </CardContent>
@@ -142,7 +162,7 @@ export default async function FinancialCalendarPage() {
   );
 }
 
-function CalendarCell({ dayNumber, day, selected }: { dayNumber: number; day?: FinancialCalendarDay; selected: boolean }) {
+function CalendarCell({ dayNumber, day, selected, href }: { dayNumber: number; day?: FinancialCalendarDay; selected: boolean; href: string }) {
   const tone =
     day?.status === "profit"
       ? "border-green-200 bg-green-50 text-green-900"
@@ -153,7 +173,7 @@ function CalendarCell({ dayNumber, day, selected }: { dayNumber: number; day?: F
           : "border-slate-200 bg-white text-slate-400";
 
   return (
-    <div className={`min-h-28 rounded-lg border p-3 text-start ${tone} ${selected ? "ring-2 ring-primary" : ""}`}>
+    <Link href={href} className={`block min-h-28 rounded-lg border p-3 text-start transition hover:shadow-sm focus-ring ${tone} ${selected ? "ring-2 ring-primary" : ""}`}>
       <div className="flex items-center justify-between">
         <span className="font-black">{formatNumber(dayNumber)}</span>
         {day ? <Badge tone={day.netProfit >= 0 ? "success" : "danger"}>{day.netProfit >= 0 ? "ربح" : "خسارة"}</Badge> : null}
@@ -167,7 +187,7 @@ function CalendarCell({ dayNumber, day, selected }: { dayNumber: number; day?: F
       ) : (
         <p className="mt-3 text-xs">لا توجد بيانات</p>
       )}
-    </div>
+    </Link>
   );
 }
 
