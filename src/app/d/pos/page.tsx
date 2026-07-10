@@ -12,6 +12,16 @@ import {
   Clock, Shield, Settings as SettingsIcon, Save
 } from "lucide-react";
 import { PosReceipt, ReceiptDesign, DEFAULT_DESIGN, SAMPLE_RECEIPT } from "@/components/dashboard/pos-receipt";
+import { getTableDetails, updateTableStatus } from "@/server/actions/tables";
+import {
+  saveQueuedInvoice,
+  getQueuedInvoices,
+  deleteQueuedInvoice,
+  saveSyncLog,
+  getSyncLogs,
+  clearSyncLogs,
+  type SyncLogEntry
+} from "@/lib/db/offline";
 
 // ─────────────────── Types ───────────────────
 type PayMethod = "cash" | "card" | "bank_transfer" | "delivery_app" | "receivable" | "wallet";
@@ -212,6 +222,9 @@ export default function CashierPOSWorkspace() {
   const [checkoutBusy, setCheckoutBusy] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
   const [syncQueue, setSyncQueue] = useState<QueuedInvoice[]>([]);
+  const [showSyncLogPanel, setShowSyncLogPanel] = useState(false);
+  const [syncLogs, setSyncLogs] = useState<SyncLogEntry[]>([]);
+  const [tableId, setTableId] = useState<string | null>(null);
   const [lastReceipt, setLastReceipt] = useState<any>(null);
   const [orderIndex, setOrderIndex] = useState(1);
   const [customerName, setCustomerName] = useState("عميل سريع");
@@ -330,20 +343,22 @@ export default function CashierPOSWorkspace() {
     const off = () => setIsOnline(false);
     window.addEventListener("online", on);
     window.addEventListener("offline", off);
-    const q = localStorage.getItem("rwq_pos_queue");
-    if (q) { try { setSyncQueue(JSON.parse(q)); } catch { } }
+    getQueuedInvoices().then(setSyncQueue);
+    getSyncLogs().then(setSyncLogs);
     const dz = localStorage.getItem("rwq_receipt_design");
     if (dz) { try { setDesign({ ...DEFAULT_DESIGN, ...JSON.parse(dz) }); } catch { } }
     return () => { window.removeEventListener("online", on); window.removeEventListener("offline", off); };
   }, []);
 
-  useEffect(() => { if (isOnline && syncQueue.length > 0) syncPendingInvoices(); }, [isOnline]);
+  useEffect(() => { if (isOnline && syncQueue.length > 0) syncPendingInvoices(); }, [isOnline, syncQueue.length]);
 
   const syncPendingInvoices = async () => {
     if (checkoutBusy || syncQueue.length === 0) return;
     setCheckoutBusy(true);
+    const activeQueue = [...syncQueue];
     const failed: QueuedInvoice[] = [];
-    for (const inv of syncQueue) {
+    
+    for (const inv of activeQueue) {
       try {
         const r = await fetch("/api/department/pos/checkout", {
           method: "POST",
@@ -355,11 +370,61 @@ export default function CashierPOSWorkspace() {
             payments: inv.payments,
           }),
         });
-        if (!r.ok) failed.push(inv);
-      } catch { failed.push(inv); }
+        const p = await r.json().catch(() => ({}));
+        
+        if (r.ok && p.success) {
+          await deleteQueuedInvoice(inv.id);
+          await saveSyncLog({
+            id: inv.id,
+            idempotencyKey: inv.idempotencyKey,
+            customerName: inv.customerName,
+            total: inv.total,
+            timestamp: Date.now(),
+            status: "success",
+            message: `فاتورة ${p.invoiceNumber} تمت مزامنتها بنجاح`,
+          });
+        } else {
+          if (r.status === 409 || r.status === 400) {
+            await deleteQueuedInvoice(inv.id);
+            await saveSyncLog({
+              id: inv.id,
+              idempotencyKey: inv.idempotencyKey,
+              customerName: inv.customerName,
+              total: inv.total,
+              timestamp: Date.now(),
+              status: "conflict",
+              message: p.error || "تعارض في البيانات أو انتهاء الوردية - تم الرفض",
+            });
+          } else {
+            failed.push(inv);
+            await saveSyncLog({
+              id: inv.id,
+              idempotencyKey: inv.idempotencyKey,
+              customerName: inv.customerName,
+              total: inv.total,
+              timestamp: Date.now(),
+              status: "failed",
+              message: p.error || `فشل في المزامنة (كود الخطأ: ${r.status})`,
+            });
+          }
+        }
+      } catch (err: any) {
+        failed.push(inv);
+        await saveSyncLog({
+          id: inv.id,
+          idempotencyKey: inv.idempotencyKey,
+          customerName: inv.customerName,
+          total: inv.total,
+          timestamp: Date.now(),
+          status: "failed",
+          message: err.message || "فشل الاتصال بالخادم",
+        });
+      }
     }
+    
     setSyncQueue(failed);
-    localStorage.setItem("rwq_pos_queue", JSON.stringify(failed));
+    const logs = await getSyncLogs();
+    setSyncLogs(logs);
     setCheckoutBusy(false);
     setStatusMessage(failed.length === 0 ? "تمت المزامنة" : `${failed.length} فواتير معلقة`);
   };
@@ -414,6 +479,45 @@ export default function CashierPOSWorkspace() {
       })
       .catch(() => { });
   }, [router]);
+
+  // Load table from query parameters on mount
+  useEffect(() => {
+    if (menuItems.length === 0) return;
+    const params = new URLSearchParams(window.location.search);
+    const tableIdParam = params.get("tableId");
+    if (!tableIdParam) return;
+
+    getTableDetails(tableIdParam).then((res) => {
+      if (res && res.success && res.table) {
+        setTableId(res.table.id);
+        setTableName(String(res.table.number));
+        setCustomerName(res.table.waiterName ? `طاولة ${res.table.number} - الجرسون ${res.table.waiterName}` : `طاولة ${res.table.number}`);
+        setOrderType("dine_in");
+
+        if (res.table.orderItems && res.table.orderItems.length > 0) {
+          const loadedCart: CartItem[] = [];
+          for (const item of res.table.orderItems) {
+            const catalogItem = menuItems.find(m => m.name === item.name);
+            if (catalogItem) {
+              loadedCart.push({
+                id: `cart-${catalogItem.id}-${Date.now()}-${Math.random()}`,
+                catalogItemId: catalogItem.id,
+                name: catalogItem.name,
+                price: catalogItem.price,
+                qty: item.quantity,
+                taxRate: catalogItem.taxRate || 0,
+                discount: 0,
+                selectedModifiers: [],
+              });
+            }
+          }
+          if (loadedCart.length > 0) {
+            setCart(loadedCart);
+          }
+        }
+      }
+    });
+  }, [menuItems]);
 
   // ─────────────────── Shift actions ───────────────────
   const refreshShift = async () => {
@@ -893,22 +997,38 @@ export default function CashierPOSWorkspace() {
       change: opts.method === "cash" && cashReceivedNum > 0 ? change : null,
     };
 
-    const queueIt = () => {
+    const queueIt = async () => {
       const qi: QueuedInvoice = { id: crypto.randomUUID(), ...payloadBody, total: invoiceTotal, timestamp: Date.now() } as QueuedInvoice;
+      await saveQueuedInvoice(qi);
       const nq = [...syncQueue, qi];
       setSyncQueue(nq);
-      localStorage.setItem("rwq_pos_queue", JSON.stringify(nq));
+      await saveSyncLog({
+        id: qi.id,
+        idempotencyKey: qi.idempotencyKey,
+        customerName: qi.customerName,
+        total: qi.total,
+        timestamp: qi.timestamp,
+        status: "failed",
+        message: "تم الحفظ محلياً في وضع عدم الاتصال",
+      });
+      const logs = await getSyncLogs();
+      setSyncLogs(logs);
     };
 
     const finishSale = () => {
       resetOrder();
       setPaymentOpen(false);
       setOrderIndex((n) => n + 1);
+      setTableId(null);
+      setTableName("");
       if (settings.printOnCheckout) setTimeout(() => window.print(), 400);
     };
 
     if (!isOnline) {
-      queueIt();
+      await queueIt();
+      if (tableId) {
+        await updateTableStatus(tableId, "available");
+      }
       setLastReceipt(receipt);
       finishSale();
       return;
@@ -925,6 +1045,9 @@ export default function CashierPOSWorkspace() {
       if (!r.ok || !p.success) throw new Error(p.error || "تعذر إصدار الفاتورة");
       setStatusMessage(`✓ فاتورة ${p.invoiceNumber}`);
       setLastReceipt({ ...receipt, invoiceNumber: p.invoiceNumber });
+      if (tableId) {
+        await updateTableStatus(tableId, "available");
+      }
       finishSale();
     } catch (err) {
       // فشل التحقق من الوردية أو الخصم يجب ألا يذهب لقائمة الأوفلاين
@@ -934,7 +1057,10 @@ export default function CashierPOSWorkspace() {
         setPaymentOpen(false);
         refreshShift();
       } else {
-        queueIt();
+        await queueIt();
+        if (tableId) {
+          await updateTableStatus(tableId, "available");
+        }
         setLastReceipt(receipt);
         finishSale();
       }
@@ -1121,15 +1247,25 @@ export default function CashierPOSWorkspace() {
 
         {/* Status */}
         <div className="flex items-center gap-2 border-r border-white/20 pr-3 ml-1">
-          {isOnline
-            ? <Wifi className="h-3.5 w-3.5 text-green-400" />
-            : <WifiOff className="h-3.5 w-3.5 text-red-400" />
-          }
-          {syncQueue.length > 0 && (
-            <span className="text-[10px] bg-amber-500 text-black px-1.5 py-0.5 rounded font-bold">
-              {syncQueue.length} بانتظار المزامنة
-            </span>
-          )}
+          <button
+            onClick={async () => {
+              const logs = await getSyncLogs();
+              setSyncLogs(logs);
+              setShowSyncLogPanel(true);
+            }}
+            className="flex items-center gap-1.5 hover:bg-white/10 p-1.5 rounded transition-colors"
+            title="سجل المزامنة والطلبات غير المتصلة"
+          >
+            {isOnline
+              ? <Wifi className="h-3.5 w-3.5 text-green-400" />
+              : <WifiOff className="h-3.5 w-3.5 text-red-400" />
+            }
+            {syncQueue.length > 0 && (
+              <span className="text-[10px] bg-amber-500 text-black px-1.5 py-0.5 rounded font-bold">
+                {syncQueue.length} معلق
+              </span>
+            )}
+          </button>
         </div>
 
         <button onClick={openSettings} className="w-9 h-9 rounded flex items-center justify-center hover:bg-white/10 transition-colors" title="الإعدادات وتخصيص الفاتورة">
@@ -1886,6 +2022,83 @@ export default function CashierPOSWorkspace() {
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════ SYNC LOG PANEL ═══════════ */}
+      {showSyncLogPanel && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 print:hidden">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden max-h-[85vh] flex flex-col">
+            <div className="bg-slate-900 text-white px-5 py-4 flex items-center justify-between shrink-0">
+              <h2 className="font-bold text-base flex items-center gap-2"><Wifi className="h-5 w-5" /> سجل مزامنة الطلبات غير المتصلة ({syncQueue.length} معلقة)</h2>
+              <button onClick={() => setShowSyncLogPanel(false)} className="hover:bg-white/10 p-1 rounded transition-colors">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4">
+              <div className="mb-4 flex items-center justify-between">
+                <button
+                  onClick={async () => {
+                    await syncPendingInvoices();
+                  }}
+                  disabled={syncQueue.length === 0 || checkoutBusy}
+                  className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg disabled:opacity-50 transition-colors"
+                >
+                  {checkoutBusy ? "جاري المزامنة..." : "مزامنة الآن"}
+                </button>
+                <button
+                  onClick={async () => {
+                    await clearSyncLogs();
+                    setSyncLogs([]);
+                  }}
+                  className="px-3 py-1.5 border border-gray-300 hover:bg-gray-50 text-gray-700 text-xs font-bold rounded-lg transition-colors"
+                >
+                  مسح السجل
+                </button>
+              </div>
+
+              <div className="space-y-2">
+                <h3 className="text-xs font-bold text-gray-500">حالة المزامنة والطلبات:</h3>
+                {syncLogs.length === 0 ? (
+                  <p className="text-xs text-gray-400 py-4 text-center">لا توجد عمليات مزامنة مسجلة</p>
+                ) : (
+                  <div className="space-y-2.5 max-h-[50vh] overflow-y-auto">
+                    {syncLogs.map((log) => (
+                      <div
+                        key={log.id}
+                        className={`border rounded-xl p-3 text-right text-xs ${
+                          log.status === "success"
+                            ? "bg-green-50/50 border-green-200"
+                            : log.status === "conflict"
+                            ? "bg-rose-50/50 border-rose-200"
+                            : "bg-amber-50/50 border-amber-200"
+                        }`}
+                      >
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="font-bold text-gray-800">{log.customerName}</span>
+                          <span
+                            className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                              log.status === "success"
+                                ? "bg-green-100 text-green-800"
+                                : log.status === "conflict"
+                                ? "bg-rose-100 text-rose-800"
+                                : "bg-amber-100 text-amber-800"
+                            }`}
+                          >
+                            {log.status === "success" ? "مكتملة" : log.status === "conflict" ? "مرفوضة" : "فشلت"}
+                          </span>
+                        </div>
+                        <p className="text-gray-500 mb-1.5">القيمة: {cur} {log.total.toFixed(2)} · {log.message}</p>
+                        <p className="text-[10px] text-gray-400">
+                          {new Date(log.timestamp).toLocaleString("ar-PS")}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

@@ -13,13 +13,13 @@ describe("isDemoUserEmail", () => {
 
   it("returns false when no demo email is configured", async () => {
     delete process.env.RAWAQ_DEMO_EMAIL;
-    const { isDemoUserEmail } = await import("@/server/actions/auth");
+    const { isDemoUserEmail } = await import("@/lib/auth/demo");
     expect(isDemoUserEmail("someone@example.com")).toBe(false);
   });
 
   it("matches only the configured demo email (case-insensitive)", async () => {
     process.env.RAWAQ_DEMO_EMAIL = "demo@rewaq.local";
-    const { isDemoUserEmail } = await import("@/server/actions/auth");
+    const { isDemoUserEmail } = await import("@/lib/auth/demo");
     expect(isDemoUserEmail("demo@rewaq.local")).toBe(true);
     expect(isDemoUserEmail("DEMO@rewaq.local")).toBe(true);
     expect(isDemoUserEmail("owner@example.com")).toBe(false);

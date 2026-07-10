@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 
 type OrderItem = {
   name: string;
@@ -89,6 +90,24 @@ function mapTicketToOrder(ticket: KitchenTicketApiRow): Order {
   };
 }
 
+// Heuristic station routing helper
+function getItemStation(itemName: string): "beverages" | "grill" | "appetizers" | "bakery" | "main" {
+  const name = itemName.toLowerCase();
+  if (name.includes("كولا") || name.includes("مياه") || name.includes("عصير") || name.includes("بيبسي") || name.includes("قهوة") || name.includes("شاي") || name.includes("مشروب")) {
+    return "beverages";
+  }
+  if (name.includes("برجر") || name.includes("لحم") || name.includes("شواء") || name.includes("كباب") || name.includes("شيش") || name.includes("ستيك") || name.includes("شاورما") || name.includes("زنجر")) {
+    return "grill";
+  }
+  if (name.includes("بطاطا") || name.includes("بطاطس") || name.includes("سلطة") || name.includes("شوربة") || name.includes("حمص") || name.includes("فتوش") || name.includes("مقبلات")) {
+    return "appetizers";
+  }
+  if (name.includes("بيتزا") || name.includes("معجنات") || name.includes("فطاير") || name.includes("خبز")) {
+    return "bakery";
+  }
+  return "main";
+}
+
 export default function KitchenKDSWorkspace() {
   const router = useRouter();
   const [device, setDevice] = useState<DeviceSession>({ token: "", name: "", orgId: "", branchId: "", role: "" });
@@ -97,8 +116,8 @@ export default function KitchenKDSWorkspace() {
   const [loadingOrders, setLoadingOrders] = useState(true);
   const [ordersError, setOrdersError] = useState<string | null>(null);
   const [searchRecipe, setSearchRecipe] = useState("");
+  const [selectedStation, setSelectedStation] = useState<string>("all");
 
-  // Mock recipe database matching seed structure
   const recipes = [
     { name: "برجر كلاسيك", cost: "8.50 شيكل", costPct: "28%", prep: "شواء اللحم 4 دقائق، إضافة الجبن والصلصة الخاصة في خبز البرجر." },
     { name: "برجر حار دبل", cost: "14.20 شيكل", costPct: "32%", prep: "شواء قطعتين لحم، دهن صلصة هالبينو حارة وإضافة رقائق شيبس مقرمش." },
@@ -200,15 +219,24 @@ export default function KitchenKDSWorkspace() {
     localStorage.removeItem("rwq_dept_allowed");
     localStorage.removeItem("rwq_dept_device");
     
-    // Clear cookies
     document.cookie = "rwq_dept_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-    
     router.push("/d/gate");
   };
 
   if (!authorized) return null;
 
   const filteredRecipes = recipes.filter(r => r.name.includes(searchRecipe));
+
+  // Filter tickets and items based on the active station selection
+  const visibleOrders = orders
+    .filter(o => o.status !== "ready")
+    .map(order => {
+      if (selectedStation === "all") return order;
+      const matchedItems = order.items.filter(i => getItemStation(i.name) === selectedStation);
+      if (matchedItems.length === 0) return null;
+      return { ...order, items: matchedItems };
+    })
+    .filter(Boolean) as Order[];
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-slate-950">
@@ -225,8 +253,22 @@ export default function KitchenKDSWorkspace() {
           </div>
         </div>
 
-        {/* Action controls */}
+        {/* Station Routing Dropdown & Actions */}
         <div className="flex items-center gap-3">
+          <span className="text-xs text-slate-400 font-bold hidden sm:inline">محطة التحضير:</span>
+          <Select 
+            value={selectedStation} 
+            onChange={(e) => setSelectedStation(e.target.value)}
+            className="bg-slate-950 border-slate-800 text-slate-100 text-xs h-9 w-44 font-semibold"
+          >
+            <option value="all">الكل (المطبخ الرئيسي)</option>
+            <option value="grill">الشواية واللحوم</option>
+            <option value="beverages">المشروبات (البار)</option>
+            <option value="appetizers">المقبلات والبطاطا</option>
+            <option value="bakery">المعجنات والبيتزا</option>
+            <option value="main">الطبخ والأرز</option>
+          </Select>
+
           <Button 
             variant="outline" 
             className="border-slate-800 bg-slate-900/50 hover:bg-rose-950/30 hover:border-rose-900/50 text-rose-400 h-10 w-10 p-0" 
@@ -246,11 +288,12 @@ export default function KitchenKDSWorkspace() {
           <div className="flex items-center justify-between border-b border-slate-900 pb-3">
             <h2 className="text-base font-bold text-slate-100 flex items-center gap-2">
               <CookingPot className="h-5 w-5 text-teal-400" />
-              طلبات التحضير النشطة ({orders.filter(o => o.status !== "ready").length})
+              طلبات التحضير النشطة ({visibleOrders.length})
             </h2>
-            <div className="flex items-center gap-3 text-xs text-slate-400">
-              <span className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5 text-amber-500" /> بانتظار التحضير</span>
-              <span className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5 text-teal-400" /> قيد التجهيز</span>
+            <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400">
+              <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-amber-500" /> بانتظار التحضير</span>
+              <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-teal-400" /> قيد التجهيز</span>
+              <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-red-650" /> متأخر (SLA)</span>
             </div>
           </div>
 
@@ -267,75 +310,103 @@ export default function KitchenKDSWorkspace() {
               </div>
             )}
 
-            {!loadingOrders && !ordersError && orders.filter(o => o.status !== "ready").length === 0 && (
+            {!loadingOrders && !ordersError && visibleOrders.length === 0 && (
               <div className="col-span-full rounded-xl border border-slate-800 bg-slate-900/70 p-8 text-center text-xs text-slate-400">
-                لا توجد طلبات مطبخ قيد التحضير الآن.
+                لا توجد طلبات مطبخ لهذه المحطة الآن.
               </div>
             )}
 
-            {orders.filter(o => o.status !== "ready").map((order) => (
-              <Card 
-                key={order.id} 
-                className={`bg-slate-900 border-slate-800 text-slate-100 shadow-lg relative overflow-hidden transition-all duration-200 ${
-                  order.status === "preparing" ? "border-t-4 border-t-teal-500" : "border-t-4 border-t-amber-500"
-                }`}
-              >
-                <CardHeader className="py-3.5 border-b border-slate-800 bg-slate-950/30 flex flex-row items-center justify-between">
-                  <div className="text-right">
-                    <span className="text-[10px] text-slate-400 block">{order.invoice_number}</span>
-                    <span className="font-bold text-xs text-slate-200 mt-1 block">{order.customer_name}</span>
-                  </div>
-                  <Badge className={order.status === "preparing" ? "bg-teal-500 text-slate-950" : "bg-amber-500 text-slate-950"}>
-                    {order.table_number || "دليفري"}
-                  </Badge>
-                </CardHeader>
-                <CardContent className="pt-4 space-y-4">
-                  {/* Order items list */}
-                  <ul className="space-y-2.5">
-                    {order.items.map((item, idx) => (
-                      <li key={idx} className="relative flex justify-between items-center text-xs font-semibold pb-2">
-                        <span className="text-slate-100">{item.name}</span>
-                        <span className="h-6 w-6 rounded-full bg-slate-950 flex items-center justify-center text-teal-400 border border-slate-800 text-[11px]">
-                          x{item.qty}
-                        </span>
-                        {item.modifierSummary && (
-                          <span className="absolute inset-x-0 -bottom-3.5 text-[9px] text-amber-300/90 text-center px-2 truncate">
-                            {item.modifierSummary}
-                          </span>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
+            {visibleOrders.map((order) => {
+              // SLA alert logic
+              const isLate = order.minutes >= 10;
+              const isCritical = order.minutes >= 15;
+              
+              let cardBorderClass = "border-t-4 border-t-amber-500";
+              if (order.status === "preparing") cardBorderClass = "border-t-4 border-t-teal-500";
+              if (isLate) cardBorderClass = "border-t-4 border-t-amber-600 bg-amber-950/10";
+              if (isCritical) cardBorderClass = "border-t-4 border-t-rose-600 bg-rose-950/20 animate-pulse";
 
-                  {order.notes && (
-                    <div className="bg-rose-500/10 border border-rose-500/20 text-rose-300 p-2.5 rounded-lg text-[10px] leading-relaxed flex items-start gap-1.5">
-                      <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                      <span><strong>تنبيه الشيف:</strong> {order.notes}</span>
+              // Allergen alert logic
+              const isAllergy = order.notes?.includes("حساسية") || 
+                                order.notes?.toLowerCase().includes("allergy") || 
+                                order.items.some(i => i.modifierSummary?.includes("حساسية") || i.modifierSummary?.includes("مكسرات") || i.modifierSummary?.includes("غلوتين"));
+
+              return (
+                <Card 
+                  key={order.id} 
+                  className={`bg-slate-900 border-slate-800 text-slate-100 shadow-lg relative overflow-hidden transition-all duration-200 ${cardBorderClass}`}
+                >
+                  <CardHeader className="py-3.5 border-b border-slate-800 bg-slate-950/30 flex flex-row items-center justify-between">
+                    <div className="text-right">
+                      <span className="text-[10px] text-slate-400 block">{order.invoice_number}</span>
+                      <span className="font-bold text-xs text-slate-200 mt-1 block">{order.customer_name}</span>
                     </div>
-                  )}
+                    <div className="flex flex-col items-end gap-1.5">
+                      <Badge className={order.status === "preparing" ? "bg-teal-500 text-slate-950" : "bg-amber-500 text-slate-950"}>
+                        {order.table_number || "دليفري"}
+                      </Badge>
+                      {isAllergy && (
+                        <Badge className="bg-rose-600 text-white animate-bounce text-[9px] font-bold">
+                          ⚠️ تنبيه حساسية!
+                        </Badge>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-4 space-y-4">
+                    {/* Order items list */}
+                    <ul className="space-y-2.5">
+                      {order.items.map((item, idx) => (
+                        <li key={idx} className="relative flex justify-between items-center text-xs font-semibold pb-2">
+                          <span className="text-slate-100">{item.name}</span>
+                          <span className="h-6 w-6 rounded-full bg-slate-950 flex items-center justify-center text-teal-400 border border-slate-800 text-[11px]">
+                            x{item.qty}
+                          </span>
+                          {item.modifierSummary && (
+                            <span className="absolute inset-x-0 -bottom-3.5 text-[9px] text-amber-350/90 text-center px-2 truncate">
+                              {item.modifierSummary}
+                            </span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
 
-                  {/* Operational Action triggers */}
-                  <div className="pt-2 border-t border-slate-850 flex gap-2">
-                    {order.status === "pending" ? (
-                      <Button 
-                        onClick={() => updateOrderStatus(order.id, "preparing")}
-                        className="flex-1 bg-amber-600 hover:bg-amber-700 text-white text-xs h-9"
-                      >
-                        بدء التحضير
-                      </Button>
-                    ) : (
-                      <Button 
-                        onClick={() => updateOrderStatus(order.id, "ready")}
-                        className="flex-1 bg-teal-600 hover:bg-teal-700 text-white text-xs h-9 flex items-center gap-1.5"
-                      >
-                        <CheckCircle2 className="h-4 w-4" />
-                        جاهز للتسليم
-                      </Button>
+                    {order.notes && (
+                      <div className="bg-rose-500/10 border border-rose-500/20 text-rose-300 p-2.5 rounded-lg text-[10px] leading-relaxed flex items-start gap-1.5">
+                        <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                        <span><strong>تنبيه الشيف:</strong> {order.notes}</span>
+                      </div>
                     )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+
+                    <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1">
+                      <span className="flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        منذ {formatNumber(order.minutes)} دقيقة
+                      </span>
+                    </div>
+
+                    {/* Operational Action triggers */}
+                    <div className="pt-2 border-t border-slate-850 flex gap-2">
+                      {order.status === "pending" ? (
+                        <Button 
+                          onClick={() => updateOrderStatus(order.id, "preparing")}
+                          className="flex-1 bg-amber-600 hover:bg-amber-700 text-white text-xs h-9 font-bold"
+                        >
+                          بدء التحضير
+                        </Button>
+                      ) : (
+                        <Button 
+                          onClick={() => updateOrderStatus(order.id, "ready")}
+                          className="flex-1 bg-teal-600 hover:bg-teal-700 text-white text-xs h-9 flex items-center gap-1.5 font-bold justify-center"
+                        >
+                          <CheckCircle2 className="h-4 w-4" />
+                          جاهز للتسليم
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         </div>
 
@@ -353,7 +424,7 @@ export default function KitchenKDSWorkspace() {
               placeholder="ابحث عن وصفة للتحقق..."
               value={searchRecipe}
               onChange={(e) => setSearchRecipe(e.target.value)}
-              className="bg-slate-950 border-slate-800 text-slate-100 text-xs h-9 ps-9"
+              className="bg-slate-950 border-slate-800 text-slate-100 text-xs h-9 ps-9 text-right"
             />
           </div>
 
@@ -378,4 +449,8 @@ export default function KitchenKDSWorkspace() {
       </div>
     </div>
   );
+}
+
+function formatNumber(num: number): string {
+  return String(num);
 }

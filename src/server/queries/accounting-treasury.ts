@@ -321,9 +321,27 @@ const demoCashFlow: CashFlowData = {
   financingOut: 0,
 };
 
-function classifyFlow(accountType: string): "operating" | "investing" | "financing" {
-  if (accountType === "asset") return "investing";
-  if (accountType === "equity" || accountType === "liability") return "financing";
+function classifyCounterpartFlow(systemKey: string | null, accountType: string): "operating" | "investing" | "financing" {
+  // Current operating assets/liabilities
+  if (systemKey && [
+    "accounts_receivable", 
+    "inventory", 
+    "accounts_payable", 
+    "tax_payable", 
+    "output_tax_payable", 
+    "input_tax_recoverable"
+  ].includes(systemKey)) {
+    return "operating";
+  }
+  if (accountType === "revenue" || accountType === "expense") {
+    return "operating";
+  }
+  if (accountType === "asset") {
+    return "investing";
+  }
+  if (accountType === "equity" || accountType === "liability") {
+    return "financing";
+  }
   return "operating";
 }
 
@@ -335,16 +353,19 @@ export async function getCashFlowData(from?: string, to?: string): Promise<CashF
     const toDate = to || today;
     const fromDate = from || `${today.slice(0, 7)}-01`;
 
-    const { data: cashLines, error } = await (admin as any)
+    // 1. Get all journal entry IDs that touch cash during this period
+    const { data: cashEntries, error: entryError } = await (admin as any)
       .from("journal_lines")
-      .select("debit, credit, account_id, journal_entries!inner(entry_date, status), chart_of_accounts(account_type)")
+      .select("journal_entry_id, journal_entries!inner(entry_date, status), chart_of_accounts!inner(system_key)")
       .eq("organization_id", scope.organizationId)
       .eq("journal_entries.status", "posted")
       .in("chart_of_accounts.system_key", ["cash_on_hand", "bank_card"])
       .gte("journal_entries.entry_date", fromDate)
       .lte("journal_entries.entry_date", toDate);
 
-    if (error) throw new Error(error.message);
+    if (entryError) throw new Error(entryError.message);
+
+    const entryIds = Array.from(new Set((cashEntries ?? []).map((l: any) => l.journal_entry_id).filter(Boolean)));
 
     const data: CashFlowData = {
       from: fromDate,
@@ -360,24 +381,87 @@ export async function getCashFlowData(from?: string, to?: string): Promise<CashF
       financingOut: 0,
     };
 
-    for (const line of cashLines ?? []) {
-      const type = (line.chart_of_accounts?.account_type as string) || "asset";
-      const flow = classifyFlow(type);
-      const debit = numberValue(line.debit);
-      const credit = numberValue(line.credit);
-      if (debit > 0) {
-        data.netChange += debit;
-        if (flow === "operating") data.operatingIn += debit;
-        else if (flow === "investing") data.investingIn += debit;
-        else data.financingIn += debit;
+    if (entryIds.length === 0) {
+      return data;
+    }
+
+    // 2. Fetch all lines for these journal entries to determine counterparts
+    const { data: allLines, error: linesError } = await (admin as any)
+      .from("journal_lines")
+      .select("journal_entry_id, debit, credit, chart_of_accounts(account_type, system_key)")
+      .eq("organization_id", scope.organizationId)
+      .in("journal_entry_id", entryIds);
+
+    if (linesError) throw new Error(linesError.message);
+
+    // Group lines by journal entry
+    const linesByEntry = new Map<string, any[]>();
+    for (const line of allLines ?? []) {
+      const entryId = line.journal_entry_id;
+      if (!linesByEntry.has(entryId)) {
+        linesByEntry.set(entryId, []);
       }
-      if (credit > 0) {
-        data.netChange -= credit;
-        if (flow === "operating") data.operatingOut += credit;
-        else if (flow === "investing") data.investingOut += credit;
-        else data.financingOut += credit;
+      linesByEntry.get(entryId)!.push(line);
+    }
+
+    // Process each journal entry
+    for (const [_, entryLines] of linesByEntry.entries()) {
+      const cashLines = entryLines.filter(l => 
+        l.chart_of_accounts && ["cash_on_hand", "bank_card"].includes(l.chart_of_accounts.system_key)
+      );
+      const counterpartLines = entryLines.filter(l => 
+        !l.chart_of_accounts || !["cash_on_hand", "bank_card"].includes(l.chart_of_accounts.system_key)
+      );
+
+      const netCashChange = cashLines.reduce((sum, l) => sum + numberValue(l.debit) - numberValue(l.credit), 0);
+      if (Math.abs(netCashChange) < 0.001) continue;
+
+      data.netChange += netCashChange;
+
+      if (netCashChange > 0) {
+        // Cash entered: look at credit counterpart lines
+        const totalCredits = counterpartLines.reduce((sum, l) => sum + numberValue(l.credit), 0);
+        for (const line of counterpartLines) {
+          const credit = numberValue(line.credit);
+          if (credit > 0) {
+            const systemKey = line.chart_of_accounts?.system_key || null;
+            const accountType = line.chart_of_accounts?.account_type || "revenue";
+            const flow = classifyCounterpartFlow(systemKey, accountType);
+            const proportionalCash = (credit / (totalCredits || 1)) * netCashChange;
+
+            if (flow === "operating") data.operatingIn += proportionalCash;
+            else if (flow === "investing") data.investingIn += proportionalCash;
+            else if (flow === "financing") data.financingIn += proportionalCash;
+          }
+        }
+      } else {
+        // Cash left: look at debit counterpart lines
+        const totalDebits = counterpartLines.reduce((sum, l) => sum + numberValue(l.debit), 0);
+        const absCashChange = Math.abs(netCashChange);
+        for (const line of counterpartLines) {
+          const debit = numberValue(line.debit);
+          if (debit > 0) {
+            const systemKey = line.chart_of_accounts?.system_key || null;
+            const accountType = line.chart_of_accounts?.account_type || "expense";
+            const flow = classifyCounterpartFlow(systemKey, accountType);
+            const proportionalCash = (debit / (totalDebits || 1)) * absCashChange;
+
+            if (flow === "operating") data.operatingOut += proportionalCash;
+            else if (flow === "investing") data.investingOut += proportionalCash;
+            else if (flow === "financing") data.financingOut += proportionalCash;
+          }
+        }
       }
     }
+
+    // Round the results to 2 decimal places
+    data.netChange = Math.round(data.netChange * 100) / 100;
+    data.operatingIn = Math.round(data.operatingIn * 100) / 100;
+    data.operatingOut = Math.round(data.operatingOut * 100) / 100;
+    data.investingIn = Math.round(data.investingIn * 100) / 100;
+    data.investingOut = Math.round(data.investingOut * 100) / 100;
+    data.financingIn = Math.round(data.financingIn * 100) / 100;
+    data.financingOut = Math.round(data.financingOut * 100) / 100;
 
     return data;
   });
