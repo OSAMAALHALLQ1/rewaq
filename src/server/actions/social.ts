@@ -12,7 +12,7 @@ import { can } from "@/lib/permissions/roles";
 import { requireAuth } from "@/lib/auth/require-auth";
 import type { SocialPlatform } from "@/types/domain";
 import type { ActionState } from "./auth";
-import { isDemoUserEmail } from "./auth";
+import { isDemoUserEmail } from "@/lib/auth/demo";
 
 const isSocialPlatform = (value: string): value is SocialPlatform =>
   demoSocialAccounts.some((account) => account.platform === value);

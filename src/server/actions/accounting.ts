@@ -19,7 +19,8 @@ import { requireAuth, requireSensitiveActionCapability } from "@/lib/auth/requir
 import { logAuditEvent } from "@/lib/audit/log";
 import { postExpenseJournal, reverseJournalEntry } from "@/lib/accounting/posting";
 import { EXPENSE_CATEGORIES } from "@/lib/accounting/constants";
-import { isDemoUserEmail, type ActionState } from "./auth";
+import { isDemoUserEmail } from "@/lib/auth/demo";
+import type { ActionState } from "./auth";
 
 function ok(message: string): ActionState {
   return { ok: true, message };

@@ -11,22 +11,13 @@ import { requireAuth } from "@/lib/auth/require-auth";
 import { requireAdminSession } from "@/lib/auth/admin-session";
 import { logAuditEvent } from "@/lib/audit/log";
 import { demoOrganization } from "@/lib/demo-data";
+import { isDemoUserEmail } from "@/lib/auth/demo";
 import type { Json } from "@/types/database";
 
 export type ActionState = {
   ok: boolean;
   message: string;
 };
-
-/**
- * True only for the configured demo account. The demo email is provided via the
- * server-only RAWAQ_DEMO_EMAIL env var — never hard-coded or exposed to the client.
- */
-export function isDemoUserEmail(email?: string | null): boolean {
-  const demoEmail = process.env.RAWAQ_DEMO_EMAIL;
-  if (!demoEmail || !email) return false;
-  return email.trim().toLowerCase() === demoEmail.trim().toLowerCase();
-}
 
 /**
  * Starts a demo session entirely on the server. Demo credentials live only in
