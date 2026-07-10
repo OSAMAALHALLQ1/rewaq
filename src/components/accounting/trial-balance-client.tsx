@@ -2,7 +2,8 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Scale, Info, Calendar, Filter, RefreshCw } from "lucide-react";
+import { Scale, Calendar, Filter, RefreshCw, Download, Eye, EyeOff } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,6 +18,15 @@ export function TrialBalanceClient({ data }: { data: TrialBalanceData }) {
   const router = useRouter();
   const [from, setFrom] = React.useState(data.from || "");
   const [to, setTo] = React.useState(data.to || "");
+  const [showZero, setShowZero] = React.useState(false);
+
+  const visibleRows = React.useMemo(
+    () =>
+      showZero
+        ? data.rows
+        : data.rows.filter((row) => row.closingDebit !== 0 || row.closingCredit !== 0 || row.periodDebit !== 0 || row.periodCredit !== 0),
+    [data.rows, showZero],
+  );
 
   const handleFilter = (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,6 +40,23 @@ export function TrialBalanceClient({ data }: { data: TrialBalanceData }) {
     setFrom("");
     setTo("");
     router.push("/dashboard/accounting/trial-balance");
+  };
+
+  const handleExport = () => {
+    const header = ["الكود", "الحساب", "النوع", "افتتاحي مدين", "افتتاحي دائن", "حركة مدين", "حركة دائن", "ختامي مدين", "ختامي دائن"];
+    const lines = visibleRows.map((row) =>
+      [row.code, row.name, ACCOUNT_TYPE_LABELS[row.accountType] ?? row.accountType, row.openingDebit, row.openingCredit, row.periodDebit, row.periodCredit, row.closingDebit, row.closingCredit]
+        .map((cell) => `"${String(cell).replaceAll('"', '""')}"`)
+        .join(","),
+    );
+    const csv = "﻿" + [header.join(","), ...lines].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `trial-balance-${data.from || "all"}-${data.to || "now"}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -82,6 +109,25 @@ export function TrialBalanceClient({ data }: { data: TrialBalanceData }) {
             >
               <RefreshCw className="h-4 w-4" />
             </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleExport}
+              className="border-slate-200 hover:bg-slate-50 rounded-lg gap-1"
+              title="تصدير CSV"
+            >
+              <Download className="h-4 w-4" />
+              تصدير
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowZero((v) => !v)}
+              className="border-slate-200 hover:bg-slate-50 rounded-lg gap-1"
+              title={showZero ? "إخفاء الحسابات الصفرية" : "إظهار الحسابات الصفرية"}
+            >
+              {showZero ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </Button>
           </div>
         </form>
       </Card>
@@ -97,8 +143,8 @@ export function TrialBalanceClient({ data }: { data: TrialBalanceData }) {
               <h4 className="text-sm font-bold text-slate-900">توازن ميزان المراجعة</h4>
               <p className="text-xs text-slate-500 mt-0.5">
                 {data.balanced
-                  ? "مجموع أرصدة الحسابات المدينة مساوٍ تماماً لمجموع الأرصدة الدائنة. الحسابات متزنة بالكامل."
-                  : `يوجد فارق غير متوازن قدره ${formatCurrency(Math.abs(data.debitTotal - data.creditTotal))}. يرجى مراجعة قيود اليومية المعلقة.`}
+                  ? "مجموع الأرصدة الختامية المدينة مساوٍ تماماً لمجموع الأرصدة الدائنة. الحسابات متزنة بالكامل."
+                  : `يوجد فارق غير متوازن قدره ${formatCurrency(Math.abs(data.totals.closingDebit - data.totals.closingCredit))}. يرجى مراجعة قيود اليومية المعلقة.`}
               </p>
             </div>
           </div>
@@ -115,45 +161,70 @@ export function TrialBalanceClient({ data }: { data: TrialBalanceData }) {
             <Table className="text-xs">
               <TableHeader>
                 <TableRow className="border-b bg-slate-50/50 text-slate-400">
-                  <TableHead className="text-right py-3.5 px-5 font-bold w-28">كود الحساب</TableHead>
-                  <TableHead className="text-right py-3.5 px-5 font-bold">اسم الحساب</TableHead>
-                  <TableHead className="text-right py-3.5 px-5 font-bold">النوع</TableHead>
-                  <TableHead className="text-left py-3.5 px-5 font-bold w-36">مدين (+)</TableHead>
-                  <TableHead className="text-left py-3.5 px-5 font-bold w-36">دائن (-)</TableHead>
+                  <TableHead rowSpan={2} className="text-right py-2 px-4 font-bold w-24 align-bottom">الكود</TableHead>
+                  <TableHead rowSpan={2} className="text-right py-2 px-4 font-bold align-bottom">اسم الحساب</TableHead>
+                  <TableHead rowSpan={2} className="text-right py-2 px-4 font-bold align-bottom">النوع</TableHead>
+                  <TableHead colSpan={2} className="text-center py-2 px-4 font-bold border-s">الرصيد الافتتاحي</TableHead>
+                  <TableHead colSpan={2} className="text-center py-2 px-4 font-bold border-s">حركة الفترة</TableHead>
+                  <TableHead colSpan={2} className="text-center py-2 px-4 font-bold border-s">الرصيد الختامي</TableHead>
+                </TableRow>
+                <TableRow className="border-b bg-slate-50/50 text-slate-400">
+                  <TableHead className="text-left py-2 px-4 font-bold w-28 border-s">مدين</TableHead>
+                  <TableHead className="text-left py-2 px-4 font-bold w-28">دائن</TableHead>
+                  <TableHead className="text-left py-2 px-4 font-bold w-28 border-s">مدين</TableHead>
+                  <TableHead className="text-left py-2 px-4 font-bold w-28">دائن</TableHead>
+                  <TableHead className="text-left py-2 px-4 font-bold w-28 border-s">مدين</TableHead>
+                  <TableHead className="text-left py-2 px-4 font-bold w-28">دائن</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data.rows.length === 0 ? (
+                {visibleRows.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-12 text-slate-400">لا توجد أرصدة مرحلة خلال الفترة المحددة</TableCell>
+                    <TableCell colSpan={9} className="text-center py-12 text-slate-400">لا توجد أرصدة مرحلة خلال الفترة المحددة</TableCell>
                   </TableRow>
                 ) : (
-                  data.rows.map((row) => (
+                  visibleRows.map((row) => (
                     <TableRow key={row.code} className="hover:bg-slate-50/30 transition-colors">
-                      <TableCell className="font-mono py-3 px-5 text-slate-700 font-bold">{row.code}</TableCell>
-                      <TableCell className="py-3 px-5 text-slate-900 font-black">{row.name}</TableCell>
-                      <TableCell className="py-3 px-5 text-slate-650">
+                      <TableCell className="font-mono py-3 px-4 text-slate-700 font-bold">{row.code}</TableCell>
+                      <TableCell className="py-3 px-4 text-slate-900 font-black">
+                        <Link href={`/dashboard/accounting/ledger?accountId=${row.accountId}${data.from ? `&from=${data.from}` : ""}${data.to ? `&to=${data.to}` : ""}`} className="hover:text-teal-700 hover:underline">
+                          {row.name}
+                        </Link>
+                      </TableCell>
+                      <TableCell className="py-3 px-4 text-slate-650">
                         {ACCOUNT_TYPE_LABELS[row.accountType] ?? row.accountType}
                       </TableCell>
-                      <TableCell className="text-left py-3 px-5 font-mono text-slate-800 font-semibold">
-                        {row.debit > 0 ? formatCurrency(row.debit) : "-"}
+                      <TableCell className="text-left py-3 px-4 font-mono text-slate-500 border-s">
+                        {row.openingDebit !== 0 ? formatCurrency(row.openingDebit) : "-"}
                       </TableCell>
-                      <TableCell className="text-left py-3 px-5 font-mono text-slate-850 font-semibold">
-                        {row.credit > 0 ? formatCurrency(row.credit) : "-"}
+                      <TableCell className="text-left py-3 px-4 font-mono text-slate-500">
+                        {row.openingCredit !== 0 ? formatCurrency(row.openingCredit) : "-"}
+                      </TableCell>
+                      <TableCell className="text-left py-3 px-4 font-mono text-slate-800 border-s">
+                        {row.periodDebit !== 0 ? formatCurrency(row.periodDebit) : "-"}
+                      </TableCell>
+                      <TableCell className="text-left py-3 px-4 font-mono text-slate-800">
+                        {row.periodCredit !== 0 ? formatCurrency(row.periodCredit) : "-"}
+                      </TableCell>
+                      <TableCell className="text-left py-3 px-4 font-mono text-teal-800 font-semibold border-s">
+                        {row.closingDebit !== 0 ? formatCurrency(row.closingDebit) : "-"}
+                      </TableCell>
+                      <TableCell className="text-left py-3 px-4 font-mono text-teal-800 font-semibold">
+                        {row.closingCredit !== 0 ? formatCurrency(row.closingCredit) : "-"}
                       </TableCell>
                     </TableRow>
                   ))
                 )}
                 {/* Total Row */}
-                {data.rows.length > 0 && (
+                {visibleRows.length > 0 && (
                   <TableRow className="bg-slate-50/70 border-t-2 border-slate-200 font-bold text-slate-900">
-                    <TableCell colSpan={3} className="py-4 px-5 text-sm font-black text-right">الإجماليات العامة</TableCell>
-                    <TableCell className="text-left py-4 px-5 font-mono text-teal-700 text-sm font-black">
-                      {formatCurrency(data.debitTotal)}
-                    </TableCell>
-                    <TableCell className="text-left py-4 px-5 font-mono text-teal-700 text-sm font-black">
-                      {formatCurrency(data.creditTotal)}
-                    </TableCell>
+                    <TableCell colSpan={3} className="py-4 px-4 text-sm font-black text-right">الإجماليات العامة</TableCell>
+                    <TableCell className="text-left py-4 px-4 font-mono text-slate-600 font-black border-s">{formatCurrency(data.totals.openingDebit)}</TableCell>
+                    <TableCell className="text-left py-4 px-4 font-mono text-slate-600 font-black">{formatCurrency(data.totals.openingCredit)}</TableCell>
+                    <TableCell className="text-left py-4 px-4 font-mono text-teal-700 font-black border-s">{formatCurrency(data.totals.periodDebit)}</TableCell>
+                    <TableCell className="text-left py-4 px-4 font-mono text-teal-700 font-black">{formatCurrency(data.totals.periodCredit)}</TableCell>
+                    <TableCell className="text-left py-4 px-4 font-mono text-teal-700 font-black border-s">{formatCurrency(data.totals.closingDebit)}</TableCell>
+                    <TableCell className="text-left py-4 px-4 font-mono text-teal-700 font-black">{formatCurrency(data.totals.closingCredit)}</TableCell>
                   </TableRow>
                 )}
               </TableBody>

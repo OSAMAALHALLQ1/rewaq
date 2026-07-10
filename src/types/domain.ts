@@ -139,12 +139,17 @@ export type PurchaseOrder = {
 export type Invoice = {
   id: string;
   organizationId: string;
+  supplierId?: string;
   supplierName: string;
   branchName: string;
   invoiceNumber: string;
-  status: "draft" | "matched" | "paid" | "flagged";
+  status: "draft" | "matched" | "paid" | "flagged" | "posted" | "partially_paid" | "void";
   total: number;
   issuedAt: string;
+  dueDate?: string;
+  paidAmount: number;
+  balanceDue: number;
+  purchaseOrderId?: string;
 };
 
 export type CustomerInvoiceItem = {

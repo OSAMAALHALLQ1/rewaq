@@ -4,37 +4,38 @@ import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header";
 import { getCurrentSession } from "@/lib/auth/session";
-import { getGeneralLedgerData } from "@/server/queries/accounting-erp";
-import { LedgerClient } from "@/components/accounting/ledger-client";
+import { getJournalBrowserData } from "@/server/queries/accounting-erp";
+import { JournalBrowserClient } from "@/components/accounting/journal-browser-client";
 
 type Props = {
-  searchParams: Promise<{ accountId?: string; from?: string; to?: string }>;
+  searchParams: Promise<{ from?: string; to?: string; q?: string; status?: string; sourceType?: string }>;
 };
 
-export default async function GeneralLedgerPage({ searchParams }: Props) {
+export default async function GeneralJournalPage({ searchParams }: Props) {
   const session = await getCurrentSession();
 
-  // Allow only super_admin, organization_owner, and accountant
   if (!["super_admin", "organization_owner", "accountant"].includes(session.role)) {
     redirect("/dashboard/accounting");
   }
 
-  const { accountId, from, to } = await searchParams;
-  const data = await getGeneralLedgerData({
-    accountId: accountId || undefined,
-    from: from || undefined,
-    to: to || undefined,
+  const params = await searchParams;
+  const data = await getJournalBrowserData({
+    from: params.from || undefined,
+    to: params.to || undefined,
+    q: params.q || undefined,
+    status: params.status === "draft" || params.status === "posted" ? params.status : undefined,
+    sourceType: params.sourceType || undefined,
   });
 
   return (
     <>
       <PageHeader
-        title="دفتر الأستاذ العام (General Ledger)"
-        description="عرض تفصيلي للعمليات المالية والحركة اليومية الجارية لكل حساب وتحديد الأرصدة الختامية وتصحيحها."
+        title="دفتر اليومية العامة (General Journal)"
+        description="جميع القيود المحاسبية كاملة بأسطرها ومصدرها وحالتها — نقطة المراجعة والتدقيق الأولى للمحاسب."
         actions={
           <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline" className="rounded-lg font-bold border-slate-200">
-              <Link href="/dashboard/accounting/journal">دفتر اليومية العامة</Link>
+              <Link href="/dashboard/accounting/ledger">دفتر الأستاذ</Link>
             </Button>
             <Button asChild className="bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-bold shadow-md shadow-teal-500/10">
               <Link href="/dashboard/accounting/ledger/new">
@@ -47,7 +48,7 @@ export default async function GeneralLedgerPage({ searchParams }: Props) {
       />
 
       <div className="mt-4">
-        <LedgerClient data={data} />
+        <JournalBrowserClient data={data} />
       </div>
     </>
   );

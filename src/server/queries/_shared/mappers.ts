@@ -173,16 +173,32 @@ export function mapInvoice(
   branchMap: Map<string, NamedLookup>,
 ): Invoice {
   const invoiceNumber = optionalText(row.invoice_number) ?? String(row.id ?? "").slice(0, 8);
+  const total = numberValue(row.total);
+  const status = oneOf(
+    String(row.status ?? ""),
+    ["draft", "matched", "paid", "flagged", "posted", "partially_paid", "void"] as const,
+    "draft",
+  );
+  // Legacy rows predate payment tracking: status 'paid' with null paid_amount.
+  const rawPaid = (row as { paid_amount?: unknown }).paid_amount as number | string | null | undefined;
+  const paidAmount = rawPaid == null ? (status === "paid" ? total : 0) : numberValue(rawPaid);
+  const rawBalance = (row as { balance_due?: unknown }).balance_due as number | string | null | undefined;
+  const balanceDue = rawBalance == null ? Math.max(0, total - paidAmount) : numberValue(rawBalance);
 
   return {
     id: String(row.id ?? ""),
     organizationId: String(row.organization_id ?? ""),
+    supplierId: optionalText(row.supplier_id),
     supplierName: String(supplierMap.get(String(row.supplier_id ?? ""))?.name ?? "مورد غير معروف"),
     branchName: String(branchMap.get(String(row.branch_id ?? ""))?.name ?? "فرع غير معروف"),
     invoiceNumber,
-    status: oneOf(String(row.status ?? ""), ["draft", "matched", "paid", "flagged"] as const, "draft"),
-    total: numberValue(row.total),
+    status,
+    total,
     issuedAt: String(row.issued_at ?? ""),
+    dueDate: optionalText((row as { due_date?: unknown }).due_date as string | null | undefined),
+    paidAmount,
+    balanceDue,
+    purchaseOrderId: optionalText((row as { purchase_order_id?: unknown }).purchase_order_id as string | null | undefined),
   };
 }
 

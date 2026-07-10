@@ -212,9 +212,11 @@ export async function getSupplier(id: string) {
           supplierName: "",
           branchName: "",
           invoiceNumber: row.invoice_number ?? row.id.slice(0, 8),
-          status: oneOf(row.status, ["draft", "matched", "paid", "flagged"] as const, "draft"),
+          status: oneOf(row.status, ["draft", "matched", "paid", "flagged", "posted", "partially_paid", "void"] as const, "draft"),
           total: numberValue(row.total),
           issuedAt: row.issued_at,
+          paidAmount: numberValue((row as { paid_amount?: number | string | null }).paid_amount),
+          balanceDue: numberValue((row as { balance_due?: number | string | null }).balance_due),
         })),
       };
     },

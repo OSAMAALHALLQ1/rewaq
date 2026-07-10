@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header";
 import { JournalEntryForm } from "@/components/accounting/journal-entry-form";
 import { getAccountingLedgerData } from "@/server/queries/accounting";
+import { getJournalFormLookups } from "@/server/queries/accounting-erp";
 
 export default async function NewJournalEntryPage() {
-  const { accounts } = await getAccountingLedgerData();
+  const [{ accounts }, lookups] = await Promise.all([getAccountingLedgerData(), getJournalFormLookups()]);
 
   return (
     <>
@@ -26,7 +27,7 @@ export default async function NewJournalEntryPage() {
       />
 
       <div className="mt-4 max-w-5xl">
-        <JournalEntryForm accounts={accounts} />
+        <JournalEntryForm accounts={accounts} costCenters={lookups.costCenters} branches={lookups.branches} />
       </div>
     </>
   );

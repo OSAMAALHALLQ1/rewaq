@@ -19,20 +19,34 @@ type AccountLookup = {
   accountType: string;
 };
 
+type CostCenterLookup = { id: string; code: string; name: string };
+type BranchLookup = { id: string; name: string };
+
 type FormLine = {
   accountId: string;
   debit: string;
   credit: string;
   memo: string;
+  costCenterId: string;
 };
 
-export function JournalEntryForm({ accounts }: { accounts: AccountLookup[] }) {
+export function JournalEntryForm({
+  accounts,
+  costCenters = [],
+  branches = [],
+}: {
+  accounts: AccountLookup[];
+  costCenters?: CostCenterLookup[];
+  branches?: BranchLookup[];
+}) {
   const router = useRouter();
   const [entryDate, setEntryDate] = React.useState(new Date().toISOString().slice(0, 10));
   const [memo, setMemo] = React.useState("");
+  const [reference, setReference] = React.useState("");
+  const [branchId, setBranchId] = React.useState("");
   const [lines, setLines] = React.useState<FormLine[]>([
-    { accountId: "", debit: "0", credit: "0", memo: "" },
-    { accountId: "", debit: "0", credit: "0", memo: "" },
+    { accountId: "", debit: "0", credit: "0", memo: "", costCenterId: "" },
+    { accountId: "", debit: "0", credit: "0", memo: "", costCenterId: "" },
   ]);
 
   const [isPending, startTransition] = React.useTransition();
@@ -50,7 +64,7 @@ export function JournalEntryForm({ accounts }: { accounts: AccountLookup[] }) {
   const isBalanced = difference < 0.01 && debitTotal > 0;
 
   const handleAddLine = () => {
-    setLines([...lines, { accountId: "", debit: "0", credit: "0", memo: "" }]);
+    setLines([...lines, { accountId: "", debit: "0", credit: "0", memo: "", costCenterId: "" }]);
   };
 
   const handleRemoveLine = (index: number) => {
@@ -100,13 +114,16 @@ export function JournalEntryForm({ accounts }: { accounts: AccountLookup[] }) {
     const formData = new FormData();
     formData.append("entryDate", entryDate);
     formData.append("memo", memo);
-    
+    formData.append("reference", reference.trim());
+    formData.append("branchId", branchId);
+
     // Format lines to pass to server action
     const formattedLines = lines.map((line) => ({
       accountId: line.accountId,
       debit: parseFloat(line.debit) || 0,
       credit: parseFloat(line.credit) || 0,
       memo: line.memo || undefined,
+      costCenterId: line.costCenterId || undefined,
     }));
     formData.append("lines", JSON.stringify(formattedLines));
 
@@ -160,6 +177,35 @@ export function JournalEntryForm({ accounts }: { accounts: AccountLookup[] }) {
               required
             />
           </div>
+          <div className="space-y-2">
+            <Label htmlFor="reference" className="text-xs font-bold text-slate-500">المرجع / رقم المستند (اختياري)</Label>
+            <Input
+              id="reference"
+              type="text"
+              placeholder="مثال: رقم عقد، رقم فاتورة ورقية..."
+              value={reference}
+              onChange={(e) => setReference(e.target.value)}
+              className="bg-white border-slate-200 focus:border-teal-500 rounded-lg text-right"
+            />
+          </div>
+          {branches.length > 0 && (
+            <div className="space-y-2">
+              <Label htmlFor="branchId" className="text-xs font-bold text-slate-500">الفرع (اختياري)</Label>
+              <Select
+                id="branchId"
+                value={branchId}
+                onChange={(e) => setBranchId(e.target.value)}
+                className="bg-white border-slate-200 text-right"
+              >
+                <option value="">بدون فرع محدد</option>
+                {branches.map((branch) => (
+                  <option key={branch.id} value={branch.id}>
+                    {branch.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -184,9 +230,10 @@ export function JournalEntryForm({ accounts }: { accounts: AccountLookup[] }) {
             <table className="w-full border-collapse text-sm">
               <thead>
                 <tr className="border-b border-slate-200 text-slate-500">
-                  <th className="py-3 px-2 text-right font-bold w-1/3">الحساب</th>
-                  <th className="py-3 px-2 text-right font-bold w-1/6">مدين (+)</th>
-                  <th className="py-3 px-2 text-right font-bold w-1/6">دائن (-)</th>
+                  <th className="py-3 px-2 text-right font-bold w-1/4">الحساب</th>
+                  <th className="py-3 px-2 text-right font-bold w-28">مدين (+)</th>
+                  <th className="py-3 px-2 text-right font-bold w-28">دائن (-)</th>
+                  {costCenters.length > 0 && <th className="py-3 px-2 text-right font-bold w-40">مركز التكلفة</th>}
                   <th className="py-3 px-2 text-right font-bold">البيان الخاص</th>
                   <th className="py-3 px-2 text-center font-bold w-12"></th>
                 </tr>
@@ -230,6 +277,22 @@ export function JournalEntryForm({ accounts }: { accounts: AccountLookup[] }) {
                         className="bg-white border-slate-200 font-mono text-left"
                       />
                     </td>
+                    {costCenters.length > 0 && (
+                      <td className="py-2.5 px-2">
+                        <Select
+                          value={line.costCenterId}
+                          onChange={(e) => handleLineChange(index, "costCenterId", e.target.value)}
+                          className="bg-white border-slate-200 text-right"
+                        >
+                          <option value="">بدون مركز</option>
+                          {costCenters.map((cc) => (
+                            <option key={cc.id} value={cc.id}>
+                              {cc.code} - {cc.name}
+                            </option>
+                          ))}
+                        </Select>
+                      </td>
+                    )}
                     <td className="py-2.5 px-2">
                       <Input
                         type="text"

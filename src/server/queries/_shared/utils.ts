@@ -141,29 +141,32 @@ export async function resolveScope(admin: AdminClient): Promise<AppScope> {
       };
     }
 
-    // المستخدم مصادق عليه لكن لا يوجد له صف عضوية بعد: نُسقطه على أول منظمة
-    // موجودة بدلاً من رمي خطأ يعطّل كل صفحات الـ dashboard. يُسجَّل تحذير للمتابعة.
-    console.warn(
-      "[resolveScope] user has no organization_memberships row; falling back to first organization.",
-      { userId },
-    );
-    const { data: firstOrgForUser } = await admin
+    // A user authenticated but without a valid membership must NEVER fall back
+    // to the first organization in the database — that would leak another
+    // tenant's data. Deny access with a clear error instead.
+    if (!isDemoModeEnabled()) {
+      throw new Error("لم يتم ربط حسابك بأي مؤسسة صالحة. راجع مدير النظام لإنشاء عضوية للمؤسسة الخاصة بك.");
+    }
+
+    // Explicit local demo mode scopes strictly to the isolated demo
+    // organization, never to the first real organization.
+    const { data: demoOrg } = await admin
       .from("organizations")
       .select("id")
-      .order("created_at", { ascending: true })
-      .limit(1)
+      .eq("id", demoOrganization.id)
       .maybeSingle();
 
-    if (firstOrgForUser?.id) {
-      return { organizationId: firstOrgForUser.id, branchId: null };
+    if (demoOrg?.id) {
+      return { organizationId: demoOrg.id, branchId: null };
     }
+
+    throw new Error("تعذر تحديد نطاق المؤسسة للوضع التجريبي.");
   }
 
   if (!isDemoModeEnabled()) {
     throw new Error("Unable to resolve organization scope for the current user.");
   }
 
-  // Explicit local demo fallback.
   const { data: demoOrg } = await admin
     .from("organizations")
     .select("id")
@@ -174,15 +177,7 @@ export async function resolveScope(admin: AdminClient): Promise<AppScope> {
     return { organizationId: demoOrg.id, branchId: null };
   }
 
-  // Fallback to first organization
-  const { data: firstOrg } = await admin
-    .from("organizations")
-    .select("id")
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
-
-  return { organizationId: firstOrg?.id ?? demoOrganization.id, branchId: null };
+  throw new Error("Unable to resolve demo organization scope.");
 }
 
 // ============================================================================

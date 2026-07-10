@@ -29,6 +29,22 @@ export const ACCOUNT_TYPE_LABELS: Record<string, string> = {
   cogs: "تكلفة مبيعات",
 };
 
+/** Arabic labels for journal-entry source document types. */
+export const SOURCE_DOC_LABELS: Record<string, string> = {
+  customer_invoice: "فاتورة مبيعات",
+  supplier_invoice: "فاتورة مورد",
+  supplier_payment: "سند دفع مورد",
+  purchase_receipt: "استلام مشتريات",
+  expense: "مصروف",
+  sales_shift: "وردية مبيعات",
+  waste_log: "هدر مخزون",
+  inventory_adjustment: "تسوية مخزون",
+  journal_reversal: "قيد عكسي",
+  opening_balance: "رصيد افتتاحي",
+  year_end_closing: "إقفال سنوي",
+  manual: "قيد يدوي",
+};
+
 export const PAYMENT_METHOD_LABELS: Record<string, string> = {
   cash: "نقدي (الصندوق)",
   bank: "بنك / بطاقة",

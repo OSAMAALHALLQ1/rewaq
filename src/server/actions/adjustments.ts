@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createAdminClientWithContext, hasSupabaseAdminEnv } from "@/lib/supabase/admin";
 import { requireAuth, requireSensitiveActionCapability } from "@/lib/auth/require-auth";
-import { postInventoryWriteOffJournal } from "@/lib/accounting/posting";
+import { postInventoryWriteOffJournal, todayLocal } from "@/lib/accounting/posting";
 import { logAuditEvent } from "@/lib/audit/log";
 
 type ActionState = {
@@ -102,6 +102,7 @@ export async function saveManualAdjustmentAction(formData: FormData): Promise<Ac
         sourceDocId: movementId,
         label: `تسوية مخزون يدوية - صنف ${item.name} (${parsed.data.movementType})`,
         totalCost: Math.abs(quantity * unitCost),
+        entryDate: todayLocal(),
         createdBy: auth.id,
       });
     }

@@ -12,6 +12,7 @@ import { can } from "@/lib/permissions/roles";
 import { requireAuth } from "@/lib/auth/require-auth";
 import type { SocialPlatform } from "@/types/domain";
 import type { ActionState } from "./auth";
+import { isDemoUserEmail } from "./auth";
 
 const isSocialPlatform = (value: string): value is SocialPlatform =>
   demoSocialAccounts.some((account) => account.platform === value);
@@ -28,7 +29,7 @@ async function resolveSocialScope() {
 
   // Get organization ID from authenticated user
   if (auth.organizationId) {
-    return { admin, organizationId: auth.organizationId, userId: auth.id };
+    return { admin, organizationId: auth.organizationId, userId: auth.id, auth };
   }
 
   // Fallback: look up org from membership
@@ -41,24 +42,12 @@ async function resolveSocialScope() {
     .maybeSingle();
 
   if (membership?.organization_id) {
-    return { admin, organizationId: membership.organization_id, userId: auth.id };
+    return { admin, organizationId: membership.organization_id, userId: auth.id, auth };
   }
 
-  // Last resort: pick the first org (for super_admin roles)
-  if (auth.role === "super_admin" || auth.role === "organization_owner") {
-    const { data: firstOrg } = await admin
-      .from("organizations")
-      .select("id")
-      .order("created_at", { ascending: true })
-      .limit(1)
-      .maybeSingle();
-
-    if (firstOrg?.id) {
-      return { admin, organizationId: firstOrg.id, userId: auth.id };
-    }
-  }
-
-  throw new Error("لم يتم العثور على مؤسسة مرتبطة بحسابك.");
+  // No valid membership. Super-admins/owners must select the organization
+  // explicitly — never fall back to the first organization in the database.
+  throw new Error("لم يتم العثور على مؤسسة مرتبطة بحسابك. اختر المؤسسة صراحةً من لوحة الإدارة.");
 }
 
 function postStatusForMode(mode: "now" | "schedule" | "draft") {
@@ -169,6 +158,11 @@ export async function createSocialPostAction(_prevState: ActionState, formData: 
 
   try {
     scope = await resolveSocialScope();
+
+    // The demo account must not be able to connect external integrations or publish.
+    if (isDemoUserEmail(scope.auth.email)) {
+      return { ok: false, message: "الحساب التجريبي لا يمكنه النشر أو ربط حسابات خارجية." };
+    }
 
     if (accountMode === "one_time") {
       if (!isSocialPlatform(oneTimePlatform)) {
@@ -686,7 +680,12 @@ export async function connectSocialAccountAction(
 
   try {
     const scope = await resolveSocialScope();
-    
+
+    // The demo account must not be able to connect external integrations.
+    if (isDemoUserEmail(scope.auth.email)) {
+      return { ok: false, message: "الحساب التجريبي لا يمكنه ربط حسابات خارجية." };
+    }
+
     // Delete existing account for this platform first
     await scope.admin
       .from("social_accounts")

@@ -23,10 +23,22 @@ import {
   postInventoryWriteOffJournal,
   postPurchaseReceiptJournal,
   postSupplierInvoiceJournal,
+  postSupplierPaymentJournal,
+  todayLocal,
 } from "@/lib/accounting/posting";
 import { addCashDrawerEntry } from "@/lib/sales/shift-posting";
 import type { Tables } from "@/types/database";
 import type { ActionState } from "./auth";
+
+/** Local-date addition (avoids UTC off-by-one). Returns YYYY-MM-DD. */
+function addDaysLocal(dateStr: string, days: number): string {
+  const d = new Date(`${dateStr}T00:00:00`);
+  d.setDate(d.getDate() + days);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
 
 function ok(message: string): ActionState {
   return { ok: true, message };
@@ -118,21 +130,10 @@ async function resolveMutationScope() {
     return { admin, organizationId: membership.organization_id, userId: auth.id, auth };
   }
 
-  // Super-admin can access any org
-  if (auth.role === "super_admin") {
-    const { data: firstOrg } = await admin
-      .from("organizations")
-      .select("id")
-      .order("created_at", { ascending: true })
-      .limit(1)
-      .maybeSingle();
-
-    if (firstOrg?.id) {
-      return { admin, organizationId: firstOrg.id, userId: auth.id, auth };
-    }
-  }
-
-  throw new Error("لم يتم العثور على مؤسسة مرتبطة بحسابك.");
+  // No valid membership for this user. Super-admins must select the target
+  // organization explicitly from the admin console — they must NEVER be
+  // auto-scoped to the first organization in the database.
+  throw new Error("لم يتم العثور على مؤسسة مرتبطة بحسابك. اختر المؤسسة صراحةً من لوحة الإدارة.");
 }
 
 function inferUnitKind(name: string) {
@@ -724,6 +725,7 @@ export async function issueCustomerInvoiceAction(input: unknown) {
       discount: parsed.data.invoiceDiscount,
       serviceFee: parsed.data.serviceFee,
       deliveryFee: parsed.data.deliveryFee,
+      entryDate: todayLocal(),
       createdBy: userId,
     });
 
@@ -923,7 +925,10 @@ export async function saveSupplyInvoiceAction(_prevState: ActionState, formData:
         branch_id: parsed.data.branchId,
         invoice_number: parsed.data.invoiceNumber,
         issued_at: parsed.data.issuedAt,
-        status: "draft",
+        status: "posted",
+        payment_status: "unpaid",
+        paid_amount: 0,
+        balance_due: invoiceTotal,
         total: invoiceTotal,
         created_by: userId,
       })
@@ -950,6 +955,7 @@ export async function saveSupplyInvoiceAction(_prevState: ActionState, formData:
       invoiceId: invoice.id,
       invoiceNumber: parsed.data.invoiceNumber,
       total: invoiceTotal,
+      entryDate: parsed.data.issuedAt,
       createdBy: userId,
     });
   } catch (error) {
@@ -1104,6 +1110,33 @@ export async function receivePurchaseOrderAction(_prevState: ActionState, formDa
 
     if (itemsError) return invalid(itemsError.message);
 
+    // Idempotency: a client-generated key (or stable derived key) makes a
+    // retried/multi-clicked submission safe. The atomic RPC also guards each
+    // stock movement independently.
+    const idempotencyKey = String(formData.get("idempotencyKey") || `${purchaseOrderId}:receive:${crypto.randomUUID()}`);
+
+    const { data: existingReceipt } = await admin
+      .from("goods_receipts")
+      .select("id")
+      .eq("organization_id", organizationId)
+      .eq("idempotency_key", idempotencyKey)
+      .maybeSingle();
+
+    if (existingReceipt?.id) {
+      return ok("تم استلام طلب الشراء مسبقاً (تم تجاهل التكرار).");
+    }
+
+    const receiptId = crypto.randomUUID();
+    const receiptItems: Array<{
+      organization_id: string;
+      goods_receipt_id: string;
+      purchase_order_item_id: string | null;
+      item_id: string | null;
+      quantity: number;
+      unit_cost: number;
+      total: number;
+    }> = [];
+
     let receiptTotal = 0;
 
     for (const item of orderItems ?? []) {
@@ -1113,25 +1146,26 @@ export async function receivePurchaseOrderAction(_prevState: ActionState, formDa
       const unitCost = Number(item.expected_unit_price ?? 0);
       if (quantityToReceive <= 0) continue;
 
-      await addToBranchStock(admin, organizationId, order.branch_id, item.item_id, quantityToReceive, userId);
-
-      const { error: movementError } = await admin.from("stock_movements").insert({
-        organization_id: organizationId,
-        branch_id: order.branch_id,
-        item_id: item.item_id,
-        movement_type: "purchase",
-        quantity: quantityToReceive,
-        unit_cost: unitCost,
-        source_doc_type: "purchase_order",
-        source_doc_id: purchaseOrderId,
-        idempotency_key: `${purchaseOrderId}:${item.item_id}:receive`,
-        notes: "استلام طلب شراء",
-        created_by: userId,
+      // Atomic, idempotent stock + movement via the canonical RPC. It checks
+      // the idempotency key BEFORE modifying stock, so a retried receipt can
+      // never double-count inventory.
+      const { data: rpcResult, error: rpcError } = await (admin as any).rpc("apply_stock_movement", {
+        p_org_id: organizationId,
+        p_branch_id: order.branch_id,
+        p_item_id: item.item_id,
+        p_movement_type: "purchase",
+        p_quantity: quantityToReceive,
+        p_unit_cost: unitCost,
+        p_reference: `goods_receipt:${receiptId}`,
+        p_idempotency_key: `${receiptId}:${item.item_id}`,
+        p_notes: "استلام طلب شراء",
+        p_created_by: userId,
       });
 
-      if (movementError && !movementError.message.includes("duplicate key")) {
-        return invalid(movementError.message);
-      }
+      if (rpcError) return invalid(rpcError.message);
+
+      const result = rpcResult as { success?: boolean; duplicate?: boolean } | null;
+      if (!result?.success) return invalid("تعذر تحديث المخزون عند الاستلام.");
 
       await admin
         .from("purchase_order_items")
@@ -1148,18 +1182,55 @@ export async function receivePurchaseOrderAction(_prevState: ActionState, formDa
         created_by: userId,
       });
 
+      receiptItems.push({
+        organization_id: organizationId,
+        goods_receipt_id: receiptId,
+        purchase_order_item_id: item.id,
+        item_id: item.item_id,
+        quantity: quantityToReceive,
+        unit_cost: unitCost,
+        total: quantityToReceive * unitCost,
+      });
+
       receiptTotal += quantityToReceive * unitCost;
     }
 
-    if (receiptTotal <= 0) {
+    if (receiptItems.length === 0) {
       return invalid("لا توجد كميات جديدة لاستلامها في هذا الطلب.");
     }
 
+    const { error: receiptError } = await admin.from("goods_receipts").insert({
+      id: receiptId,
+      organization_id: organizationId,
+      purchase_order_id: purchaseOrderId,
+      supplier_id: order.supplier_id,
+      branch_id: order.branch_id,
+      idempotency_key: idempotencyKey,
+      received_at: todayLocal(),
+      total: receiptTotal,
+      status: "posted",
+      created_by: userId,
+    });
+
+    if (receiptError) return invalid(receiptError.message);
+
+    const { error: itemsError2 } = await admin.from("goods_receipt_items").insert(receiptItems);
+    if (itemsError2) return invalid(itemsError2.message);
+
+    // Update PO status: partial if anything remains, else fully received.
+    const { data: remaining } = await admin
+      .from("purchase_order_items")
+      .select("received_quantity, quantity")
+      .eq("purchase_order_id", purchaseOrderId);
+
+    const allReceived = (remaining ?? []).every(
+      (r: { received_quantity: number; quantity: number }) =>
+        Number(r.received_quantity ?? 0) >= Number(r.quantity ?? 0),
+    );
+
     const { error: updateError } = await admin
       .from("purchase_orders")
-      .update({
-        status: "received",
-      })
+      .update({ status: allReceived ? "received" : "partially_received" })
       .eq("id", purchaseOrderId)
       .eq("organization_id", organizationId);
 
@@ -1171,6 +1242,7 @@ export async function receivePurchaseOrderAction(_prevState: ActionState, formDa
       purchaseOrderId,
       orderLabel: `PO-${purchaseOrderId.slice(0, 8)}`,
       total: receiptTotal,
+      entryDate: todayLocal(),
       createdBy: userId,
     });
   } catch (error) {
@@ -1592,6 +1664,7 @@ export async function saveWasteLogAction(_prevState: ActionState, formData: Form
       sourceDocId: wasteLog.id,
       label: `هدر ${item.name ?? parsed.data.itemId} - ${parsed.data.reason}`,
       totalCost: cost,
+      entryDate: todayLocal(),
       createdBy: userId,
     });
   } catch (error) {
@@ -1819,6 +1892,8 @@ const invoiceSchema = z.object({
   quantity: z.coerce.number().positive("الكمية يجب أن تكون أكبر من صفر"),
   unitPrice: z.coerce.number().positive("السعر يجب أن يكون أكبر من صفر"),
   expiryDate: z.string().optional(),
+  dueDate: z.string().optional(),
+  paymentMethod: z.string().optional(),
   purchaseOrderId: z.string().optional(),
 });
 
@@ -1940,6 +2015,8 @@ export async function saveInvoiceAction(_prevState: ActionState, formData: FormD
     if (!item.data?.id) return invalid("المادة غير موجودة.");
 
     const total = parsed.data.quantity * parsed.data.unitPrice;
+    // Creating the invoice records a payable — it does NOT mean it is paid.
+    const dueDate = parsed.data.dueDate || addDaysLocal(parsed.data.issuedAt, 30);
 
     const { data: invoice, error: invoiceError } = await admin
       .from("invoices")
@@ -1951,7 +2028,12 @@ export async function saveInvoiceAction(_prevState: ActionState, formData: FormD
         purchase_order_id: parsed.data.purchaseOrderId || null,
         total,
         issued_at: parsed.data.issuedAt,
-        status: "paid",
+        due_date: dueDate,
+        payment_method: parsed.data.paymentMethod || null,
+        status: "posted",
+        payment_status: "unpaid",
+        paid_amount: 0,
+        balance_due: total,
         created_by: userId,
       })
       .select("id")
@@ -2029,6 +2111,8 @@ export async function saveInvoiceAction(_prevState: ActionState, formData: FormD
       invoiceId: invoice.id,
       invoiceNumber: parsed.data.invoiceNumber,
       total,
+      entryDate: parsed.data.issuedAt,
+      linkedToReceipt: hasPo,
       createdBy: userId,
     });
   } catch (error) {
@@ -2041,6 +2125,120 @@ export async function saveInvoiceAction(_prevState: ActionState, formData: FormD
   revalidatePath("/dashboard/accounting/ledger");
   revalidatePath("/dashboard/reports");
   return ok("تم حفظ فاتورة التوريد بنجاح.");
+}
+
+const supplierPaymentSchema = z.object({
+  invoiceId: z.string().uuid("اختر الفاتورة"),
+  amount: z.coerce.number().positive("المبلغ يجب أن يكون أكبر من صفر"),
+  paymentMethod: z.string().min(1, "طريقة الدفع مطلوبة"),
+  paymentDate: z.string().min(1, "تاريخ الدفع مطلوب"),
+  reference: z.string().optional(),
+});
+
+export async function paySupplierInvoiceAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
+  const parsed = supplierPaymentSchema.safeParse({
+    invoiceId: formData.get("invoiceId"),
+    amount: formData.get("amount"),
+    paymentMethod: formData.get("paymentMethod"),
+    paymentDate: formData.get("paymentDate"),
+    reference: formData.get("reference") || undefined,
+  });
+
+  if (!parsed.success) return invalid(parsed.error.issues[0]?.message ?? "بيانات الدفع غير صحيحة");
+
+  if (!hasSupabaseAdminEnv()) {
+    return invalid("مفتاح Supabase الإداري غير موجود.");
+  }
+
+  try {
+    const { admin, organizationId, userId, auth } = await resolveMutationScope();
+    requireSensitiveActionCapability(auth, "purchasing_write");
+
+    const { data: invoice, error: invoiceError } = await admin
+      .from("invoices")
+      .select("id, invoice_number, supplier_id, branch_id, total, paid_amount, balance_due, status")
+      .eq("id", parsed.data.invoiceId)
+      .eq("organization_id", organizationId)
+      .maybeSingle();
+
+    if (invoiceError) return invalid(invoiceError.message);
+    if (!invoice) return invalid("الفاتورة غير موجودة.");
+
+    const balanceDue = Number(invoice.balance_due ?? invoice.total ?? 0);
+    const amount = Math.round(parsed.data.amount * 100) / 100;
+    if (amount > balanceDue + 0.001) {
+      return invalid(`المبلغ أكبر من الرصيد المستحق (${balanceDue}).`);
+    }
+
+    const { data: supplier } = await admin
+      .from("suppliers")
+      .select("name")
+      .eq("id", invoice.supplier_id)
+      .maybeSingle();
+
+    // Central period guard + balanced journal: debit payable, credit cash/bank.
+    const journalEntryId = await postSupplierPaymentJournal(admin, {
+      organizationId,
+      branchId: invoice.branch_id,
+      invoiceId: invoice.id,
+      invoiceNumber: invoice.invoice_number ?? invoice.id,
+      supplierName: supplier?.name ?? "مورد",
+      amount,
+      paymentMethod: parsed.data.paymentMethod,
+      entryDate: parsed.data.paymentDate,
+      createdBy: userId,
+    });
+
+    const newPaid = Number(invoice.paid_amount ?? 0) + amount;
+    const newBalance = Math.max(0, balanceDue - amount);
+    const newStatus = newBalance <= 0.001 ? "paid" : "partially_paid";
+
+    const { error: payError } = await admin.from("supplier_payments").insert({
+      organization_id: organizationId,
+      invoice_id: invoice.id,
+      supplier_id: invoice.supplier_id,
+      branch_id: invoice.branch_id,
+      amount,
+      payment_method: parsed.data.paymentMethod,
+      payment_date: parsed.data.paymentDate,
+      reference: parsed.data.reference ?? null,
+      journal_entry_id: journalEntryId,
+      created_by: userId,
+    });
+
+    if (payError) return invalid(payError.message);
+
+    const { error: updError } = await admin
+      .from("invoices")
+      .update({
+        paid_amount: newPaid,
+        balance_due: newBalance,
+        payment_status: newStatus,
+        status: newStatus,
+      })
+      .eq("id", invoice.id)
+      .eq("organization_id", organizationId);
+
+    if (updError) return invalid(updError.message);
+
+    await logAuditEvent({
+      organizationId,
+      branchId: invoice.branch_id,
+      userId,
+      action: "supplier_payment",
+      entityType: "invoice",
+      entityId: invoice.id,
+      oldData: { balance_due: balanceDue, paid_amount: invoice.paid_amount },
+      newData: { amount, balance_due: newBalance, paid_amount: newPaid },
+    });
+  } catch (error) {
+    return invalid(error instanceof Error ? error.message : "تعذر تسجيل دفعة المورد في Supabase.");
+  }
+
+  revalidatePath("/dashboard/invoices");
+  revalidatePath("/dashboard/accounting/ledger");
+  revalidatePath("/dashboard/suppliers");
+  return ok("تم تسجيل دفعة المورد وتحديث الرصيد المستحق.");
 }
 
 export async function saveTransferAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
@@ -2342,6 +2540,7 @@ export async function closeSalesShiftAction(_prevState: ActionState, formData: F
       shiftId: shift.id,
       shiftLabel: shift.cashier_name ?? shift.id,
       difference,
+      entryDate: todayLocal(),
       createdBy: userId,
     });
 
@@ -2382,6 +2581,8 @@ async function nextJournalEntryNumber(admin: ReturnType<typeof createAdminClient
 export async function saveJournalEntryAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
   const entryDate = String(formData.get("entryDate") ?? "");
   const memo = String(formData.get("memo") ?? "");
+  const reference = String(formData.get("reference") ?? "").trim();
+  const branchId = String(formData.get("branchId") ?? "").trim();
   const linesJson = String(formData.get("lines") ?? "[]");
 
   if (!entryDate) return invalid("التاريخ مطلوب");
@@ -2439,10 +2640,13 @@ export async function saveJournalEntryAction(_prevState: ActionState, formData: 
       .from("journal_entries")
       .insert({
         organization_id: organizationId,
+        branch_id: branchId || null,
         entry_number: entryNumber,
         entry_date: entryDate,
-        memo,
-        status: "posted",
+        memo: reference ? `${memo} (مرجع: ${reference})` : memo,
+        // Start as draft; only mark posted after the lines are confirmed.
+        // We never delete a financial record to recover from a failure.
+        status: "draft",
         created_by: userId,
       })
       .select("id")
@@ -2455,6 +2659,8 @@ export async function saveJournalEntryAction(_prevState: ActionState, formData: 
         organization_id: organizationId,
         journal_entry_id: entry.id,
         account_id: line.accountId,
+        branch_id: branchId || null,
+        cost_center_id: line.costCenterId || null,
         debit: Number(line.debit ?? 0),
         credit: Number(line.credit ?? 0),
         memo: line.memo || null,
@@ -2462,9 +2668,18 @@ export async function saveJournalEntryAction(_prevState: ActionState, formData: 
     );
 
     if (linesError) {
-      await (admin as any).from("journal_entries").delete().eq("id", entry.id);
+      // Do NOT delete the header — destroying financial records is forbidden.
+      // Leave the draft entry; it is excluded from all posted-only reports.
       return invalid(linesError.message);
     }
+
+    const { error: postError } = await (admin as any)
+      .from("journal_entries")
+      .update({ status: "posted" })
+      .eq("id", entry.id)
+      .eq("organization_id", organizationId);
+
+    if (postError) return invalid(postError.message);
 
   } catch (error) {
     return invalid(error instanceof Error ? error.message : "حدث خطأ أثناء حفظ القيد المحاسبي.");

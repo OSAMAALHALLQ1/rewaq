@@ -10,12 +10,70 @@ import { createClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/auth/require-auth";
 import { requireAdminSession } from "@/lib/auth/admin-session";
 import { logAuditEvent } from "@/lib/audit/log";
+import { demoOrganization } from "@/lib/demo-data";
 import type { Json } from "@/types/database";
 
 export type ActionState = {
   ok: boolean;
   message: string;
 };
+
+/**
+ * True only for the configured demo account. The demo email is provided via the
+ * server-only RAWAQ_DEMO_EMAIL env var — never hard-coded or exposed to the client.
+ */
+export function isDemoUserEmail(email?: string | null): boolean {
+  const demoEmail = process.env.RAWAQ_DEMO_EMAIL;
+  if (!demoEmail || !email) return false;
+  return email.trim().toLowerCase() === demoEmail.trim().toLowerCase();
+}
+
+/**
+ * Starts a demo session entirely on the server. Demo credentials live only in
+ * server environment variables and are never sent to the browser. The sign-in is
+ * bound to the isolated demo organization; if the demo account is not a member of
+ * the demo organization, the session is rejected so it can never reach real data.
+ */
+export async function startDemoSessionAction(): Promise<ActionState> {
+  if (!hasSupabaseEnv()) {
+    return { ok: false, message: "Supabase غير مهيأ. لا يمكن بدء جلسة تجريبية." };
+  }
+
+  const demoEmail = process.env.RAWAQ_DEMO_EMAIL;
+  const demoPassword = process.env.RAWAQ_DEMO_PASSWORD;
+
+  if (!demoEmail || !demoPassword) {
+    return { ok: false, message: "بيانات الحساب التجريبي غير مهيأة على الخادم." };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: demoEmail,
+    password: demoPassword,
+  });
+
+  if (error || !data.user) {
+    return { ok: false, message: error?.message ?? "تعذر بدء الجلسة التجريبية." };
+  }
+
+  // Enforce isolation: the demo account must belong to the demo organization only.
+  if (hasSupabaseAdminEnv()) {
+    const admin = createAdminClient();
+    const { data: membership } = await (admin as any)
+      .from("organization_memberships")
+      .select("organization_id")
+      .eq("user_id", data.user.id)
+      .limit(1)
+      .maybeSingle();
+
+    if (membership?.organization_id !== demoOrganization.id) {
+      await supabase.auth.signOut();
+      return { ok: false, message: "الحساب التجريبي غير مرتبط بالمؤسسة التجريبية." };
+    }
+  }
+
+  redirect("/dashboard");
+}
 
 function makeSlug(value: string) {
   const slug = value
@@ -41,12 +99,6 @@ function getAppUrl() {
 }
 
 export async function loginAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
-  let email = String(formData.get("email") ?? "").trim().toLowerCase();
-  if (email === "admin" || email === "osama" || email === "admin@rewaq.local" || email === "osama@rewaq.local") {
-    formData.set("email", "osama.alhallq.14@gmail.com");
-    formData.set("password", "osamaalhallqst9");
-  }
-
   const parsed = authSchema.safeParse({
     email: formData.get("email"),
     password: formData.get("password"),
@@ -122,6 +174,15 @@ export async function loginAction(_prevState: ActionState, formData: FormData): 
   }
 
   redirect("/dashboard");
+}
+
+/**
+ * Form wrapper for the demo login button. Returns void so it can be passed
+ * directly to a <form action>. Errors are surfaced via the action's redirect
+ * behavior; the demo session is created entirely on the server.
+ */
+export async function demoLoginFormAction(_formData: FormData): Promise<void> {
+  await startDemoSessionAction();
 }
 
 export async function registerAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
@@ -234,7 +295,12 @@ export async function inviteTeamMemberAction(_prevState: ActionState, formData: 
 
   // Validate that the current user has permission to invite
   const user = await requireAuth();
-  
+   
+  // The demo account must not be able to invite team members.
+  if (isDemoUserEmail(user.email)) {
+    return { ok: false, message: "الحساب التجريبي لا يمكنه دعوة أعضاء جدد." };
+  }
+
   // Only organization owners and super_admins can invite team members
   if (user.role !== "organization_owner" && user.role !== "super_admin") {
     return { ok: false, message: "ليس لديك صلاحية دعوة أعضاء جدد" };

@@ -788,6 +788,11 @@ export type Database = {
           status: Database["public"]["Enums"]["invoice_status"];
           total: number;
           issued_at: string;
+          payment_status: string;
+          paid_amount: number;
+          balance_due: number;
+          due_date: string | null;
+          payment_method: string | null;
           file_path: string | null;
           created_at: string;
           updated_at: string;
@@ -803,6 +808,11 @@ export type Database = {
           status?: Database["public"]["Enums"]["invoice_status"];
           total?: number;
           issued_at?: string;
+          payment_status?: string;
+          paid_amount?: number;
+          balance_due?: number;
+          due_date?: string | null;
+          payment_method?: string | null;
           file_path?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -818,6 +828,11 @@ export type Database = {
           status?: Database["public"]["Enums"]["invoice_status"];
           total?: number;
           issued_at?: string;
+          payment_status?: string;
+          paid_amount?: number;
+          balance_due?: number;
+          due_date?: string | null;
+          payment_method?: string | null;
           file_path?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -861,6 +876,132 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
           created_by?: string | null;
+        };
+        Relationships: [];
+      };
+      supplier_payments: {
+        Row: {
+          id: string;
+          organization_id: string;
+          invoice_id: string;
+          supplier_id: string | null;
+          branch_id: string | null;
+          amount: number;
+          payment_method: string;
+          payment_date: string;
+          reference: string | null;
+          journal_entry_id: string | null;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          invoice_id: string;
+          supplier_id?: string | null;
+          branch_id?: string | null;
+          amount: number;
+          payment_method: string;
+          payment_date: string;
+          reference?: string | null;
+          journal_entry_id?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          invoice_id?: string;
+          supplier_id?: string | null;
+          branch_id?: string | null;
+          amount?: number;
+          payment_method?: string;
+          payment_date?: string;
+          reference?: string | null;
+          journal_entry_id?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      goods_receipts: {
+        Row: {
+          id: string;
+          organization_id: string;
+          purchase_order_id: string | null;
+          supplier_id: string | null;
+          branch_id: string | null;
+          receipt_number: string | null;
+          idempotency_key: string | null;
+          received_at: string;
+          total: number;
+          status: string;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          purchase_order_id?: string | null;
+          supplier_id?: string | null;
+          branch_id?: string | null;
+          receipt_number?: string | null;
+          idempotency_key?: string | null;
+          received_at?: string;
+          total?: number;
+          status?: string;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          purchase_order_id?: string | null;
+          supplier_id?: string | null;
+          branch_id?: string | null;
+          receipt_number?: string | null;
+          idempotency_key?: string | null;
+          received_at?: string;
+          total?: number;
+          status?: string;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      goods_receipt_items: {
+        Row: {
+          id: string;
+          organization_id: string;
+          goods_receipt_id: string;
+          purchase_order_item_id: string | null;
+          item_id: string | null;
+          quantity: number;
+          unit_cost: number;
+          total: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          goods_receipt_id: string;
+          purchase_order_item_id?: string | null;
+          item_id?: string | null;
+          quantity: number;
+          unit_cost?: number;
+          total?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          goods_receipt_id?: string;
+          purchase_order_item_id?: string | null;
+          item_id?: string | null;
+          quantity?: number;
+          unit_cost?: number;
+          total?: number;
+          created_at?: string;
         };
         Relationships: [];
       };
@@ -2460,7 +2601,7 @@ export type Database = {
       app_role: "super_admin" | "organization_owner" | "branch_manager" | "cashier" | "inventory_manager" | "purchasing_manager" | "chef" | "marketing_manager" | "accountant" | "staff";
       record_status: "active" | "inactive" | "archived";
       purchase_order_status: "draft" | "sent" | "received" | "partially_received" | "cancelled";
-      invoice_status: "draft" | "matched" | "paid" | "flagged";
+      invoice_status: "draft" | "matched" | "paid" | "flagged" | "posted" | "partially_paid" | "void";
       customer_invoice_status: "draft" | "issued" | "paid" | "void";
       payment_method: "cash" | "card" | "bank_transfer" | "delivery_app";
       stock_movement_type: "purchase" | "sale_usage" | "waste" | "transfer_in" | "transfer_out" | "adjustment" | "stock_count" | "return";

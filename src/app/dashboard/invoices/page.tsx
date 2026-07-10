@@ -1,24 +1,13 @@
-import { FileImage, FileText, Upload } from "lucide-react";
+import { FileText, Wallet } from "lucide-react";
 import { ActionForm } from "@/components/action-form";
 import { PageHeader } from "@/components/page-header";
-import { StatusBadge } from "@/components/status-badge";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { formatNumber } from "@/lib/utils";
-import { getPurchasingData } from "@/server/queries/app";
 import { saveInvoiceAction } from "@/server/actions/mutations";
-
-const expiryByItem: Record<string, string> = {
-  دجاج: "2026-05-25",
-  جبنة: "2026-06-04",
-  أرز: "",
-  بطاطا: "2026-06-12",
-};
+import { getPurchasingData } from "@/server/queries/purchasing";
+import { SupplierInvoicesClient } from "@/components/purchasing/supplier-invoices-client";
 
 export default async function InvoicesPage() {
   const { invoices, suppliers, purchaseOrders, items, branches } = await getPurchasingData();
@@ -26,84 +15,28 @@ export default async function InvoicesPage() {
   return (
     <>
       <PageHeader
-        title="فواتير التوريد"
-        description="تسجيل فواتير الموردين مع رقم الجوال، رقم الفاتورة، صورة الفاتورة، الأصناف، الكميات، السعر بدون كسور، وتاريخ انتهاء الصلاحية إن وجد."
+        title="فواتير التوريد (ذمم الموردين)"
+        description="تسجيل فاتورة المورد يُنشئ قيداً: مدين المخزون / دائن ذمم الموردين (ديناً على المؤسسة). الفاتورة تبقى غير مسددة حتى يُسجَّل سند دفع. يمكن ربطها بأمر شراء وطلب استحقاق."
         actions={
-          <Button variant="outline">
-            <Upload className="h-4 w-4" />
-            رفع صورة فاتورة
-          </Button>
+          <span className="inline-flex items-center gap-1.5 rounded-lg bg-amber-50 border border-amber-200 px-3 py-1.5 text-xs font-bold text-amber-700">
+            <Wallet className="h-4 w-4" />
+            دورة مستحقات وليست دفعة فورية
+          </span>
         }
       />
 
-      <div className="grid gap-4 xl:grid-cols-[1fr_380px]">
+      <div className="grid gap-4 xl:grid-cols-[1fr_400px]">
+        <SupplierInvoicesClient invoices={invoices} />
+
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5 text-primary" />
-              سجل فواتير التوريد
+              إدخال فاتورة توريد
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>اسم المورد</TableHead>
-                  <TableHead>رقم جوال المورد</TableHead>
-                  <TableHead>رقم الفاتورة</TableHead>
-                  <TableHead>تاريخ الفاتورة</TableHead>
-                  <TableHead>صورة الفاتورة</TableHead>
-                  <TableHead>الأصناف والكميات</TableHead>
-                  <TableHead>الحالة</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {invoices.map((invoice) => {
-                  const supplier = suppliers.find((candidate) => candidate.name === invoice.supplierName);
-                  const orderItems = purchaseOrders.find((order) => order.supplierName === invoice.supplierName)?.items ?? [];
-
-                  return (
-                    <TableRow key={invoice.id}>
-                      <TableCell className="font-semibold">{invoice.supplierName}</TableCell>
-                      <TableCell>{supplier?.phone ?? "-"}</TableCell>
-                      <TableCell>{invoice.invoiceNumber}</TableCell>
-                      <TableCell>{invoice.issuedAt}</TableCell>
-                      <TableCell>
-                        <Button variant="outline" size="sm">
-                          <FileImage className="h-4 w-4" />
-                          صورة
-                        </Button>
-                      </TableCell>
-                      <TableCell>
-                        <div className="space-y-2">
-                          {orderItems.map((item) => (
-                            <div key={item.itemId} className="rounded-lg border bg-slate-50 p-2 text-xs leading-5">
-                              <p className="font-semibold">
-                                {item.itemName} - كمية {formatNumber(item.quantity)}
-                              </p>
-                              <p>السعر: {formatNumber(Math.round(item.expectedUnitPrice))}</p>
-                              <p>انتهاء الصلاحية: {expiryByItem[item.itemName] || "لا يوجد"}</p>
-                            </div>
-                          ))}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <StatusBadge status={invoice.status} />
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>إدخال فاتورة توريد</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ActionForm action={saveInvoiceAction} submitLabel="حفظ الفاتورة" className="space-y-4">
+            <ActionForm action={saveInvoiceAction} submitLabel="حفظ الفاتورة (ترحيل كدين)" className="space-y-4">
               <div className="grid gap-2">
                 <Label htmlFor="supplierId">اسم المورد</Label>
                 <Select id="supplierId" name="supplierId" required>
@@ -122,13 +55,32 @@ export default async function InvoicesPage() {
                   ))}
                 </Select>
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="invoiceNumber">رقم الفاتورة</Label>
-                <Input id="invoiceNumber" name="invoiceNumber" placeholder="INV-0001" required />
+              <div className="grid gap-2 sm:grid-cols-2">
+                <div className="grid gap-2">
+                  <Label htmlFor="invoiceNumber">رقم الفاتورة</Label>
+                  <Input id="invoiceNumber" name="invoiceNumber" placeholder="INV-0001" required />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="purchaseOrderId">أمر الشراء (اختياري)</Label>
+                  <Select id="purchaseOrderId" name="purchaseOrderId">
+                    <option value="">بدون ربط</option>
+                    {purchaseOrders.map((order) => (
+                      <option key={order.id} value={order.id}>
+                        {order.supplierName} — {order.orderDate}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="issuedAt">تاريخ الفاتورة</Label>
-                <Input id="issuedAt" name="issuedAt" type="date" defaultValue="2026-05-20" required />
+              <div className="grid gap-2 sm:grid-cols-2">
+                <div className="grid gap-2">
+                  <Label htmlFor="issuedAt">تاريخ الفاتورة</Label>
+                  <Input id="issuedAt" name="issuedAt" type="date" required />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="dueDate">تاريخ الاستحقاق (اختياري)</Label>
+                  <Input id="dueDate" name="dueDate" type="date" />
+                </div>
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="itemId">الصنف</Label>
@@ -145,7 +97,7 @@ export default async function InvoicesPage() {
                   <Input id="quantity" name="quantity" type="number" min="0" step="0.01" required />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="unitPrice">السعر</Label>
+                  <Label htmlFor="unitPrice">سعر الوحدة</Label>
                   <Input id="unitPrice" name="unitPrice" type="number" step="0.01" min="0" required />
                 </div>
               </div>
@@ -153,7 +105,19 @@ export default async function InvoicesPage() {
                 <Label htmlFor="expiryDate">تاريخ انتهاء الصلاحية (اختياري)</Label>
                 <Input id="expiryDate" name="expiryDate" type="date" />
               </div>
-              <Badge tone="muted">سيتم إضافة الصنف وتحديث المخزون ومتوسط التكلفة مباشرة فور الحفظ.</Badge>
+              <div className="grid gap-2">
+                <Label htmlFor="paymentMethod">طريقة الدفع المتفق عليها (معلومة فقط — لا تُسدَّد هنا)</Label>
+                <Select id="paymentMethod" name="paymentMethod">
+                  <option value="">غير محدد</option>
+                  <option value="cash">نقدي</option>
+                  <option value="bank_transfer">تحويل بنكي</option>
+                  <option value="card">بطاقة / شبكة</option>
+                  <option value="deferred">آجل (على الحساب)</option>
+                </Select>
+              </div>
+              <p className="text-[11px] leading-5 text-slate-500">
+                الحفظ يرحّل قيداً: مدين المخزون / دائن ذمم الموردين، ويُنشئ مستحقاً غير مسدود. تتم السداد لاحقاً من زر «سند دفع» في الجدول أو من صفحة الذمم الدائنة.
+              </p>
             </ActionForm>
           </CardContent>
         </Card>

@@ -32,6 +32,9 @@ export function ExpensesClient({ data }: { data: ExpensesData }) {
   const [paymentMethod, setPaymentMethod] = React.useState<string>("cash");
   const [branchId, setBranchId] = React.useState("");
   const [costCenterId, setCostCenterId] = React.useState("");
+  const [expenseAccountId, setExpenseAccountId] = React.useState("");
+  const [payee, setPayee] = React.useState("");
+  const [referenceNo, setReferenceNo] = React.useState("");
   const [description, setDescription] = React.useState("");
   const [notes, setNotes] = React.useState("");
 
@@ -71,6 +74,9 @@ export function ExpensesClient({ data }: { data: ExpensesData }) {
     formData.append("paymentMethod", paymentMethod);
     formData.append("branchId", branchId);
     formData.append("costCenterId", costCenterId);
+    formData.append("expenseAccountId", expenseAccountId);
+    formData.append("payee", payee.trim());
+    formData.append("referenceNo", referenceNo.trim());
     formData.append("notes", notes.trim());
 
     startTransition(async () => {
@@ -85,6 +91,9 @@ export function ExpensesClient({ data }: { data: ExpensesData }) {
           setDescription("");
           setNotes("");
           setCustomCategory("");
+          setPayee("");
+          setReferenceNo("");
+          setExpenseAccountId("");
           setTimeout(() => {
             setIsOpen(false);
             setFormSuccess(null);
@@ -152,39 +161,46 @@ export function ExpensesClient({ data }: { data: ExpensesData }) {
             <Table className="text-xs">
               <TableHeader>
                 <TableRow className="border-b bg-slate-50/50 text-slate-400">
-                  <TableHead className="text-right py-3.5 px-5 font-bold w-24">التاريخ</TableHead>
-                  <TableHead className="text-right py-3.5 px-5 font-bold w-36">التصنيف</TableHead>
-                  <TableHead className="text-right py-3.5 px-5 font-bold">الوصف / التفاصيل</TableHead>
-                  <TableHead className="text-right py-3.5 px-5 font-bold w-28">طريقة الدفع</TableHead>
-                  <TableHead className="text-right py-3.5 px-5 font-bold w-28">الفرع</TableHead>
-                  <TableHead className="text-right py-3.5 px-5 font-bold w-32">مركز التكلفة</TableHead>
-                  <TableHead className="text-left py-3.5 px-5 font-bold w-28">المبلغ</TableHead>
-                  <TableHead className="text-center py-3.5 px-5 font-bold w-24">الحالة</TableHead>
+                  <TableHead className="text-right py-3.5 px-4 font-bold w-24">التاريخ</TableHead>
+                  <TableHead className="text-right py-3.5 px-4 font-bold w-32">التصنيف</TableHead>
+                  <TableHead className="text-right py-3.5 px-4 font-bold w-32">المستفيد</TableHead>
+                  <TableHead className="text-right py-3.5 px-4 font-bold w-24">رقم السند</TableHead>
+                  <TableHead className="text-right py-3.5 px-4 font-bold">الوصف / التفاصيل</TableHead>
+                  <TableHead className="text-right py-3.5 px-4 font-bold w-28">طريقة الدفع</TableHead>
+                  <TableHead className="text-right py-3.5 px-4 font-bold w-28">الفرع</TableHead>
+                  <TableHead className="text-right py-3.5 px-4 font-bold w-32">مركز التكلفة</TableHead>
+                  <TableHead className="text-left py-3.5 px-4 font-bold w-28">المبلغ</TableHead>
+                  <TableHead className="text-center py-3.5 px-4 font-bold w-24">الحالة</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredExpenses.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-12 text-slate-400">لا توجد مصروفات مطابقة للبحث</TableCell>
+                    <TableCell colSpan={10} className="text-center py-12 text-slate-400">لا توجد مصروفات مطابقة للبحث</TableCell>
                   </TableRow>
                 ) : (
                   filteredExpenses.map((exp) => (
                     <TableRow key={exp.id} className="hover:bg-slate-50/30 transition-colors">
-                      <TableCell className="py-3 px-5 text-slate-600 font-mono">{exp.expenseDate}</TableCell>
-                      <TableCell className="py-3 px-5 text-slate-900 font-black">{exp.category}</TableCell>
-                      <TableCell className="py-3 px-5 text-slate-650 font-medium">
+                      <TableCell className="py-3 px-4 text-slate-600 font-mono">{exp.expenseDate}</TableCell>
+                      <TableCell className="py-3 px-4 text-slate-900 font-black">
+                        {exp.category}
+                        {exp.expenseAccountLabel && <p className="text-[10px] text-teal-600 font-normal mt-0.5">{exp.expenseAccountLabel}</p>}
+                      </TableCell>
+                      <TableCell className="py-3 px-4 text-slate-700">{exp.payee || "-"}</TableCell>
+                      <TableCell className="py-3 px-4 text-slate-600 font-mono">{exp.referenceNo || "-"}</TableCell>
+                      <TableCell className="py-3 px-4 text-slate-650 font-medium">
                         {exp.description || "-"}
                         {exp.notes && <p className="text-[10px] text-slate-400 mt-0.5">{exp.notes}</p>}
                       </TableCell>
-                      <TableCell className="py-3 px-5 text-slate-700">
+                      <TableCell className="py-3 px-4 text-slate-700">
                         {PAYMENT_METHOD_LABELS[exp.paymentMethod] || exp.paymentMethod}
                       </TableCell>
-                      <TableCell className="py-3 px-5 text-slate-650">{exp.branchName || "الرئيسي"}</TableCell>
-                      <TableCell className="py-3 px-5 text-slate-650">{exp.costCenterName || "-"}</TableCell>
-                      <TableCell className="text-left py-3 px-5 font-mono text-rose-650 font-black">
+                      <TableCell className="py-3 px-4 text-slate-650">{exp.branchName || "الرئيسي"}</TableCell>
+                      <TableCell className="py-3 px-4 text-slate-650">{exp.costCenterName || "-"}</TableCell>
+                      <TableCell className="text-left py-3 px-4 font-mono text-rose-650 font-black">
                         {formatCurrency(exp.amount)}
                       </TableCell>
-                      <TableCell className="text-center py-3 px-5">
+                      <TableCell className="text-center py-3 px-4">
                         <Badge tone={exp.status === "posted" ? "success" : exp.status === "void" ? "danger" : "warning"} className="rounded-lg px-2 py-0.5">
                           {exp.status === "posted" ? "مرحّل" : exp.status === "void" ? "ملغى" : "مسودة"}
                         </Badge>
@@ -286,6 +302,49 @@ export function ExpensesClient({ data }: { data: ExpensesData }) {
                 <option value="bank">حساب البنك / مدى (بطاقة)</option>
               </Select>
             </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="payee" className="text-xs font-bold text-slate-500">المستفيد (لمن دُفع المبلغ؟)</Label>
+              <Input
+                id="payee"
+                placeholder="مثال: شركة الكهرباء، مؤسسة التنظيف..."
+                value={payee}
+                onChange={(e) => setPayee(e.target.value)}
+                className="bg-white border-slate-200 focus:border-teal-500 rounded-lg text-right"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="referenceNo" className="text-xs font-bold text-slate-500">رقم السند / المرجع</Label>
+              <Input
+                id="referenceNo"
+                placeholder="رقم الفاتورة الورقية أو سند الصرف"
+                value={referenceNo}
+                onChange={(e) => setReferenceNo(e.target.value)}
+                className="bg-white border-slate-200 focus:border-teal-500 rounded-lg text-right font-mono"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="expenseAccountId" className="text-xs font-bold text-slate-500">حساب الترحيل المحاسبي (يتجاوز التصنيف النصي)</Label>
+            <Select
+              id="expenseAccountId"
+              value={expenseAccountId}
+              onChange={(e) => setExpenseAccountId(e.target.value)}
+              className="bg-white border-slate-200 text-right"
+            >
+              <option value="">تلقائي حسب التصنيف (غير مستحسن للمحاسبين)</option>
+              {data.expenseAccounts.map((acc) => (
+                <option key={acc.id} value={acc.id}>
+                  {acc.code} - {acc.name}
+                </option>
+              ))}
+            </Select>
+            <p className="text-[10px] text-slate-400 leading-5">
+              عند اختيار حساب محدد يُرحّل المصروف إليه مباشرة بدل الاعتماد على مطابقة كلمات التصنيف — وهو الخيار الأدق محاسبياً.
+            </p>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">

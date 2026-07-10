@@ -20,6 +20,7 @@ type CustomerInvoicePostingInput = {
   discount?: number;
   serviceFee?: number;
   deliveryFee?: number;
+  entryDate: string;
   createdBy?: string | null;
 };
 
@@ -29,6 +30,7 @@ type CashVariancePostingInput = {
   shiftId: string;
   shiftLabel: string;
   difference: number;
+  entryDate: string;
   createdBy?: string | null;
 };
 
@@ -38,6 +40,10 @@ type SupplierInvoicePostingInput = {
   invoiceId: string;
   invoiceNumber: string;
   total: number;
+  entryDate: string;
+  /** When the invoice settles a previously received PO, clear the GRNI balance
+   *  instead of re-increasing inventory. */
+  linkedToReceipt?: boolean;
   createdBy?: string | null;
 };
 
@@ -47,6 +53,7 @@ type PurchaseReceiptPostingInput = {
   purchaseOrderId: string;
   orderLabel: string;
   total: number;
+  entryDate: string;
   createdBy?: string | null;
 };
 
@@ -57,11 +64,15 @@ type InventoryWriteOffPostingInput = {
   sourceDocId: string;
   label: string;
   totalCost: number;
+  entryDate: string;
   createdBy?: string | null;
 };
 
 type JournalLineDraft = {
-  systemKey: string;
+  /** Post to the account carrying this system key… */
+  systemKey?: string;
+  /** …or to an explicit chart-of-accounts id (wins over systemKey). */
+  accountId?: string;
   debit?: number;
   credit?: number;
   memo: string;
@@ -75,11 +86,37 @@ type BalancedJournalInput = {
   sourceDocId: string;
   memo: string;
   createdBy?: string | null;
+  entryDate: string;
   lines: JournalLineDraft[];
 };
 
 function roundMoney(value: number) {
   return Math.round((Number(value) || 0) * 10000) / 10000;
+}
+
+/**
+ * Local (tenant timezone) date as YYYY-MM-DD. We deliberately avoid
+ * `new Date().toISOString()` which is UTC and can shift the entry to the
+ * previous/next calendar day for restaurants east/west of UTC.
+ */
+export function todayLocal(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+/** Throws if the accounting period containing `date` is closed for the org. */
+async function assertPeriodOpen(admin: AdminClient, organizationId: string, date: string) {
+  const { data: closed } = await (admin as any).rpc("is_accounting_period_closed", {
+    target_org_id: organizationId,
+    target_date: date,
+  });
+
+  if (closed === true) {
+    throw new Error("هذه الفترة المحاسبية مقفلة. أعد فتح الفترة من صفحة الإقفال الشهري قبل التسجيل فيها.");
+  }
 }
 
 function paymentMethodToSystemKey(method: string) {
@@ -130,7 +167,13 @@ async function loadPostingAccounts(admin: AdminClient, organizationId: string, s
   return accounts;
 }
 
-async function postBalancedJournal(admin: AdminClient, input: BalancedJournalInput) {
+export async function postBalancedJournal(admin: AdminClient, input: BalancedJournalInput) {
+  const entryDate = input.entryDate || todayLocal();
+
+  // Central guard: never post into a closed accounting period. Every caller is
+  // protected here rather than relying on each document flow to check on its own.
+  await assertPeriodOpen(admin, input.organizationId, entryDate);
+
   const { data: existing, error: existingError } = await (admin as any)
     .from("journal_entries")
     .select("id")
@@ -153,11 +196,16 @@ async function postBalancedJournal(admin: AdminClient, input: BalancedJournalInp
     throw new Error(`القيد غير متوازن: مدين ${debitTotal} / دائن ${creditTotal}`);
   }
 
-  const accounts = await loadPostingAccounts(
-    admin,
-    input.organizationId,
-    Array.from(new Set(input.lines.map((line) => line.systemKey))),
+  const systemKeys = Array.from(
+    new Set(input.lines.filter((line) => !line.accountId && line.systemKey).map((line) => line.systemKey as string)),
   );
+  const accounts = systemKeys.length > 0 ? await loadPostingAccounts(admin, input.organizationId, systemKeys) : new Map<string, string>();
+
+  for (const line of input.lines) {
+    if (!line.accountId && !line.systemKey) {
+      throw new Error("سطر قيد بدون حساب محاسبي.");
+    }
+  }
   const entryNumber = await nextJournalNumber(admin, input.organizationId);
 
   const { data: entry, error: entryError } = await (admin as any)
@@ -166,7 +214,7 @@ async function postBalancedJournal(admin: AdminClient, input: BalancedJournalInp
       organization_id: input.organizationId,
       branch_id: input.branchId || null,
       entry_number: entryNumber,
-      entry_date: new Date().toISOString().slice(0, 10),
+      entry_date: entryDate,
       source_doc_type: input.sourceDocType,
       source_doc_id: input.sourceDocId,
       memo: input.memo,
@@ -182,7 +230,7 @@ async function postBalancedJournal(admin: AdminClient, input: BalancedJournalInp
     input.lines.map((line) => ({
       organization_id: input.organizationId,
       journal_entry_id: entry.id,
-      account_id: accounts.get(line.systemKey),
+      account_id: line.accountId ?? accounts.get(line.systemKey as string),
       branch_id: input.branchId || null,
       debit: roundMoney(line.debit ?? 0),
       credit: roundMoney(line.credit ?? 0),
@@ -291,6 +339,7 @@ export async function postCustomerInvoiceJournal(admin: AdminClient, input: Cust
     sourceDocId: input.invoiceId,
     memo: `قيد تلقائي لفاتورة كاشير ${input.invoiceNumber}`,
     createdBy: input.createdBy,
+    entryDate: input.entryDate,
     lines,
   });
 }
@@ -345,6 +394,7 @@ export async function postCashVarianceJournal(admin: AdminClient, input: CashVar
     sourceDocId: input.shiftId,
     memo: `قيد فرق صندوق وردية ${input.shiftLabel}`,
     createdBy: input.createdBy,
+    entryDate: input.entryDate,
     lines,
   });
 }
@@ -353,6 +403,32 @@ export async function postSupplierInvoiceJournal(admin: AdminClient, input: Supp
   const total = roundMoney(input.total);
   if (total <= 0) return null;
 
+  const lines: JournalLineDraft[] = input.linkedToReceipt
+    ? [
+        {
+          systemKey: "goods_received_not_invoiced",
+          debit: total,
+          memo: `تسوية بضاعة مستلمة غير مفوترة فاتورة مورد ${input.invoiceNumber}`,
+        },
+        {
+          systemKey: "accounts_payable",
+          credit: total,
+          memo: `ذمم موردين فاتورة ${input.invoiceNumber}`,
+        },
+      ]
+    : [
+        {
+          systemKey: "inventory",
+          debit: total,
+          memo: `إدخال مخزون فاتورة مورد ${input.invoiceNumber}`,
+        },
+        {
+          systemKey: "accounts_payable",
+          credit: total,
+          memo: `ذمم موردين فاتورة ${input.invoiceNumber}`,
+        },
+      ];
+
   return postBalancedJournal(admin, {
     organizationId: input.organizationId,
     branchId: input.branchId,
@@ -360,16 +436,52 @@ export async function postSupplierInvoiceJournal(admin: AdminClient, input: Supp
     sourceDocId: input.invoiceId,
     memo: `قيد تلقائي لفاتورة مورد ${input.invoiceNumber}`,
     createdBy: input.createdBy,
+    entryDate: input.entryDate,
+    lines,
+  });
+}
+
+type SupplierPaymentPostingInput = {
+  organizationId: string;
+  branchId: string | null;
+  invoiceId: string;
+  invoiceNumber: string;
+  supplierName: string;
+  amount: number;
+  paymentMethod: string;
+  entryDate: string;
+  createdBy?: string | null;
+};
+
+/**
+ * Posts a supplier payment: debits Accounts Payable and credits the cash/bank
+ * account used for the payment. Recording the payment is separate from creating
+ * the invoice — the invoice only records the payable.
+ */
+export async function postSupplierPaymentJournal(admin: AdminClient, input: SupplierPaymentPostingInput) {
+  const amount = roundMoney(input.amount);
+  if (amount <= 0) return null;
+
+  const creditSystemKey = paymentMethodToSystemKey(input.paymentMethod);
+
+  return postBalancedJournal(admin, {
+    organizationId: input.organizationId,
+    branchId: input.branchId,
+    sourceDocType: "supplier_payment",
+    sourceDocId: input.invoiceId,
+    memo: `دفع فاتورة مورد ${input.invoiceNumber} - ${input.supplierName}`,
+    createdBy: input.createdBy,
+    entryDate: input.entryDate,
     lines: [
       {
-        systemKey: "inventory",
-        debit: total,
-        memo: `إدخال مخزون فاتورة مورد ${input.invoiceNumber}`,
+        systemKey: "accounts_payable",
+        debit: amount,
+        memo: `سداد ذمم مورد ${input.supplierName}`,
       },
       {
-        systemKey: "accounts_payable",
-        credit: total,
-        memo: `ذمم موردين فاتورة ${input.invoiceNumber}`,
+        systemKey: creditSystemKey,
+        credit: amount,
+        memo: `دفع نقدي/بنكي فاتورة مورد ${input.invoiceNumber}`,
       },
     ],
   });
@@ -386,6 +498,7 @@ export async function postPurchaseReceiptJournal(admin: AdminClient, input: Purc
     sourceDocId: input.purchaseOrderId,
     memo: `قيد استلام طلب شراء ${input.orderLabel}`,
     createdBy: input.createdBy,
+    entryDate: input.entryDate,
     lines: [
       {
         systemKey: "inventory",
@@ -421,6 +534,9 @@ type ExpensePostingInput = {
   amount: number;
   paymentMethod: "cash" | "bank";
   costCenterId?: string | null;
+  /** Explicit debit account chosen by the accountant — overrides keyword matching. */
+  expenseAccountId?: string | null;
+  entryDate: string;
   createdBy?: string | null;
 };
 
@@ -428,8 +544,20 @@ export async function postExpenseJournal(admin: AdminClient, input: ExpensePosti
   const amount = roundMoney(input.amount);
   if (amount <= 0) return null;
 
-  const debitSystemKey = expenseCategoryToSystemKey(input.category);
   const creditSystemKey = input.paymentMethod === "cash" ? "cash_on_hand" : "bank_card";
+  const debitLine: JournalLineDraft = input.expenseAccountId
+    ? {
+        accountId: input.expenseAccountId,
+        debit: amount,
+        memo: `مصروف ${input.category}`,
+        costCenterId: input.costCenterId ?? null,
+      }
+    : {
+        systemKey: expenseCategoryToSystemKey(input.category),
+        debit: amount,
+        memo: `مصروف ${input.category}`,
+        costCenterId: input.costCenterId ?? null,
+      };
 
   return postBalancedJournal(admin, {
     organizationId: input.organizationId,
@@ -438,13 +566,9 @@ export async function postExpenseJournal(admin: AdminClient, input: ExpensePosti
     sourceDocId: input.expenseId,
     memo: `قيد مصروف: ${input.category}`,
     createdBy: input.createdBy,
+    entryDate: input.entryDate,
     lines: [
-      {
-        systemKey: debitSystemKey,
-        debit: amount,
-        memo: `مصروف ${input.category}`,
-        costCenterId: input.costCenterId ?? null,
-      },
+      debitLine,
       {
         systemKey: creditSystemKey,
         credit: amount,
@@ -468,7 +592,7 @@ type ReverseJournalInput = {
 export async function reverseJournalEntry(admin: AdminClient, input: ReverseJournalInput) {
   const { data: original, error: originalError } = await (admin as any)
     .from("journal_entries")
-    .select("id, entry_number, branch_id, status, source_doc_type, reversal_of_entry_id, journal_lines(account_id, debit, credit, memo, cost_center_id)")
+    .select("id, entry_number, entry_date, branch_id, status, source_doc_type, reversal_of_entry_id, journal_lines(account_id, debit, credit, memo, cost_center_id)")
     .eq("organization_id", input.organizationId)
     .eq("id", input.entryId)
     .maybeSingle();
@@ -488,6 +612,11 @@ export async function reverseJournalEntry(admin: AdminClient, input: ReverseJour
 
   if (existingReversal?.id) throw new Error("هذا القيد معكوس مسبقاً.");
 
+  // Reversing an entry is itself a posting into the original entry's period,
+  // so the closed-period guard applies here too.
+  const originalDate = original.entry_date || todayLocal();
+  await assertPeriodOpen(admin, input.organizationId, originalDate);
+
   const lines = (original.journal_lines ?? []) as Array<{ account_id: string; debit: number; credit: number; memo: string | null; cost_center_id: string | null }>;
   if (lines.length === 0) throw new Error("القيد لا يحتوي على أسطر.");
 
@@ -499,7 +628,7 @@ export async function reverseJournalEntry(admin: AdminClient, input: ReverseJour
       organization_id: input.organizationId,
       branch_id: original.branch_id,
       entry_number: entryNumber,
-      entry_date: new Date().toISOString().slice(0, 10),
+      entry_date: originalDate,
       source_doc_type: "journal_reversal",
       source_doc_id: input.entryId,
       memo: `عكس قيد ${original.entry_number}: ${input.reason}`,
@@ -541,6 +670,7 @@ export async function postInventoryWriteOffJournal(admin: AdminClient, input: In
     sourceDocId: input.sourceDocId,
     memo: `قيد ${input.label}`,
     createdBy: input.createdBy,
+    entryDate: input.entryDate,
     lines: [
       {
         systemKey: "operating_expense_other",

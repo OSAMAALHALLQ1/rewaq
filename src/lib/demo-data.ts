@@ -1300,9 +1300,12 @@ export const demoInvoices: Invoice[] = [
     supplierName: "مورد الدجاج",
     branchName: demoBranches[0].name,
     invoiceNumber: "D-2026-0441",
-    status: "flagged",
+    status: "partially_paid",
     total: 2260,
     issuedAt: "2026-05-16",
+    dueDate: "2026-06-15",
+    paidAmount: 1000,
+    balanceDue: 1260,
   },
   {
     id: "INV-765",
@@ -1313,6 +1316,8 @@ export const demoInvoices: Invoice[] = [
     status: "paid",
     total: 910,
     issuedAt: "2026-05-15",
+    paidAmount: 910,
+    balanceDue: 0,
   },
 ];
 

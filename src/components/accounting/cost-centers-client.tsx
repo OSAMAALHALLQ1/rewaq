@@ -12,9 +12,9 @@ import { Modal } from "@/components/ui/modal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { saveCostCenterAction } from "@/server/actions/accounting";
 import { formatCurrency } from "@/lib/utils";
-import type { CostCenter } from "@/server/queries/accounting-erp";
+import type { CostCentersData } from "@/server/queries/accounting-erp";
 
-export function CostCentersClient({ data }: { data: { costCenters: CostCenter[] } }) {
+export function CostCentersClient({ data }: { data: CostCentersData }) {
   const router = useRouter();
   const [isOpen, setIsOpen] = React.useState(false);
   const [formError, setFormError] = React.useState<string | null>(null);
@@ -90,41 +90,72 @@ export function CostCentersClient({ data }: { data: { costCenters: CostCenter[] 
         </div>
       </Card>
 
-      {/* Cost Centers Table */}
+      {/* Cost Centers P&L Table */}
       <Card className="backdrop-blur-md bg-white/80 border border-slate-200/50 shadow-md rounded-2xl overflow-hidden">
         <CardContent className="p-0">
+          <div className="px-5 py-3 border-b bg-slate-50/50 flex items-center justify-between flex-wrap gap-2">
+            <h3 className="text-sm font-black text-slate-900">ربحية مراكز التكلفة للفترة {data.from} → {data.to}</h3>
+            <p className="text-[10px] text-slate-400">محسوبة من أسطر القيود المرحّلة المرتبطة بكل مركز</p>
+          </div>
           <div className="overflow-x-auto">
             <Table className="text-xs">
               <TableHeader>
                 <TableRow className="border-b bg-slate-50/50 text-slate-400">
-                  <TableHead className="text-right py-3.5 px-5 font-bold w-32">كود المركز</TableHead>
-                  <TableHead className="text-right py-3.5 px-5 font-bold">اسم مركز التكلفة</TableHead>
-                  <TableHead className="text-right py-3.5 px-5 font-bold">الوصف والبيان</TableHead>
-                  <TableHead className="text-left py-3.5 px-5 font-bold w-48">مصروفات الشهر الجاري</TableHead>
-                  <TableHead className="text-center py-3.5 px-5 font-bold w-24">الحالة</TableHead>
+                  <TableHead className="text-right py-3.5 px-4 font-bold w-28">كود المركز</TableHead>
+                  <TableHead className="text-right py-3.5 px-4 font-bold">اسم مركز التكلفة</TableHead>
+                  <TableHead className="text-left py-3.5 px-4 font-bold w-32">الإيرادات</TableHead>
+                  <TableHead className="text-left py-3.5 px-4 font-bold w-32">تكلفة البضاعة</TableHead>
+                  <TableHead className="text-left py-3.5 px-4 font-bold w-32">مجمل الربح</TableHead>
+                  <TableHead className="text-left py-3.5 px-4 font-bold w-32">المصروفات</TableHead>
+                  <TableHead className="text-left py-3.5 px-4 font-bold w-32">صافي الربح</TableHead>
+                  <TableHead className="text-center py-3.5 px-4 font-bold w-20">الحالة</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {data.costCenters.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-10 text-slate-400">لا توجد مراكز تكلفة مسجلة حالياً</TableCell>
+                    <TableCell colSpan={8} className="text-center py-10 text-slate-400">لا توجد مراكز تكلفة مسجلة حالياً</TableCell>
                   </TableRow>
                 ) : (
                   data.costCenters.map((cc) => (
                     <TableRow key={cc.id} className="hover:bg-slate-50/30 transition-colors">
-                      <TableCell className="font-mono py-3 px-5 text-slate-700 font-bold">{cc.code}</TableCell>
-                      <TableCell className="py-3 px-5 text-slate-900 font-black">{cc.name}</TableCell>
-                      <TableCell className="py-3 px-5 text-slate-650">{cc.description || "-"}</TableCell>
-                      <TableCell className="text-left py-3 px-5 font-mono font-bold text-slate-800">
-                        {formatCurrency(cc.monthExpenses)}
+                      <TableCell className="font-mono py-3 px-4 text-slate-700 font-bold">{cc.code}</TableCell>
+                      <TableCell className="py-3 px-4 text-slate-900 font-black">
+                        {cc.name}
+                        {cc.description && <p className="text-[10px] text-slate-400 font-normal mt-0.5">{cc.description}</p>}
                       </TableCell>
-                      <TableCell className="text-center py-3 px-5">
+                      <TableCell className="text-left py-3 px-4 font-mono text-teal-700 font-bold">{formatCurrency(cc.revenue)}</TableCell>
+                      <TableCell className="text-left py-3 px-4 font-mono text-slate-700">{formatCurrency(cc.cogs)}</TableCell>
+                      <TableCell className="text-left py-3 px-4 font-mono text-slate-800 font-bold">{formatCurrency(cc.grossProfit)}</TableCell>
+                      <TableCell className="text-left py-3 px-4 font-mono text-rose-650">{formatCurrency(cc.expenses)}</TableCell>
+                      <TableCell className={`text-left py-3 px-4 font-mono font-black ${cc.netProfit >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                        {formatCurrency(cc.netProfit)}
+                      </TableCell>
+                      <TableCell className="text-center py-3 px-4">
                         <Badge tone={cc.isActive ? "success" : "muted"} className="rounded-lg px-2 py-0.5">
                           {cc.isActive ? "نشط" : "معطل"}
                         </Badge>
                       </TableCell>
                     </TableRow>
                   ))
+                )}
+                {/* Unallocated activity row */}
+                {(data.unallocated.revenue !== 0 || data.unallocated.cogs !== 0 || data.unallocated.expenses !== 0) && (
+                  <TableRow className="bg-amber-50/40 border-t-2 border-amber-100">
+                    <TableCell className="py-3 px-4 font-mono text-amber-700 font-bold">—</TableCell>
+                    <TableCell className="py-3 px-4 text-amber-800 font-bold">
+                      حركة غير موزعة على مراكز التكلفة
+                      <p className="text-[10px] text-amber-600 font-normal mt-0.5">اربط أسطر القيود والمصروفات بمركز لتوزيعها</p>
+                    </TableCell>
+                    <TableCell className="text-left py-3 px-4 font-mono text-amber-800">{formatCurrency(data.unallocated.revenue)}</TableCell>
+                    <TableCell className="text-left py-3 px-4 font-mono text-amber-800">{formatCurrency(data.unallocated.cogs)}</TableCell>
+                    <TableCell className="text-left py-3 px-4 font-mono text-amber-800">{formatCurrency(data.unallocated.revenue - data.unallocated.cogs)}</TableCell>
+                    <TableCell className="text-left py-3 px-4 font-mono text-amber-800">{formatCurrency(data.unallocated.expenses)}</TableCell>
+                    <TableCell className="text-left py-3 px-4 font-mono text-amber-800 font-black">
+                      {formatCurrency(data.unallocated.revenue - data.unallocated.cogs - data.unallocated.expenses)}
+                    </TableCell>
+                    <TableCell className="text-center py-3 px-4" />
+                  </TableRow>
                 )}
               </TableBody>
             </Table>

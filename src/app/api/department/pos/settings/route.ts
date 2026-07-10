@@ -68,23 +68,46 @@ export async function GET(request: Request) {
     .eq("id", auth.device.organizationId)
     .maybeSingle();
 
-  // إعدادات POS من الجدول المخصص
+  // إعدادات POS من الجدول المخصص (حقول خاصة بنقطة البيع فقط)
   const { data: posSettings } = await auth.admin
     .from("pos_settings")
     .select("*")
     .eq("organization_id", auth.device.organizationId)
     .maybeSingle();
 
+  // مصدر الحقيقة الموحد للإعدادات المشتركة: accounting_settings
+  // (إلزام الوردية، الضريبة، حد الخصم، اعتماد المرتجع، العملة، قفل الفواتير).
+  // أي تغيير من صفحة المحاسبة يجب أن ينعكس فعليًا على سلوك الكاشير.
+  const { data: accountingSettings } = await auth.admin
+    .from("accounting_settings")
+    .select("*")
+    .eq("organization_id", auth.device.organizationId)
+    .maybeSingle();
+
+  const merged = {
+    ...org,
+    storeName: org?.name,
+    storeAddress: org?.address,
+    taxNumber: org?.tax_number,
+    currency: accountingSettings?.currency_code ?? posSettings?.currency ?? org?.currency,
+    taxRate: accountingSettings?.tax_rate ?? posSettings?.tax_rate ?? DEFAULTS.taxRate,
+    maxCashierDiscount:
+      accountingSettings?.discount_approval_limit ?? posSettings?.max_cashier_discount ?? DEFAULTS.maxCashierDiscount,
+    allowCashierRefund:
+      accountingSettings?.require_manager_approval_refund === undefined
+        ? posSettings?.allow_cashier_refund ?? DEFAULTS.allowCashierRefund
+        : !accountingSettings.require_manager_approval_refund,
+    requireShift:
+      accountingSettings?.require_shift_before_sale ?? posSettings?.require_shift ?? DEFAULTS.requireShift,
+    // الحقول الخاصة بنقطة البيع تبقى من pos_settings
+    ...posSettings,
+    printOnCheckout: posSettings?.print_on_checkout ?? DEFAULTS.printOnCheckout,
+    receiptWidth: posSettings?.receipt_width ?? DEFAULTS.receiptWidth,
+  };
+
   return NextResponse.json({
     success: true,
-    settings: buildSettings({
-      ...org,
-      storeName: org?.name,
-      storeAddress: org?.address,
-      taxNumber: org?.tax_number,
-      currency: posSettings?.currency ?? org?.currency,
-      ...posSettings,
-    }),
+    settings: buildSettings(merged),
   });
 }
 
@@ -154,6 +177,24 @@ export async function POST(request: Request) {
 
   if (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+
+  // مزامنة واضحة: الحقول المشتركة تُكتب أيضًا في accounting_settings كمصدر حقيقة موحد
+  // حتى لا يختلف سلوك الكاشير عمّا يظهر في صفحة المحاسبة.
+  const acctUpdates: Record<string, unknown> = { organization_id: auth.device.organizationId, updated_at: new Date().toISOString() };
+  if (parsed.data.requireShift !== undefined) acctUpdates.require_shift_before_sale = parsed.data.requireShift;
+  if (parsed.data.taxRate !== undefined) acctUpdates.tax_rate = parsed.data.taxRate;
+  if (parsed.data.allowCashierRefund !== undefined) acctUpdates.require_manager_approval_refund = !parsed.data.allowCashierRefund;
+  if (parsed.data.maxCashierDiscount !== undefined) acctUpdates.discount_approval_limit = parsed.data.maxCashierDiscount;
+  if (parsed.data.currency !== undefined) acctUpdates.currency_code = parsed.data.currency;
+
+  if (Object.keys(acctUpdates).length > 2) {
+    const { error: acctError } = await auth.admin
+      .from("accounting_settings")
+      .upsert(acctUpdates, { onConflict: "organization_id" });
+    if (acctError) {
+      return NextResponse.json({ success: false, error: acctError.message }, { status: 500 });
+    }
   }
 
   // ندمج اسم المنظمة للرد

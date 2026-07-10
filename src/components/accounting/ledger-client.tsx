@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Scale, RefreshCw, AlertCircle, Check, Loader2, Info, ArrowLeftRight, CornerDownLeft } from "lucide-react";
+import { RefreshCw, AlertCircle, Check, Loader2, Info, Search, Filter, Download, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,23 +12,73 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Modal } from "@/components/ui/modal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { reverseJournalEntryAction } from "@/server/actions/accounting";
-import { ACCOUNTING_TERM_HELP } from "@/lib/accounting/constants";
+import { SOURCE_DOC_LABELS } from "@/lib/accounting/constants";
 import { formatCurrency } from "@/lib/utils";
 import type { GeneralLedgerData } from "@/server/queries/accounting-erp";
 
 export function LedgerClient({ data }: { data: GeneralLedgerData }) {
   const router = useRouter();
   const [selectedAccountId, setSelectedAccountId] = React.useState(data.selectedAccount?.id || "");
+  const [from, setFrom] = React.useState(data.from || "");
+  const [to, setTo] = React.useState(data.to || "");
+  const [search, setSearch] = React.useState("");
   const [reversalEntryId, setReversalEntryId] = React.useState<string | null>(null);
   const [reversalReason, setReversalReason] = React.useState("");
   const [formError, setFormError] = React.useState<string | null>(null);
   const [formSuccess, setFormSuccess] = React.useState<string | null>(null);
   const [isPending, startTransition] = React.useTransition();
 
+  const navigate = (accountId: string, nextFrom: string, nextTo: string) => {
+    const params = new URLSearchParams();
+    if (accountId) params.set("accountId", accountId);
+    if (nextFrom) params.set("from", nextFrom);
+    if (nextTo) params.set("to", nextTo);
+    router.push(`/dashboard/accounting/ledger?${params.toString()}`);
+  };
+
   const handleAccountChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const val = e.target.value;
     setSelectedAccountId(val);
-    router.push(`/dashboard/accounting/ledger?accountId=${val}`);
+    navigate(val, from, to);
+  };
+
+  const filteredLines = React.useMemo(() => {
+    if (!search.trim()) return data.lines;
+    const q = search.trim();
+    return data.lines.filter(
+      (line) =>
+        (line.memo || "").includes(q) ||
+        line.entryNumber.includes(q) ||
+        (SOURCE_DOC_LABELS[line.sourceDocType || ""] || "").includes(q),
+    );
+  }, [data.lines, search]);
+
+  const handleExport = () => {
+    const header = ["التاريخ", "رقم القيد", "نوع المستند", "البيان", "مدين", "دائن", "الرصيد الجاري"];
+    const rows = [
+      ["", "", "", "الرصيد الافتتاحي", "", "", data.openingBalance],
+      ...filteredLines.map((line) => [
+        line.entryDate,
+        line.entryNumber,
+        SOURCE_DOC_LABELS[line.sourceDocType || ""] || line.sourceDocType || "قيد يدوي",
+        line.memo || "",
+        line.debit,
+        line.credit,
+        line.runningBalance,
+      ]),
+    ];
+    const csv =
+      "﻿" +
+      [header, ...rows]
+        .map((row) => row.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(","))
+        .join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `ledger-${data.selectedAccount?.code || "account"}-${data.from || "all"}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const handleOpenReversal = (entryId: string) => {
@@ -75,9 +125,9 @@ export function LedgerClient({ data }: { data: GeneralLedgerData }) {
 
   return (
     <div className="space-y-6 text-right" dir="rtl">
-      {/* Account Selector and Details Card */}
+      {/* Account Selector and Filters Card */}
       <Card className="backdrop-blur-md bg-white/80 border border-slate-200/50 shadow-md rounded-2xl p-5">
-        <div className="grid gap-6 md:grid-cols-3 items-end">
+        <div className="grid gap-4 lg:grid-cols-[1fr_auto_auto_auto_auto] items-end">
           <div className="space-y-2">
             <Label htmlFor="accountSelect" className="text-xs font-bold text-slate-500">اختر الحساب لعرض كشف الحركة</Label>
             <Select
@@ -94,22 +144,89 @@ export function LedgerClient({ data }: { data: GeneralLedgerData }) {
             </Select>
           </div>
 
-          <div className="md:col-span-2 flex flex-col sm:flex-row gap-4 justify-between items-center bg-slate-50/50 border border-slate-200/40 p-4 rounded-xl">
-            <div>
-              <p className="text-[10px] text-slate-400 font-bold">الحساب الحالي</p>
-              <h3 className="text-base font-black text-slate-800 mt-1">
-                {data.selectedAccount?.code} · {data.selectedAccount?.name}
-              </h3>
-            </div>
-            <div className="text-left">
-              <p className="text-[10px] text-slate-400 font-bold text-right sm:text-left">الرصيد الختامي</p>
-              <h3 className="font-mono text-xl font-black text-teal-700 mt-1">
-                {formatCurrency(data.closingBalance)}
-              </h3>
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="ledgerFrom" className="text-xs font-bold text-slate-500">من تاريخ</Label>
+            <Input
+              id="ledgerFrom"
+              type="date"
+              value={from}
+              onChange={(e) => setFrom(e.target.value)}
+              className="bg-white border-slate-200 rounded-lg text-right font-mono"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="ledgerTo" className="text-xs font-bold text-slate-500">إلى تاريخ</Label>
+            <Input
+              id="ledgerTo"
+              type="date"
+              value={to}
+              onChange={(e) => setTo(e.target.value)}
+              className="bg-white border-slate-200 rounded-lg text-right font-mono"
+            />
+          </div>
+          <Button
+            type="button"
+            onClick={() => navigate(selectedAccountId, from, to)}
+            className="bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-bold gap-1"
+          >
+            <Filter className="h-4 w-4" />
+            تصفية
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleExport}
+            className="border-slate-200 hover:bg-slate-50 rounded-lg gap-1"
+          >
+            <Download className="h-4 w-4" />
+            تصدير
+          </Button>
+        </div>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-4">
+          <div className="bg-slate-50/50 border border-slate-200/40 p-3 rounded-xl">
+            <p className="text-[10px] text-slate-400 font-bold">الحساب الحالي</p>
+            <h3 className="text-sm font-black text-slate-800 mt-1">
+              {data.selectedAccount?.code} · {data.selectedAccount?.name}
+            </h3>
+          </div>
+          <div className="bg-slate-50/50 border border-slate-200/40 p-3 rounded-xl">
+            <p className="text-[10px] text-slate-400 font-bold">الرصيد قبل الفترة</p>
+            <h3 className="font-mono text-sm font-black text-slate-700 mt-1">{formatCurrency(data.openingBalance)}</h3>
+          </div>
+          <div className="bg-slate-50/50 border border-slate-200/40 p-3 rounded-xl">
+            <p className="text-[10px] text-slate-400 font-bold">حركة الفترة (مدين / دائن)</p>
+            <h3 className="font-mono text-sm font-black text-slate-700 mt-1">
+              {formatCurrency(data.periodDebit)} / {formatCurrency(data.periodCredit)}
+            </h3>
+          </div>
+          <div className="bg-teal-50/50 border border-teal-200/40 p-3 rounded-xl">
+            <p className="text-[10px] text-teal-600 font-bold">الرصيد الختامي</p>
+            <h3 className="font-mono text-base font-black text-teal-700 mt-1">{formatCurrency(data.closingBalance)}</h3>
           </div>
         </div>
+
+        <div className="mt-4 relative">
+          <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <Input
+            placeholder="بحث بالبيان، رقم القيد أو نوع المستند..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pe-3 ps-9 bg-white border-slate-200 focus:border-teal-500 rounded-lg text-right"
+          />
+        </div>
       </Card>
+
+      {data.truncated && (
+        <Card className="backdrop-blur-md bg-amber-50/50 border border-amber-200/60 shadow-sm rounded-2xl p-4">
+          <div className="flex gap-2.5 items-center">
+            <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />
+            <p className="text-xs text-amber-800 font-bold">
+              تم عرض أول 1000 حركة فقط في هذه الفترة. ضيّق نطاق التاريخ لعرض كشف كامل ودقيق.
+            </p>
+          </div>
+        </Card>
+      )}
 
       {/* Helper Box */}
       <Card className="backdrop-blur-md bg-teal-50/20 border border-teal-200/40 shadow-sm rounded-2xl p-4">
@@ -129,40 +246,70 @@ export function LedgerClient({ data }: { data: GeneralLedgerData }) {
             <Table className="text-xs">
               <TableHeader>
                 <TableRow className="border-b bg-slate-50/50 text-slate-400">
-                  <TableHead className="text-right py-3.5 px-5 font-bold w-24">التاريخ</TableHead>
-                  <TableHead className="text-right py-3.5 px-5 font-bold w-32">رقم القيد</TableHead>
-                  <TableHead className="text-right py-3.5 px-5 font-bold">البيان / الوصف</TableHead>
-                  <TableHead className="text-left py-3.5 px-5 font-bold w-28">مدين (+)</TableHead>
-                  <TableHead className="text-left py-3.5 px-5 font-bold w-28">دائن (-)</TableHead>
-                  <TableHead className="text-left py-3.5 px-5 font-bold w-32">الرصيد الجاري</TableHead>
-                  <TableHead className="text-center py-3.5 px-5 font-bold w-24">خيارات</TableHead>
+                  <TableHead className="text-right py-3.5 px-4 font-bold w-24">التاريخ</TableHead>
+                  <TableHead className="text-right py-3.5 px-4 font-bold w-32">رقم القيد</TableHead>
+                  <TableHead className="text-right py-3.5 px-4 font-bold w-28">نوع المستند</TableHead>
+                  <TableHead className="text-right py-3.5 px-4 font-bold">البيان / الوصف</TableHead>
+                  <TableHead className="text-left py-3.5 px-4 font-bold w-28">مدين (+)</TableHead>
+                  <TableHead className="text-left py-3.5 px-4 font-bold w-28">دائن (-)</TableHead>
+                  <TableHead className="text-left py-3.5 px-4 font-bold w-32">الرصيد الجاري</TableHead>
+                  <TableHead className="text-center py-3.5 px-4 font-bold w-24">خيارات</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data.lines.length === 0 ? (
+                {/* Opening balance row */}
+                <TableRow className="bg-slate-50/60 font-bold">
+                  <TableCell colSpan={4} className="py-2.5 px-4 text-slate-600">
+                    الرصيد الافتتاحي {data.from ? `قبل ${data.from}` : "(بداية السجل)"}
+                  </TableCell>
+                  <TableCell className="py-2.5 px-4" />
+                  <TableCell className="py-2.5 px-4" />
+                  <TableCell className="text-left py-2.5 px-4 font-mono text-slate-700">{formatCurrency(data.openingBalance)}</TableCell>
+                  <TableCell className="py-2.5 px-4" />
+                </TableRow>
+
+                {filteredLines.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-12 text-slate-400">لا توجد حركات مسجلة لهذا الحساب حالياً</TableCell>
+                    <TableCell colSpan={8} className="text-center py-12 text-slate-400">لا توجد حركات مطابقة في هذه الفترة</TableCell>
                   </TableRow>
                 ) : (
-                  data.lines.map((line) => {
-                    const isReversed = line.memo?.startsWith("عكس:") || line.memo?.includes("عكس قيد");
+                  filteredLines.map((line) => {
+                    const isReversed = line.memo?.startsWith("عكس:") || line.memo?.includes("عكس قيد") || line.sourceDocType === "journal_reversal";
                     return (
                       <TableRow key={line.id} className="hover:bg-slate-50/30 transition-colors">
-                        <TableCell className="py-3 px-5 text-slate-600 font-mono">{line.entryDate}</TableCell>
-                        <TableCell className="py-3 px-5 font-mono text-slate-700 font-bold">{line.entryNumber}</TableCell>
-                        <TableCell className="py-3 px-5 text-slate-900 font-medium">
-                          {line.memo || "-"}
+                        <TableCell className="py-3 px-4 text-slate-600 font-mono">{line.entryDate}</TableCell>
+                        <TableCell className="py-3 px-4 font-mono text-slate-700 font-bold">
+                          <a
+                            href={`/dashboard/accounting/journal?q=${encodeURIComponent(line.entryNumber)}`}
+                            className="hover:text-teal-700 hover:underline"
+                            title="عرض القيد كاملاً في دفتر اليومية"
+                          >
+                            {line.entryNumber}
+                          </a>
                         </TableCell>
-                        <TableCell className="text-left py-3 px-5 font-mono text-slate-800 font-semibold">
+                        <TableCell className="py-3 px-4 text-slate-500">
+                          {SOURCE_DOC_LABELS[line.sourceDocType || ""] || "قيد يدوي"}
+                        </TableCell>
+                        <TableCell className="py-3 px-4 text-slate-900 font-medium">
+                          {line.memo || "-"}
+                          {(line.branchName || line.costCenterName) && (
+                            <p className="text-[10px] text-slate-400 mt-0.5">
+                              {line.branchName && <span>فرع: {line.branchName}</span>}
+                              {line.branchName && line.costCenterName && " · "}
+                              {line.costCenterName && <span>مركز تكلفة: {line.costCenterName}</span>}
+                            </p>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-left py-3 px-4 font-mono text-slate-800 font-semibold">
                           {line.debit > 0 ? formatCurrency(line.debit) : "-"}
                         </TableCell>
-                        <TableCell className="text-left py-3 px-5 font-mono text-slate-850 font-semibold">
+                        <TableCell className="text-left py-3 px-4 font-mono text-slate-850 font-semibold">
                           {line.credit > 0 ? formatCurrency(line.credit) : "-"}
                         </TableCell>
-                        <TableCell className="text-left py-3 px-5 font-mono text-teal-700 font-bold">
+                        <TableCell className="text-left py-3 px-4 font-mono text-teal-700 font-bold">
                           {formatCurrency(line.runningBalance)}
                         </TableCell>
-                        <TableCell className="text-center py-3 px-5">
+                        <TableCell className="text-center py-3 px-4">
                           {isReversed ? (
                             <Badge tone="danger" className="scale-90 px-2 py-0.5 rounded-lg">قيد عكسي</Badge>
                           ) : (
@@ -170,7 +317,7 @@ export function LedgerClient({ data }: { data: GeneralLedgerData }) {
                               type="button"
                               variant="outline"
                               size="sm"
-                              onClick={() => handleOpenReversal(line.id)}
+                              onClick={() => handleOpenReversal(line.journalEntryId)}
                               className="text-rose-600 hover:text-white hover:bg-rose-600 border-rose-100 hover:border-transparent scale-90 px-2 py-1 h-7 rounded-lg text-[10px]"
                             >
                               <RefreshCw className="h-3 w-3 me-1 inline" />

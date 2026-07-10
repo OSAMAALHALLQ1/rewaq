@@ -19,7 +19,7 @@ import { requireAuth, requireSensitiveActionCapability } from "@/lib/auth/requir
 import { logAuditEvent } from "@/lib/audit/log";
 import { postExpenseJournal, reverseJournalEntry } from "@/lib/accounting/posting";
 import { EXPENSE_CATEGORIES } from "@/lib/accounting/constants";
-import type { ActionState } from "./auth";
+import { isDemoUserEmail, type ActionState } from "./auth";
 
 function ok(message: string): ActionState {
   return { ok: true, message };
@@ -312,6 +312,9 @@ const expenseSchema = z.object({
   paymentMethod: z.enum(["cash", "bank"]),
   branchId: z.string().uuid().optional().or(z.literal("")),
   costCenterId: z.string().uuid().optional().or(z.literal("")),
+  expenseAccountId: z.string().uuid().optional().or(z.literal("")),
+  payee: z.string().trim().max(200).optional(),
+  referenceNo: z.string().trim().max(100).optional(),
   notes: z.string().trim().optional(),
 });
 
@@ -326,6 +329,9 @@ export async function saveExpenseAction(_prevState: ActionState, formData: FormD
     paymentMethod: formData.get("paymentMethod"),
     branchId: formData.get("branchId") ?? "",
     costCenterId: formData.get("costCenterId") ?? "",
+    expenseAccountId: formData.get("expenseAccountId") ?? "",
+    payee: formData.get("payee") ?? undefined,
+    referenceNo: formData.get("referenceNo") ?? undefined,
     notes: formData.get("notes") ?? undefined,
   });
 
@@ -343,17 +349,37 @@ export async function saveExpenseAction(_prevState: ActionState, formData: FormD
     requireSensitiveActionCapability(auth, "expense_write");
     await assertPeriodOpen(admin, organizationId, parsed.data.expenseDate);
 
+    // Explicit posting account beats keyword matching — verify it is a real
+    // expense/COGS account in THIS organization before trusting it.
+    let expenseAccountId: string | null = null;
+    if (parsed.data.expenseAccountId) {
+      const { data: account } = await (admin as any)
+        .from("chart_of_accounts")
+        .select("id, account_type, is_active")
+        .eq("organization_id", organizationId)
+        .eq("id", parsed.data.expenseAccountId)
+        .maybeSingle();
+
+      if (!account || !account.is_active || !["expense", "cogs"].includes(account.account_type)) {
+        return invalid("حساب المصروف المحدد غير صالح — اختر حساباً من نوع مصروفات.");
+      }
+      expenseAccountId = account.id;
+    }
+
     const { data: expense, error } = await (admin as any)
       .from("expenses")
       .insert({
         organization_id: organizationId,
         branch_id: parsed.data.branchId || null,
         cost_center_id: parsed.data.costCenterId || null,
+        expense_account_id: expenseAccountId,
         category: parsed.data.category,
         description: parsed.data.description || null,
         amount: parsed.data.amount,
         expense_date: parsed.data.expenseDate,
         payment_method: parsed.data.paymentMethod,
+        payee: parsed.data.payee || null,
+        reference_no: parsed.data.referenceNo || null,
         notes: parsed.data.notes || null,
         status: "posted",
         created_by: userId,
@@ -371,6 +397,8 @@ export async function saveExpenseAction(_prevState: ActionState, formData: FormD
       amount: parsed.data.amount,
       paymentMethod: parsed.data.paymentMethod,
       costCenterId: parsed.data.costCenterId || null,
+      expenseAccountId,
+      entryDate: parsed.data.expenseDate,
       createdBy: userId,
     });
 
@@ -607,6 +635,11 @@ export async function saveAccountingSettingsAction(_prevState: ActionState, form
   try {
     const { admin, organizationId, userId, auth } = await resolveAccountingScope();
     requireSensitiveActionCapability(auth, "accounting_settings_write");
+
+    // The demo account must not be able to change accounting configuration.
+    if (isDemoUserEmail(auth.email)) {
+      return invalid("الحساب التجريبي لا يمكنه تعديل إعدادات المحاسبة.");
+    }
 
     const { error } = await (admin as any)
       .from("accounting_settings")
