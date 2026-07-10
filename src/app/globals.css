@@ -6,34 +6,127 @@
 @tailwind utilities;
 
 :root {
-  --background: #f4f6fb;
-  --foreground: #0b1220;
-  --card: #ffffff;
-  --card-foreground: #0b1220;
-  --popover: #ffffff;
-  --popover-foreground: #0b1220;
-  --primary: #1d4ed8;
+  /* Brand: preserve the full scale for data, charts, and component states. */
+  --brand-50: #F1F6FF;
+  --brand-100: #E2ECFF;
+  --brand-200: #C5DAFF;
+  --brand-300: #99BDFF;
+  --brand-400: #6398FF;
+  --brand-500: #3E79F7;
+  --brand-600: #255FDD;
+  --brand-700: #1E4CB7;
+  --brand-800: #1F418F;
+  --brand-900: #20396F;
+  --brand-950: #152448;
+
+  /* Application surfaces */
+  --app-background: #F6F8FC;
+  --surface-primary: #FFFFFF;
+  --surface-secondary: #F9FAFD;
+  --surface-tertiary: #F1F4F9;
+  --surface-hover: #F4F7FC;
+  --surface-selected: #EEF4FF;
+  --surface-elevated: #FFFFFF;
+
+  /* Text and borders */
+  --text-primary: #162033;
+  --text-secondary: #4E5D73;
+  --text-tertiary: #718096;
+  --text-muted: #919BAD;
+  --text-disabled: #B6BECA;
+  --text-inverse: #FFFFFF;
+  --border-subtle: #EDF0F5;
+  --border-default: #DDE3EC;
+  --border-strong: #C3CCDA;
+  --border-focus: #255FDD;
+
+  /* Sidebar */
+  --sidebar-bg: #0F1F3D;
+  --sidebar-hover: #172C51;
+  --sidebar-active: #203B68;
+  --sidebar-text: #DCE8FF;
+  --sidebar-muted: #91A4C4;
+  --sidebar-icon: #AFC4E8;
+  --sidebar-active-accent: #6398FF;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+
+  /* Operational state colours */
+  --success-bg: #ECFDF3;
+  --success-border: #A7F3C4;
+  --success: #16A34A;
+  --success-text: #15803D;
+  --warning-bg: #FFF8EB;
+  --warning-border: #FCD99A;
+  --warning: #D97706;
+  --warning-text: #B45309;
+  --danger-bg: #FFF1F2;
+  --danger-border: #FECDD3;
+  --danger: #DC2638;
+  --danger-text: #B91C2C;
+  --info-bg: #ECFEFF;
+  --info-border: #A5F3FC;
+  --info: #0891B2;
+  --info-text: #0E7490;
+  --accounting-bg: #F5F3FF;
+  --accounting-border: #DDD6FE;
+  --accounting: #7C3AED;
+  --accounting-text: #6D28D9;
+  --marketing-bg: #FFF3F0;
+  --marketing: #F26B5E;
+  --marketing-text: #BD3D34;
+
+  /* Component tokens */
+  --input-bg: #FFFFFF;
+  --input-border: #DDE3EC;
+  --input-border-hover: #B8C3D2;
+  --input-border-focus: #255FDD;
+  --input-placeholder: #919BAD;
+  --input-disabled-bg: #F1F4F9;
+  --table-header-bg: #F7F9FC;
+  --table-header-text: #4E5D73;
+  --table-row-bg: #FFFFFF;
+  --table-row-hover: #F4F7FC;
+  --table-row-selected: #EEF4FF;
+  --table-row-border: #EDF0F5;
+  --overlay-bg: rgba(11, 18, 32, 0.42);
+  --drawer-bg: #FFFFFF;
+  --drawer-border: #E8ECF2;
+  --drawer-footer-bg: #F9FAFD;
+  --shadow-xs: 0 1px 2px rgba(15, 31, 61, 0.05);
+  --shadow-sm: 0 2px 6px rgba(15, 31, 61, 0.07);
+  --shadow-md: 0 8px 24px rgba(15, 31, 61, 0.10);
+  --shadow-lg: 0 18px 48px rgba(15, 31, 61, 0.14);
+
+  /* Compatibility aliases used by the existing component layer. */
+  --background: var(--app-background);
+  --foreground: var(--text-primary);
+  --card: var(--surface-primary);
+  --card-foreground: var(--text-primary);
+  --popover: var(--surface-elevated);
+  --popover-foreground: var(--text-primary);
+  --primary: var(--brand-600);
   --primary-foreground: #ffffff;
-  --primary-light: #dce8ff;
-  --primary-light-foreground: #0b1220;
-  --secondary: #0b1220;
+  --primary-light: var(--brand-50);
+  --primary-light-foreground: var(--brand-900);
+  --secondary: var(--sidebar-bg);
   --secondary-foreground: #ffffff;
-  --muted: #eaeff7;
-  --muted-foreground: #5b6b85;
-  --accent: #38bdf8;
-  --accent-foreground: #0b1220;
-  --destructive: #dc2626;
+  --muted: var(--surface-tertiary);
+  --muted-foreground: var(--text-secondary);
+  --accent: var(--info);
+  --accent-foreground: #ffffff;
+  --destructive: var(--danger);
   --destructive-foreground: #ffffff;
-  --border: #dce3f0;
-  --input: #dce3f0;
-  --ring: #1d4ed8;
-  --success: #16a34a;
-  --warning: #f59e0b;
-  --chart-1: #0b1220;
-  --chart-2: #1d4ed8;
-  --chart-3: #38bdf8;
-  --chart-4: #93b4e8;
-  --chart-5: #c7d2e8;
+  --border: var(--border-default);
+  --input: var(--input-border);
+  --ring: var(--brand-600);
+  --chart-1: #255FDD;
+  --chart-2: #16A34A;
+  --chart-3: #F59E0B;
+  --chart-4: #7C3AED;
+  --chart-5: #0891B2;
+  --chart-6: #F26B5E;
+  --chart-7: #64748B;
+  --chart-grid: #E8ECF2;
   --radius: 1rem;
 }
 
@@ -48,16 +141,13 @@ html {
 
 body {
   min-height: 100vh;
-  background:
-    radial-gradient(circle at 12% 0%, rgba(56, 189, 248, 0.16), transparent 34rem),
-    radial-gradient(circle at 88% 8%, rgba(29, 78, 216, 0.1), transparent 30rem),
-    #f4f6fb;
+  background: var(--app-background);
   color: var(--foreground);
   font-family: var(--font-tajawal), "Segoe UI", Arial, sans-serif;
 }
 
 ::selection {
-  background: rgba(220, 232, 255, 0.92);
+  background: var(--brand-100);
   color: var(--foreground);
 }
 
@@ -75,6 +165,7 @@ select {
 
 .focus-ring:focus-visible {
   outline-color: var(--ring);
+  box-shadow: 0 0 0 3px rgba(37, 95, 221, 0.14);
 }
 
 @media print {

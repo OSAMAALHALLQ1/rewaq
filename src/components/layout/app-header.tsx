@@ -16,7 +16,7 @@ type AppHeaderProps = {
 
 export function AppHeader({ session, branches, notifications, onChatOpen }: AppHeaderProps) {
   return (
-    <header className="sticky top-0 z-20 border-b border-border/80 bg-background/88 backdrop-blur">
+    <header className="sticky top-0 z-20 border-b border-[var(--border-subtle)] bg-[var(--surface-primary)]/95 backdrop-blur">
       <div className="flex min-h-16 items-center gap-2 px-3 md:gap-3 md:px-5 lg:px-8">
         {/* Mobile spacer for menu button - handled in page-shell */}
         <div className="w-10 lg:hidden" />

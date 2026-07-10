@@ -17,13 +17,13 @@ export function Modal({ open, title, description, children, onClose, className }
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/35 p-0 backdrop-blur-sm print:hidden sm:items-center sm:p-4">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-[var(--overlay-bg)] p-0 print:hidden sm:items-center sm:p-4">
       <div
         role="dialog"
         aria-modal="true"
         aria-label={title}
         className={cn(
-          "max-h-[88vh] w-full overflow-hidden rounded-t-2xl border border-border bg-white shadow-lift sm:max-w-2xl sm:rounded-2xl",
+          "max-h-[88vh] w-full overflow-hidden rounded-t-2xl border border-[var(--drawer-border)] bg-[var(--drawer-bg)] shadow-lift sm:max-w-2xl sm:rounded-2xl",
           className,
         )}
       >

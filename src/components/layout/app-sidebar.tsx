@@ -106,20 +106,20 @@ export function AppSidebar({ activePath = "", mode = "app", role, onNavigate, on
   };
 
   return (
-    <aside className="flex h-full w-full flex-col bg-muted">
+    <aside className="flex h-full w-full flex-col bg-[var(--sidebar-bg)] text-[var(--sidebar-text)]">
       <div className="sticky top-0 flex h-full flex-col">
-        <Link href="/" className="flex items-center gap-3 border-b border-border/80 px-5 py-5">
-          <span className="grid h-10 w-10 place-items-center rounded-full bg-secondary text-white shadow-sm">
+        <Link href="/" className="flex items-center gap-3 border-b border-[var(--sidebar-border)] px-5 py-5">
+          <span className="grid h-10 w-10 place-items-center rounded-full bg-[var(--sidebar-active)] text-white shadow-xs">
             <Layers className="h-5 w-5" />
           </span>
           <span>
-            <span className="block text-xl font-bold text-primary">رواق</span>
-            <span className="text-xs text-muted-foreground">ERP المحاسبة والمخزون</span>
+            <span className="block text-xl font-bold text-white">رواق</span>
+            <span className="text-xs text-[var(--sidebar-muted)]">ERP المحاسبة والمخزون</span>
           </span>
         </Link>
 
         {mode === "app" ? (
-          <div className="border-b border-border/80 px-3 py-3">
+          <div className="border-b border-[var(--sidebar-border)] px-3 py-3">
             <div className="grid grid-cols-2 gap-2">
               {quickLinks.map((item) => {
                 const Icon = item.icon;
@@ -127,7 +127,7 @@ export function AppSidebar({ activePath = "", mode = "app", role, onNavigate, on
                   <Link
                     key={item.href}
                     href={item.href}
-                    className="flex h-14 flex-col items-center justify-center gap-1 rounded-2xl border border-primary-light bg-white text-xs font-bold text-primary transition hover:border-primary hover:bg-primary-light"
+                    className="flex h-14 flex-col items-center justify-center gap-1 rounded-2xl border border-[var(--sidebar-border)] bg-[var(--sidebar-hover)] text-xs font-bold text-[var(--sidebar-text)] transition hover:bg-[var(--sidebar-active)] hover:text-white"
                   >
                     <Icon className="h-4 w-4" />
                     {item.title}
@@ -150,8 +150,8 @@ export function AppSidebar({ activePath = "", mode = "app", role, onNavigate, on
                 className={cn(
                   "flex items-center gap-3 rounded-full px-3 py-2.5 text-sm font-bold transition",
                   active
-                    ? "bg-secondary text-white shadow-sm"
-                    : "text-foreground hover:bg-white hover:text-primary",
+                    ? "border-s-[3px] border-[var(--sidebar-active-accent)] bg-[rgba(99,152,255,0.16)] text-white"
+                    : "border-s-[3px] border-transparent text-[var(--sidebar-text)] hover:bg-[var(--sidebar-hover)] hover:text-white",
                 )}
               >
                 <Icon className="h-4 w-4" />
@@ -160,7 +160,7 @@ export function AppSidebar({ activePath = "", mode = "app", role, onNavigate, on
             );
           })}
 
-          <div className="my-2 border-t border-border" />
+          <div className="my-2 border-t border-[var(--sidebar-border)]" />
 
           {groups.map((group) => {
             const GroupIcon = group.icon;
@@ -170,10 +170,10 @@ export function AppSidebar({ activePath = "", mode = "app", role, onNavigate, on
                 <button
                   type="button"
                   onClick={() => toggleGroup(group.title)}
-                  className="flex w-full items-center gap-2 rounded-full px-3 py-2 text-xs font-bold text-muted-foreground transition hover:bg-white hover:text-primary"
+                  className="flex w-full items-center gap-2 rounded-full px-3 py-2 text-xs font-bold text-[var(--sidebar-muted)] transition hover:bg-[var(--sidebar-hover)] hover:text-white"
                   aria-expanded={open}
                 >
-                  <GroupIcon className="h-4 w-4 shrink-0 text-primary/70" />
+                  <GroupIcon className="h-4 w-4 shrink-0 text-[var(--sidebar-icon)]" />
                   <span className="flex-1 text-start">{group.title}</span>
                   <ChevronDown
                     className={cn("h-4 w-4 transition-transform duration-200", open && "rotate-180")}
@@ -187,7 +187,7 @@ export function AppSidebar({ activePath = "", mode = "app", role, onNavigate, on
                   )}
                 >
                   <div className="overflow-hidden">
-                    <div className="ms-3 mt-1 space-y-1 border-s-2 border-primary-light ps-2">
+                    <div className="ms-3 mt-1 space-y-1 border-s border-[var(--sidebar-border)] ps-2">
                       {group.items.map((item) => {
                         const Icon = item.icon;
                         const active = isActive(item.href);
@@ -204,16 +204,16 @@ export function AppSidebar({ activePath = "", mode = "app", role, onNavigate, on
                               }
                             }}
                             className={cn(
-                              "flex items-center gap-2.5 rounded-full px-3 py-2 text-sm font-bold transition",
+                              "flex items-center gap-2.5 rounded-full border-s-[3px] border-transparent px-3 py-2 text-sm font-bold transition",
                               active
-                                ? "bg-primary text-white"
-                                : "text-muted-foreground hover:bg-white hover:text-foreground",
+                                ? "border-[var(--sidebar-active-accent)] bg-[rgba(99,152,255,0.16)] text-white"
+                                : "text-[var(--sidebar-muted)] hover:bg-[var(--sidebar-hover)] hover:text-white",
                             )}
                           >
-                            <Icon className={cn("h-4 w-4 shrink-0", active && "text-primary")} />
+                            <Icon className={cn("h-4 w-4 shrink-0 text-[var(--sidebar-icon)]", active && "text-[var(--sidebar-active-accent)]")} />
                             <span className="flex-1 truncate">{item.title}</span>
                             {item.badge && (
-                              <span className="rounded-full bg-primary-light px-2 py-0.5 text-[10px] font-bold text-primary-light-foreground">
+                              <span className="rounded-full bg-[rgba(99,152,255,0.16)] px-2 py-0.5 text-[10px] font-bold text-[var(--sidebar-text)]">
                                 {item.badge}
                               </span>
                             )}
@@ -228,13 +228,13 @@ export function AppSidebar({ activePath = "", mode = "app", role, onNavigate, on
           })}
         </nav>
 
-        <div className="border-t border-border/80 p-4">
-          <div className="rounded-2xl bg-white p-4 shadow-soft">
-            <div className="flex items-center gap-2 text-sm font-semibold text-primary">
+        <div className="border-t border-[var(--sidebar-border)] p-4">
+          <div className="rounded-2xl border border-[var(--sidebar-border)] bg-[var(--sidebar-hover)] p-4 shadow-xs">
+            <div className="flex items-center gap-2 text-sm font-semibold text-white">
               <Layers className="h-4 w-4" />
               عزل البيانات جاهز
             </div>
-            <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            <p className="mt-1 text-xs leading-5 text-[var(--sidebar-muted)]">
               بيانات كل مؤسسة منفصلة، والصلاحيات تظهر لكل مستخدم ما يخصه فقط.
             </p>
           </div>

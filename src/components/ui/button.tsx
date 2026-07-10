@@ -11,13 +11,13 @@ export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 const variants: Record<ButtonVariant, string> = {
-  default: "bg-primary text-primary-foreground shadow-sm shadow-primary/15 hover:bg-blue-800",
-  secondary: "bg-secondary text-secondary-foreground hover:bg-slate-900",
-  outline: "border border-secondary/20 bg-white text-foreground hover:border-primary hover:bg-primary-light",
-  ghost: "text-foreground hover:bg-muted",
-  destructive: "bg-destructive text-destructive-foreground hover:bg-red-700",
-  light: "bg-primary-light text-primary-light-foreground hover:bg-blue-100",
-  arrow: "border border-dashed border-secondary/40 bg-white text-foreground hover:border-primary hover:bg-primary-light",
+  default: "border border-primary bg-primary text-primary-foreground shadow-xs hover:bg-[var(--brand-700)] active:bg-[var(--brand-800)]",
+  secondary: "border border-secondary bg-secondary text-secondary-foreground hover:bg-[var(--sidebar-hover)]",
+  outline: "border border-input bg-card text-foreground hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]",
+  ghost: "text-[var(--text-secondary)] hover:bg-muted hover:text-foreground",
+  destructive: "border border-destructive bg-destructive text-destructive-foreground hover:bg-danger-700",
+  light: "border border-primary-light bg-primary-light text-primary-light-foreground hover:bg-[var(--brand-100)]",
+  arrow: "border border-dashed border-input bg-card text-foreground hover:border-primary hover:bg-primary-light",
 };
 
 const sizes: Record<ButtonSize, string> = {

@@ -7,7 +7,7 @@ export const Select = React.forwardRef<HTMLSelectElement, React.SelectHTMLAttrib
       ref={ref}
       suppressHydrationWarning
       className={cn(
-        "focus-ring h-11 w-full rounded-full border border-transparent bg-muted px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50",
+        "focus-ring h-11 w-full rounded-full border border-input bg-card px-4 py-2 text-sm text-foreground hover:border-[var(--input-border-hover)] focus:border-primary disabled:cursor-not-allowed disabled:bg-muted disabled:opacity-100",
         className,
       )}
       {...props}

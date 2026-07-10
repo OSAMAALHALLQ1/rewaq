@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 type CardVariant = "default" | "dark" | "primary" | "light" | "muted";
 
 const cardVariants: Record<CardVariant, string> = {
-  default: "border-border/80 bg-card text-card-foreground",
+  default: "border-[var(--border-subtle)] bg-card text-card-foreground",
   dark: "border-secondary bg-secondary text-secondary-foreground",
   primary: "border-primary bg-primary text-primary-foreground",
   light: "border-primary-light bg-primary-light text-primary-light-foreground",
@@ -14,7 +14,7 @@ const cardVariants: Record<CardVariant, string> = {
 export function Card({ className, variant = "default", ...props }: React.HTMLAttributes<HTMLDivElement> & { variant?: CardVariant }) {
   return (
     <div
-      className={cn("rounded-2xl border shadow-soft", cardVariants[variant], className)}
+      className={cn("rounded-2xl border shadow-xs", cardVariants[variant], className)}
       {...props}
     />
   );
