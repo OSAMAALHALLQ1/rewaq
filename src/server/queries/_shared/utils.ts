@@ -81,8 +81,13 @@ export async function withAdminScope<T>(
   fallback: T,
   loader: (admin: AdminClient, scope: AppScope) => Promise<T>,
 ): Promise<T> {
+  const isProd = process.env.NODE_ENV === "production";
+
   if (!hasSupabaseAdminEnv()) {
-    if (canUseDemoFallback()) {
+    // In local/non-production environments without a configured backend we
+    // degrade gracefully to the bundled demo data so pages always render.
+    // Production always requires a real backend.
+    if (canUseDemoFallback() || !isProd) {
       return fallback;
     }
     throw new Error("Supabase admin environment is required unless RAWAQ_DEMO_MODE=true outside production.");
@@ -94,7 +99,9 @@ export async function withAdminScope<T>(
     return await loader(admin, scope);
   } catch (error) {
     console.error("[queries]", error instanceof Error ? error.message : error);
-    if (isDemoModeEnabled()) {
+    // Never crash a page in non-production: fall back to demo data so the
+    // UI stays functional when the backend is unreachable or misconfigured.
+    if (!isProd) {
       return fallback;
     }
     throw error;

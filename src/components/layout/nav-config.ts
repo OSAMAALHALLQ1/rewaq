@@ -34,6 +34,9 @@ import {
   TrendingUp,
   Truck,
   UserCheck,
+  Utensils,
+  ListPlus,
+  Table,
   Users,
   WalletCards,
   Warehouse,
@@ -69,6 +72,7 @@ export const appNav: NavGroup[] = [
     items: [
       { title: "شاشة الكاشير POS", href: "/d/pos", icon: MonitorSmartphone, badge: "أساسي" },
       { title: "الورديات والصندوق", href: "/dashboard/shifts", icon: WalletCards },
+      { title: "الطاولات", href: "/dashboard/tables", icon: Table },
     ],
   },
   {
@@ -112,6 +116,14 @@ export const appNav: NavGroup[] = [
     ],
   },
   {
+    title: "إدارة القائمة",
+    icon: Utensils,
+    items: [
+      { title: "أطباق القائمة", href: "/dashboard/menu-items", icon: Utensils },
+      { title: "مجموعات الإضافات", href: "/dashboard/modifiers", icon: ListPlus },
+    ],
+  },
+  {
     title: "المحاسبة والمالية",
     icon: Calculator,
     defaultOpen: true,
@@ -132,6 +144,8 @@ export const appNav: NavGroup[] = [
       { title: "مراكز التكلفة", href: "/dashboard/accounting/cost-centers", icon: Coins, roles: ["super_admin", "organization_owner", "accountant"] },
       { title: "الإقفال الشهري", href: "/dashboard/accounting/closing", icon: Calendar, roles: ["super_admin", "organization_owner", "accountant"] },
       { title: "إعدادات المحاسبة", href: "/dashboard/accounting/settings", icon: Settings, roles: ["super_admin", "organization_owner"] },
+      { title: "محاسبة التكاليف", href: "/dashboard/cost-accounting", icon: Calculator },
+      { title: "تحليل تكلفة الطعام", href: "/dashboard/food-cost", icon: WalletCards, roles: ["super_admin", "organization_owner", "accountant", "branch_manager"] },
     ],
   },
   {
