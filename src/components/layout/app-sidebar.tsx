@@ -69,6 +69,13 @@ export function AppSidebar({
 
   const [collapsed, setCollapsed] = React.useState(false);
   const [viewMode, setViewMode] = React.useState<"accountant" | "operator">("operator");
+  const [flyout, setFlyout] = React.useState<{
+    title: string;
+    top: number;
+    side: "left" | "right";
+    offset: number;
+  } | null>(null);
+  const flyoutCloseTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   React.useEffect(() => {
     try {
@@ -138,6 +145,24 @@ export function AppSidebar({
       }
       return next;
     });
+  };
+
+  const openFlyout = (title: string, target: HTMLElement) => {
+    if (!collapsed || typeof window === "undefined") return;
+    if (flyoutCloseTimer.current) clearTimeout(flyoutCloseTimer.current);
+    const rect = target.getBoundingClientRect();
+    const opensToRight = rect.left < window.innerWidth / 2;
+    setFlyout({
+      title,
+      top: rect.top,
+      side: opensToRight ? "left" : "right",
+      offset: opensToRight ? rect.right + 8 : window.innerWidth - rect.left + 8,
+    });
+  };
+
+  const closeFlyoutSoon = () => {
+    if (flyoutCloseTimer.current) clearTimeout(flyoutCloseTimer.current);
+    flyoutCloseTimer.current = setTimeout(() => setFlyout(null), 180);
   };
 
   const toggleViewMode = () => {
@@ -275,7 +300,18 @@ export function AppSidebar({
           return (
             <div key={group.title} className="mb-1">
               {collapsed ? (
-                <div className="my-1 border-t border-[var(--sidebar-border)]" />
+                <button
+                  type="button"
+                  onMouseEnter={(event) => openFlyout(group.title, event.currentTarget)}
+                  onMouseLeave={closeFlyoutSoon}
+                  onFocus={(event) => openFlyout(group.title, event.currentTarget)}
+                  onClick={(event) => openFlyout(group.title, event.currentTarget)}
+                  className="grid h-10 w-full place-items-center rounded-2xl text-[var(--sidebar-icon)] transition hover:bg-[var(--sidebar-hover)] hover:text-white"
+                  aria-label={group.title}
+                  aria-expanded={flyout?.title === group.title}
+                >
+                  <GroupIcon className="h-4 w-4" />
+                </button>
               ) : (
                 <button
                   type="button"
@@ -294,7 +330,7 @@ export function AppSidebar({
                 </button>
               )}
 
-              <div
+              {!collapsed && <div
                 className={cn(
                   "grid transition-all duration-200",
                   open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
@@ -343,11 +379,67 @@ export function AppSidebar({
                     })}
                   </div>
                 </div>
-              </div>
+              </div>}
             </div>
           );
         })}
       </nav>
+
+      {collapsed && flyout ? (() => {
+        const group = groups.find((candidate) => candidate.title === flyout.title);
+        if (!group) return null;
+        const GroupIcon = group.icon;
+        return (
+          <div
+            role="menu"
+            aria-label={group.title}
+            onMouseEnter={() => {
+              if (flyoutCloseTimer.current) clearTimeout(flyoutCloseTimer.current);
+            }}
+            onMouseLeave={closeFlyoutSoon}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") setFlyout(null);
+            }}
+            className="fixed z-50 w-64 rounded-2xl border border-[var(--sidebar-border)] bg-[var(--sidebar-bg)] p-2 shadow-2xl"
+            style={flyout.side === "left" ? { top: flyout.top, left: flyout.offset } : { top: flyout.top, right: flyout.offset }}
+          >
+            <div className="flex items-center gap-2 px-2 py-2 text-xs font-extrabold text-white">
+              <GroupIcon className="h-4 w-4 text-[var(--sidebar-icon)]" />
+              {group.title}
+            </div>
+            <div className="space-y-1">
+              {group.items.map((item) => {
+                const Icon = item.icon;
+                const active = isActive(item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    role="menuitem"
+                    href={item.href}
+                    onClick={(event) => {
+                      if (item.href === "#chat" && onChatOpen) {
+                        event.preventDefault();
+                        onChatOpen();
+                      } else {
+                        handleLinkClick();
+                      }
+                      setFlyout(null);
+                    }}
+                    className={cn(
+                      "flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-bold transition",
+                      active ? "bg-[var(--sidebar-active)] text-white" : "text-[var(--sidebar-text)] hover:bg-[var(--sidebar-hover)] hover:text-white",
+                    )}
+                  >
+                    <Icon className="h-4 w-4 shrink-0" />
+                    <span className="flex-1 truncate">{item.title}</span>
+                    {item.badge ? <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px]">{item.badge}</span> : null}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })() : null}
 
       {/* الجزء السفلي: مبدّل الوضع + مركز الاختصارات */}
       <div className="space-y-1.5 border-t border-[var(--sidebar-border)] p-3">

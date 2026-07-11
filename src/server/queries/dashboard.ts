@@ -18,6 +18,7 @@ import {
   numberValue,
   type AdminClient,
 } from "./_shared/utils";
+import { isLowStock, quantitiesByItem } from "@/lib/inventory/ledger";
 
 // ============================================================================
 // Types
@@ -34,27 +35,31 @@ async function loadDashboardData(admin: AdminClient, organizationId: string) {
   // Fetch real data for dashboard
   const [
     inventoryItems,
+    stockRows,
     purchaseOrderRows,
     wasteRows,
     notificationRows,
   ] = await Promise.all([
     admin.from("inventory_items").select("*").eq("organization_id", organizationId),
+    admin.from("branch_stock").select("item_id, quantity").eq("organization_id", organizationId),
     admin.from("purchase_orders").select("*").eq("organization_id", organizationId).in("status", ["draft", "sent"]),
     admin.from("waste_logs").select("*").eq("organization_id", organizationId).gte("created_at", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()),
     admin.from("notifications").select("*").eq("organization_id", organizationId).order("created_at", { ascending: false }).limit(10),
   ]);
 
   if (inventoryItems.error) throw new Error(inventoryItems.error.message);
+  if (stockRows.error) throw new Error(stockRows.error.message);
   if (purchaseOrderRows.error) throw new Error(purchaseOrderRows.error.message);
   if (wasteRows.error) throw new Error(wasteRows.error.message);
   if (notificationRows.error) throw new Error(notificationRows.error.message);
 
   // Calculate metrics
-  const lowStockItems = inventoryItems.data?.filter(item => {
-    const avgCost = numberValue(item.average_cost);
-    const minQty = numberValue(item.minimum_quantity);
-    return avgCost < minQty;
-  }) ?? [];
+  const quantityByItem = quantitiesByItem(
+    (stockRows.data ?? []).map((row) => ({ itemId: row.item_id, quantity: numberValue(row.quantity) })),
+  );
+  const lowStockItems = (inventoryItems.data ?? []).filter((item) =>
+    isLowStock(quantityByItem.get(item.id) ?? 0, numberValue(item.minimum_quantity)),
+  );
 
   const openPurchaseOrders = purchaseOrderRows.data?.length ?? 0;
   // Calculate food cost from recipes
@@ -96,7 +101,10 @@ async function loadDashboardData(admin: AdminClient, organizationId: string) {
 
   return {
     salesEstimate: 18450, // Would come from actual sales data
-    inventoryValue: (inventoryItems.data ?? []).reduce((sum: number, item: any) => sum + numberValue(item.average_cost) * 100, 0),
+    inventoryValue: (inventoryItems.data ?? []).reduce(
+      (sum: number, item: any) => sum + numberValue(item.average_cost) * (quantityByItem.get(item.id) ?? 0),
+      0,
+    ),
     lowStockCount: lowStockItems.length,
     openPurchaseOrders,
     foodCostPercent: Math.round(avgFoodCost * 10) / 10,

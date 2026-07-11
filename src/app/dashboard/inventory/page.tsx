@@ -4,7 +4,6 @@ import {
   Boxes,
   ChefHat,
   ClipboardCheck,
-  Download,
   PackageOpen,
   Plus,
   Search,
@@ -24,12 +23,24 @@ import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { formatCurrency, formatNumber } from "@/lib/utils";
+import { quantitiesByItem } from "@/lib/inventory/ledger";
+import { includesNormalized } from "@/lib/search/match";
 import { saveInventoryItemAction } from "@/server/actions/mutations";
 import { getInventoryData } from "@/server/queries/app";
 
 interface SearchParams {
   warehouse?: string;
+  q?: string;
+  category?: string;
+  branch?: string;
+  page?: string;
   [key: string]: string | string[] | undefined;
+}
+
+const ITEMS_PER_PAGE = 50;
+
+function stringParam(value: string | string[] | undefined) {
+  return typeof value === "string" ? value : "";
 }
 
 export default async function InventoryPage({
@@ -38,14 +49,35 @@ export default async function InventoryPage({
   searchParams: Promise<SearchParams>;
 }) {
   const params = await searchParams;
-  const warehouse = params?.warehouse;
+  const warehouse = stringParam(params.warehouse);
+  const searchQuery = stringParam(params.q);
+  const categoryId = stringParam(params.category);
+  const branchId = stringParam(params.branch);
+  const requestedPage = Number.parseInt(stringParam(params.page), 10);
   const { items, categories, branchStock, suppliers, branches } = await getInventoryData();
   const savedCategories = categories.filter((category) => !category.id.startsWith("suggested-"));
   const categoryNames = categories.map((category) => category.name);
 
-  const filteredItems = warehouse
-    ? items.filter((item) => item.warehouse === warehouse)
-    : items;
+  const stockInScope = branchId ? branchStock.filter((stock) => stock.branchId === branchId) : branchStock;
+  const quantityByItem = quantitiesByItem(stockInScope);
+  const filteredItems = items.filter((item) =>
+    (!warehouse || item.warehouse === warehouse) &&
+    (!categoryId || item.categoryId === categoryId) &&
+    includesNormalized(searchQuery, [item.name, item.sku]),
+  );
+  const totalPages = Math.max(1, Math.ceil(filteredItems.length / ITEMS_PER_PAGE));
+  const currentPage = Number.isFinite(requestedPage) ? Math.min(Math.max(requestedPage, 1), totalPages) : 1;
+  const pageItems = filteredItems.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+  const inventoryHref = (page: number) => {
+    const query = new URLSearchParams();
+    if (warehouse) query.set("warehouse", warehouse);
+    if (searchQuery) query.set("q", searchQuery);
+    if (categoryId) query.set("category", categoryId);
+    if (branchId) query.set("branch", branchId);
+    if (page > 1) query.set("page", String(page));
+    const serialized = query.toString();
+    return `/dashboard/inventory${serialized ? `?${serialized}` : ""}`;
+  };
 
   const allTab = [
     { key: "", label: "كل المخزون", count: items.length, icon: Boxes },
@@ -55,22 +87,16 @@ export default async function InventoryPage({
 
   // Stats
   const totalValue = filteredItems.reduce((sum, item) => {
-    const qty = branchStock
-      .filter((s) => s.itemId === item.id)
-      .reduce((a, b) => a + b.quantity, 0);
+    const qty = quantityByItem.get(item.id) ?? 0;
     return sum + qty * (item.averageCost || 0);
   }, 0);
 
   const outOfStock = filteredItems.filter((item) =>
-    branchStock
-      .filter((s) => s.itemId === item.id)
-      .reduce((a, b) => a + b.quantity, 0) <= 0
+    (quantityByItem.get(item.id) ?? 0) <= 0
   ).length;
 
   const lowStock = filteredItems.filter((item) => {
-    const qty = branchStock
-      .filter((s) => s.itemId === item.id)
-      .reduce((a, b) => a + b.quantity, 0);
+    const qty = quantityByItem.get(item.id) ?? 0;
     return qty > 0 && qty <= item.minimumQuantity;
   }).length;
 
@@ -196,31 +222,32 @@ export default async function InventoryPage({
           <CardHeader>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <CardTitle>مواد المخزون</CardTitle>
-              <div className="flex flex-wrap gap-2">
+              <form action="/dashboard/inventory" className="flex flex-wrap gap-2">
+                {warehouse ? <input type="hidden" name="warehouse" value={warehouse} /> : null}
                 <div className="relative min-w-0 flex-1 sm:min-w-64">
                   <Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input className="ps-9" placeholder="بحث بالاسم أو الرمز أو الباركود..." />
+                  <Input name="q" defaultValue={searchQuery} className="ps-9" placeholder="بحث بالاسم أو الرمز أو الباركود..." />
                 </div>
-                <Select className="w-32 sm:w-40" defaultValue="all">
-                  <option value="all">كل الفئات</option>
+                <Select name="category" className="w-32 sm:w-40" defaultValue={categoryId}>
+                  <option value="">كل الفئات</option>
                   {categories.map((category) => (
                     <option key={category.id} value={category.id}>
                       {category.name}
                     </option>
                   ))}
                 </Select>
-                <Select className="w-32 sm:w-48" defaultValue="all">
-                  <option value="all">كل الفروع</option>
+                <Select name="branch" className="w-32 sm:w-48" defaultValue={branchId}>
+                  <option value="">كل الفروع</option>
                   {branches.map((branch) => (
                     <option key={branch.id} value={branch.id}>
                       {branch.name}
                     </option>
                   ))}
                 </Select>
-                <Button variant="outline" size="icon" aria-label="تصدير CSV">
-                  <Download className="h-4 w-4" />
+                <Button type="submit" variant="outline" size="icon" aria-label="تطبيق الفلاتر">
+                  <Search className="h-4 w-4" />
                 </Button>
-              </div>
+              </form>
             </div>
           </CardHeader>
           <CardContent className="overflow-x-auto">
@@ -236,10 +263,8 @@ export default async function InventoryPage({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredItems.map((item) => {
-                  const totalQuantity = branchStock
-                    .filter((stock) => stock.itemId === item.id)
-                    .reduce((sum, stock) => sum + stock.quantity, 0);
+                {pageItems.map((item) => {
+                  const totalQuantity = quantityByItem.get(item.id) ?? 0;
                   const isLow = totalQuantity > 0 && totalQuantity <= item.minimumQuantity;
                   const isOut = totalQuantity <= 0;
                   return (
@@ -274,8 +299,31 @@ export default async function InventoryPage({
                     </TableRow>
                   );
                 })}
+                {pageItems.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="py-10 text-center text-sm text-muted-foreground">
+                      لا توجد مواد تطابق الفلاتر المحددة.
+                    </TableCell>
+                  </TableRow>
+                ) : null}
               </TableBody>
             </Table>
+            <div className="mt-4 flex items-center justify-between gap-3 border-t pt-4 text-sm">
+              <span className="text-muted-foreground">
+                عرض {formatNumber(pageItems.length)} من {formatNumber(filteredItems.length)} مادة
+              </span>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" asChild disabled={currentPage <= 1}>
+                  <Link href={inventoryHref(currentPage - 1)}>السابق</Link>
+                </Button>
+                <span className="flex items-center px-2 text-xs font-bold text-muted-foreground">
+                  صفحة {formatNumber(currentPage)} من {formatNumber(totalPages)}
+                </span>
+                <Button variant="outline" size="sm" asChild disabled={currentPage >= totalPages}>
+                  <Link href={inventoryHref(currentPage + 1)}>التالي</Link>
+                </Button>
+              </div>
+            </div>
           </CardContent>
         </Card>
 

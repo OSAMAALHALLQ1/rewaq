@@ -16,6 +16,15 @@ export function normalize(text: string | null | undefined): string {
     .trim();
 }
 
+/** مطابقة جزئية متسامحة مع اختلافات كتابة العربية؛ صالحة للبحث السريع في الواجهات. */
+export function includesNormalized(
+  query: string | null | undefined,
+  fields: Array<string | null | undefined>,
+): boolean {
+  const normalizedQuery = normalize(query);
+  return normalizedQuery.length === 0 || fields.some((field) => normalize(field).includes(normalizedQuery));
+}
+
 /** يزيل "ال" التعريف من أول الكلمة حتى تتطابق «المخزن» مع «مخزن» والعكس. */
 export function stripArticle(token: string): string {
   return token.length > 3 && token.startsWith("ال") ? token.slice(2) : token;

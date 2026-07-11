@@ -6,8 +6,6 @@ import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatNumber, formatCurrency } from "@/lib/utils";
 import { getReportsData } from "@/server/queries/app";
@@ -22,7 +20,11 @@ const reportOptions = [
   ["expiry", "تقرير المواد القريبة من انتهاء الصلاحية"],
 ];
 
-type SearchParams = Promise<{ type?: string }>;
+type SearchParams = Promise<{ type?: string; start?: string; end?: string; branch?: string }>;
+
+function dateParam(value: string | undefined, fallback: Date) {
+  return value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : fallback.toISOString().slice(0, 10);
+}
 
 function EmptyTableRow({ colSpan, message }: { colSpan: number; message: string }) {
   return (
@@ -46,8 +48,15 @@ function ReportNotice({ message }: { message: string }) {
 export default async function ReportsPage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
   const activeReport = params.type || "daily_movements";
+  const endDate = dateParam(params.end, new Date());
+  const startDate = dateParam(params.start, new Date(Date.now() - 30 * 24 * 60 * 60 * 1000));
+  const branchId = params.branch || "";
 
-  const { dashboard, movements, purchaseOrders, wasteLogs, suppliers, branches, expiryAlerts, dataNotice } = await getReportsData();
+  const { dashboard, movements, purchaseOrders, wasteLogs, suppliers, branches, expiryAlerts, dataNotice } = await getReportsData({
+    startDate,
+    endDate,
+    branchId,
+  });
   const incoming = movements.filter((movement) => movement.quantity > 0).length;
   const outgoing = movements.filter((movement) => movement.quantity < 0).length;
 
@@ -71,17 +80,14 @@ export default async function ReportsPage({ searchParams }: { searchParams: Sear
 
       <Card className="mb-4">
         <CardContent className="flex flex-wrap gap-3 p-4">
-          <Input className="max-w-44" type="date" defaultValue="2026-05-01" />
-          <Input className="max-w-44" type="date" defaultValue="2026-05-20" />
-          <Select className="max-w-64" defaultValue="all">
-            <option value="all">كل الأقسام</option>
-            {branches.map((branch) => (
-              <option key={branch.id} value={branch.id}>
-                {branch.name}
-              </option>
-            ))}
-          </Select>
-          <ReportsFilter activeReport={activeReport} reportOptions={reportOptions} />
+          <ReportsFilter
+            activeReport={activeReport}
+            reportOptions={reportOptions}
+            startDate={startDate}
+            endDate={endDate}
+            branchId={branchId}
+            branches={branches}
+          />
         </CardContent>
       </Card>
 

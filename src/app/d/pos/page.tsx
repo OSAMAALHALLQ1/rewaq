@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { PosReceipt, ReceiptDesign, DEFAULT_DESIGN, SAMPLE_RECEIPT } from "@/components/dashboard/pos-receipt";
 import { getTableDetails, updateTableStatus } from "@/server/actions/tables";
+import { includesNormalized } from "@/lib/search/match";
 import {
   saveQueuedInvoice,
   getQueuedInvoices,
@@ -917,8 +918,7 @@ export default function CashierPOSWorkspace() {
   const categories = ["الكل", ...Array.from(new Set(menuItems.map((i) => i.category).filter(Boolean)))];
   const filteredItems = menuItems.filter((item) => {
     const matchCat = activeCategory === "الكل" || item.category === activeCategory;
-    const matchSearch = !searchQuery || item.name.includes(searchQuery) || item.code.includes(searchQuery)
-      || (item.barcodes ?? []).some((b) => b === searchQuery);
+    const matchSearch = includesNormalized(searchQuery, [item.name, item.code, ...(item.barcodes ?? [])]);
     return matchCat && matchSearch;
   });
 

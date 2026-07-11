@@ -38,6 +38,7 @@ type DevicesClientProps = {
   branches: Array<{ id: string; name: string }>;
   currentRole: string;
   currentName: string;
+  initialTab?: "list" | "create" | "permissions" | "staff";
 };
 
 // Tekka-style staff member: avatar initial + role color + generated login code.
@@ -84,8 +85,10 @@ const roleDefaultModules: Record<string, string[]> = {
   staff: ["inventory"],
 };
 
-export function DevicesClient({ orgId, branches, currentRole, currentName }: DevicesClientProps) {
-  const [activeTab, setActiveTab] = useState<"list" | "create" | "permissions" | "staff">("list");
+export function DevicesClient({ orgId, branches, currentRole, currentName, initialTab = "list" }: DevicesClientProps) {
+  const [activeTab, setActiveTab] = useState<"list" | "create" | "permissions" | "staff">(
+    initialTab,
+  );
   const [devices, setDevices] = useState<DeviceKey[]>([]);
   const [auditChats, setAuditChats] = useState<AuditMessage[]>([]);
 

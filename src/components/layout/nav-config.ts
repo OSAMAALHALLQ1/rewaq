@@ -181,6 +181,7 @@ export const appNav: NavGroup[] = [
     items: [
       { title: "الفروع", href: "/dashboard/branches", icon: Building2 },
       { title: "المستخدمون والفريق", href: "/dashboard/settings/users", icon: UserCheck },
+      { title: "إدارة الموظفين", href: "/dashboard/settings/devices?tab=staff", icon: Users },
       { title: "الأجهزة والأكواد", href: "/dashboard/settings/devices", icon: Tablet },
       { title: "الإعدادات العامة", href: "/dashboard/settings", icon: SlidersHorizontal },
       { title: "الفوترة والاشتراك", href: "/dashboard/billing", icon: WalletCards },

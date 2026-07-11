@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalize, tokenize, scoreMatch } from "@/lib/search/match";
+import { includesNormalized, normalize, tokenize, scoreMatch } from "@/lib/search/match";
 import { PAGE_INDEX } from "@/lib/search/page-index";
 
 /** يحاكي بحث الصفحات في /api/search ويعيد المسارات مرتبة بالدرجة. */
@@ -22,6 +22,16 @@ describe("normalize", () => {
   it("يوحد الهمزات والتاء المربوطة والألف المقصورة", () => {
     expect(normalize("إدارة")).toBe(normalize("اداره"));
     expect(normalize("مبيعاتٌ")).toBe("مبيعات");
+  });
+});
+
+describe("includesNormalized", () => {
+  it("يجد الصنف رغم اختلاف الهمزة والتاء المربوطة", () => {
+    expect(includesNormalized("ارز بالخضار", ["أرز بالخضاره"])).toBe(true);
+  });
+
+  it("يستمر بدعم الرمز والباركود", () => {
+    expect(includesNormalized("ABC-10", ["طبق اليوم", "abc-10"])).toBe(true);
   });
 });
 

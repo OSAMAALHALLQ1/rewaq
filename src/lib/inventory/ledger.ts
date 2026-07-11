@@ -1,5 +1,7 @@
 import type { StockMovement, StockMovementType } from "@/types/domain";
 
+type StockQuantity = Pick<StockMovement, "itemId" | "quantity">;
+
 export type StockMovementInput = {
   organizationId: string;
   branchId: string;
@@ -33,4 +35,15 @@ export function buildStockMovement(input: StockMovementInput): StockMovement {
 
 export function isLowStock(quantity: number, minimumQuantity: number) {
   return quantity <= minimumQuantity;
+}
+
+/** يجمع الرصيد المتاح لكل مادة عبر الفروع بدون الاعتماد على سعر التكلفة. */
+export function quantitiesByItem(rows: StockQuantity[]): Map<string, number> {
+  const quantities = new Map<string, number>();
+
+  for (const row of rows) {
+    quantities.set(row.itemId, (quantities.get(row.itemId) ?? 0) + row.quantity);
+  }
+
+  return quantities;
 }

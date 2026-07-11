@@ -36,6 +36,7 @@ import {
   type AdminClient,
 } from "./_shared/utils";
 import { mapPurchaseOrder, mapStockMovement, mapSupplier } from "./_shared/mappers";
+import { isLowStock, quantitiesByItem } from "@/lib/inventory/ledger";
 
 import type {
   BillPaymentBatch,
@@ -947,7 +948,13 @@ export async function getOperationsData(): Promise<OperationsBundle> {
 /**
  * Get reports data (backward compatibility)
  */
-export async function getReportsData(): Promise<ReportsBundle> {
+export type ReportsFilters = {
+  startDate?: string;
+  endDate?: string;
+  branchId?: string;
+};
+
+export async function getReportsData(filters: ReportsFilters = {}): Promise<ReportsBundle> {
   const emptyReports: ReportsBundle = {
     wasteSummary: {
       totalCost: 0,
@@ -975,28 +982,29 @@ export async function getReportsData(): Promise<ReportsBundle> {
   return withAdminScope<ReportsBundle>(
     emptyReports,
     async (admin, scope) => {
-      const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-      const [wasteRows, itemRows, movementRows, orderRows, orderItemRows, supplierRows, branchRows, priceRows] = await Promise.all([
-        query(admin.from("waste_logs").select("*").eq("organization_id", scope.organizationId).gte("created_at", since).order("created_at", { ascending: false }), "waste_logs"),
+      const defaultEnd = new Date().toISOString().slice(0, 10);
+      const defaultStart = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      const startDate = /^\d{4}-\d{2}-\d{2}$/.test(filters.startDate ?? "") ? filters.startDate! : defaultStart;
+      const endDate = /^\d{4}-\d{2}-\d{2}$/.test(filters.endDate ?? "") ? filters.endDate! : defaultEnd;
+      const branchId = filters.branchId?.trim() || undefined;
+      const startAt = `${startDate}T00:00:00.000Z`;
+      const endAt = `${endDate}T23:59:59.999Z`;
+      let wasteRequest: any = admin.from("waste_logs").select("*").eq("organization_id", scope.organizationId).gte("created_at", startAt).lte("created_at", endAt).order("created_at", { ascending: false });
+      let movementRequest: any = admin.from("stock_movements").select("*").eq("organization_id", scope.organizationId).gte("created_at", startAt).lte("created_at", endAt).order("created_at", { ascending: false }).limit(150);
+      let orderRequest: any = admin.from("purchase_orders").select("*").eq("organization_id", scope.organizationId).gte("order_date", startDate).lte("order_date", endDate).order("order_date", { ascending: false }).limit(100);
+      let stockRequest: any = admin.from("branch_stock").select("item_id, quantity").eq("organization_id", scope.organizationId);
+
+      if (branchId) {
+        wasteRequest = wasteRequest.eq("branch_id", branchId);
+        movementRequest = movementRequest.eq("branch_id", branchId);
+        orderRequest = orderRequest.eq("branch_id", branchId);
+        stockRequest = stockRequest.eq("branch_id", branchId);
+      }
+      const [wasteRows, itemRows, movementRows, orderRows, orderItemRows, supplierRows, branchRows, priceRows, stockRows] = await Promise.all([
+        query<any[]>(wasteRequest, "waste_logs"),
         query(admin.from("inventory_items").select("*").eq("organization_id", scope.organizationId).order("name"), "inventory_items"),
-        query(
-          admin
-            .from("stock_movements")
-            .select("*")
-            .eq("organization_id", scope.organizationId)
-            .order("created_at", { ascending: false })
-            .limit(150),
-          "stock_movements",
-        ),
-        query(
-          admin
-            .from("purchase_orders")
-            .select("*")
-            .eq("organization_id", scope.organizationId)
-            .order("order_date", { ascending: false })
-            .limit(100),
-          "purchase_orders",
-        ),
+        query<any[]>(movementRequest, "stock_movements"),
+        query<any[]>(orderRequest, "purchase_orders"),
         query(admin.from("purchase_order_items").select("*").eq("organization_id", scope.organizationId), "purchase_order_items"),
         query(admin.from("suppliers").select("*").eq("organization_id", scope.organizationId).order("name"), "suppliers"),
         query(admin.from("branches").select("*").eq("organization_id", scope.organizationId).order("name"), "branches"),
@@ -1005,16 +1013,22 @@ export async function getReportsData(): Promise<ReportsBundle> {
             .from("supplier_price_history")
             .select("*")
             .eq("organization_id", scope.organizationId)
+            .gte("recorded_at", startAt)
+            .lte("recorded_at", endAt)
             .order("recorded_at", { ascending: false })
             .limit(250),
           "supplier_price_history",
         ),
+        query<any[]>(stockRequest, "branch_stock"),
       ]);
 
       const branchMap = indexBy(branchRows, (row) => row.id);
       const itemMap = indexBy(itemRows, (row) => row.id);
       const supplierMap = indexBy(supplierRows, (row) => row.id);
       const itemsByOrder = groupBy(orderItemRows, (row) => row.purchase_order_id);
+      const quantityByItem = quantitiesByItem(
+        stockRows.map((row: any) => ({ itemId: row.item_id, quantity: numberValue(row.quantity) })),
+      );
       const priceRiskBySupplier = new Map<string, number>();
 
       for (const row of priceRows) {
@@ -1077,7 +1091,7 @@ export async function getReportsData(): Promise<ReportsBundle> {
           status: row.status === "inactive" || row.status === "archived" ? "inactive" as const : "active" as const,
         })),
         stockAlerts: itemRows
-          .filter((item: any) => numberValue(item.average_cost) < numberValue(item.minimum_quantity))
+          .filter((item: any) => isLowStock(quantityByItem.get(item.id) ?? 0, numberValue(item.minimum_quantity)))
           .map((item: any) => ({
             id: item.id,
             organizationId: item.organization_id,
