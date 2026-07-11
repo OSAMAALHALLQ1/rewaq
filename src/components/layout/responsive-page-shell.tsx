@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { AppHeader } from "@/components/layout/app-header";
 import { AppSidebar } from "@/components/layout/app-sidebar";
+import { CommandPalette } from "@/components/layout/command-palette";
+import { GlobalHotkeys } from "@/components/layout/global-hotkeys";
 import { MobileHeader } from "@/components/layout/mobile-header";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { MobileMenu } from "@/components/layout/mobile-menu";
@@ -42,6 +44,9 @@ export function ResponsivePageShell({
 
   return (
     <>
+      <GlobalHotkeys />
+      <CommandPalette />
+
       {/* Mobile Header (visible on lg and below) */}
       <MobileHeader
         session={session}

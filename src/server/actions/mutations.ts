@@ -351,24 +351,6 @@ function convertQuantity(quantity: number, fromUnit: string | null | undefined, 
   return quantity;
 }
 
-async function nextDocumentNumber(
-  admin: ReturnType<typeof createAdminClient>,
-  organizationId: string,
-  prefix: "فاتورة" | "مرتجع",
-) {
-  const today = new Date().toISOString().slice(0, 10);
-  const compactDate = today.replaceAll("-", "");
-  const { count, error } = await admin
-    .from("customer_invoices")
-    .select("id", { count: "exact", head: true })
-    .eq("organization_id", organizationId)
-    .gte("issued_at", `${today}T00:00:00.000Z`)
-    .lt("issued_at", `${today}T23:59:59.999Z`);
-
-  if (error) throw new Error(error.message);
-
-  return `${prefix}-${compactDate}-${String((count ?? 0) + 1).padStart(4, "0")}`;
-}
 
 async function nextProductionOrderNumber(admin: ReturnType<typeof createAdminClient>, organizationId: string) {
   const today = new Date().toISOString().slice(0, 10);
@@ -615,7 +597,16 @@ export async function issueCustomerInvoiceAction(input: unknown) {
     const taxTotal = invoiceLines.reduce((sum, line) => sum + line.lineTax, 0);
     const costTotal = Array.from(stockDeltas.values()).reduce((sum, item) => sum + item.quantity * item.unitCost, 0);
     const total = Math.max(subtotal - parsed.data.invoiceDiscount + taxTotal + parsed.data.serviceFee + parsed.data.deliveryFee, 0);
-    const invoiceNumber = await nextDocumentNumber(admin, organizationId, "فاتورة");
+    
+    // Concurrency-safe atomic invoice counter
+    const { data: nextNum, error: seqError } = await admin
+      .rpc("get_next_invoice_number", {
+        p_org_id: organizationId,
+        p_branch_id: parsed.data.branchId,
+      });
+
+    if (seqError) return invalid("فشل توليد رقم الفاتورة الذري: " + seqError.message);
+    const invoiceNumber = `POS-${new Date().getFullYear()}-${String(nextNum ?? 1).padStart(6, "0")}`;
 
     const { data: invoice, error: invoiceError } = await admin
       .from("customer_invoices")

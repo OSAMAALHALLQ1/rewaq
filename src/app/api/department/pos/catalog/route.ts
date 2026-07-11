@@ -31,13 +31,13 @@ export async function GET(request: Request) {
     });
   }
 
-  // الإنتاج: جلب الأصناف + رصيد الفرع (عبر inventory_item_id) + الباركودات
+  // الإنتاج: جلب الأصناف + رصيد الفرع (عبر inventory_item_id و menu_item_id) + الباركودات
   const branchId = auth.device.branchId;
 
   const { data: itemRows, error: itemError } = await auth.admin
     .from("catalog_items")
     .select(
-      "id, code, name, category_name, main_unit, retail_price, tax_rate, status, image_path, image_url, inventory_item_id",
+      "id, code, name, category_name, main_unit, retail_price, tax_rate, status, image_path, image_url, inventory_item_id, menu_item_id",
     )
     .eq("organization_id", auth.device.organizationId)
     .eq("status", "active")
@@ -52,6 +52,33 @@ export async function GET(request: Request) {
   const inventoryItemIds = (itemRows ?? [])
     .map((item: any) => item.inventory_item_id)
     .filter(Boolean) as string[];
+
+  const menuItemIds = (itemRows ?? [])
+    .map((item: any) => item.menu_item_id)
+    .filter(Boolean) as string[];
+
+  // 1. جلب تعيينات الوصفات للأصناف
+  const { data: mappings } = menuItemIds.length
+    ? await auth.admin
+        .from("menu_item_recipe_mapping")
+        .select("menu_item_id, recipe_id, portion_multiplier")
+        .eq("organization_id", auth.device.organizationId)
+        .in("menu_item_id", menuItemIds)
+    : { data: [] };
+
+  const recipeIds = (mappings ?? []).map((m: any) => m.recipe_id).filter(Boolean);
+
+  // 2. جلب مكونات هذه الوصفات
+  const { data: ingredients } = recipeIds.length
+    ? await auth.admin
+        .from("recipe_ingredients")
+        .select("recipe_id, item_id, quantity, yield_percent")
+        .eq("organization_id", auth.device.organizationId)
+        .in("recipe_id", recipeIds)
+    : { data: [] };
+
+  const ingredientItemIds = (ingredients ?? []).map((ing: any) => ing.item_id).filter(Boolean);
+  const allInventoryItemIds = Array.from(new Set([...inventoryItemIds, ...ingredientItemIds]));
 
   // الباركودات
   const { data: barcodeRows } = itemIds.length
@@ -70,15 +97,15 @@ export async function GET(request: Request) {
     ]);
   }
 
-  // أرصدة الفرع لأصناف الكتالوج المرتبطة بأصناف مخزون
+  // أرصدة الفرع لأصناف الكتالوج ومكونات الوصفات
   const stockByInventoryItem = new Map<string, number>();
-  if (branchId && inventoryItemIds.length) {
+  if (branchId && allInventoryItemIds.length) {
     const { data: stockRows } = await auth.admin
       .from("branch_stock")
       .select("item_id, quantity")
       .eq("organization_id", auth.device.organizationId)
       .eq("branch_id", branchId)
-      .in("item_id", inventoryItemIds);
+      .in("item_id", allInventoryItemIds);
 
     for (const row of stockRows ?? []) {
       stockByInventoryItem.set(row.item_id, Number(row.quantity ?? 0));
@@ -127,22 +154,51 @@ export async function GET(request: Request) {
   return NextResponse.json({
     success: true,
     device: auth.device,
-    items: (itemRows ?? []).map((item: any) => ({
-      id: item.id,
-      code: item.code,
-      name: item.name,
-      category: item.category_name ?? "عام",
-      unit: item.main_unit ?? "قطعة",
-      price: Number(item.retail_price ?? 0),
-      taxRate: Number(item.tax_rate ?? 0),
-      barcodes: barcodesByItem.get(item.id) ?? [],
-      // رصيد الفرع إن كان الصنف مرتبطاً بصنف مخزون؛ وإلا null (يُخصم عبر الوصفة).
-      stockQuantity: item.inventory_item_id
-        ? stockByInventoryItem.get(item.inventory_item_id) ?? 0
-        : null,
-      imageUrl: item.image_url ?? item.image_path ?? null,
-      modifierGroups: modifiersByItem.get(item.id) ?? [],
-    })),
+    items: (itemRows ?? []).map((item: any) => {
+      // حساب رصيد الصنف المباشر أو رصيد الوصفة اللحظي بناءً على المكونات المتوفرة في الفرع
+      let finalStock: number | null = null;
+      if (item.inventory_item_id) {
+        finalStock = stockByInventoryItem.get(item.inventory_item_id) ?? 0;
+      } else if (item.menu_item_id) {
+        const itemMapping = (mappings ?? []).find((m: any) => m.menu_item_id === item.menu_item_id);
+        if (itemMapping) {
+          const recipeId = itemMapping.recipe_id;
+          const portionMultiplier = Number(itemMapping.portion_multiplier ?? 1);
+          const recipeIngredients = (ingredients ?? []).filter((ing: any) => ing.recipe_id === recipeId);
+          
+          if (recipeIngredients.length > 0) {
+            let minLimit = Infinity;
+            for (const ing of recipeIngredients) {
+              const yieldPercent = Number(ing.yield_percent ?? 100) / 100;
+              const quantityRequired = (Number(ing.quantity) * portionMultiplier) / (yieldPercent || 1);
+              
+              if (quantityRequired > 0) {
+                const stockAvailable = stockByInventoryItem.get(ing.item_id) ?? 0;
+                const ingredientLimit = stockAvailable / quantityRequired;
+                if (ingredientLimit < minLimit) {
+                  minLimit = ingredientLimit;
+                }
+              }
+            }
+            finalStock = minLimit === Infinity ? null : Math.floor(minLimit);
+          }
+        }
+      }
+
+      return {
+        id: item.id,
+        code: item.code,
+        name: item.name,
+        category: item.category_name ?? "عام",
+        unit: item.main_unit ?? "قطعة",
+        price: Number(item.retail_price ?? 0),
+        taxRate: Number(item.tax_rate ?? 0),
+        barcodes: barcodesByItem.get(item.id) ?? [],
+        stockQuantity: finalStock,
+        imageUrl: item.image_url ?? item.image_path ?? null,
+        modifierGroups: modifiersByItem.get(item.id) ?? [],
+      };
+    }),
   });
 }
 

@@ -22,6 +22,7 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { openCommandPalette } from "@/components/layout/global-hotkeys";
 import type { SearchResultGroup, SearchResultItem } from "@/app/api/search/route";
 
 const GROUP_ICONS: Record<string, LucideIcon> = {
@@ -135,19 +136,7 @@ export function GlobalSearch({ variant = "desktop", autoFocus, className, onNavi
     return () => document.removeEventListener("mousedown", onPointerDown);
   }, []);
 
-  // Ctrl+K / Cmd+K to focus (desktop only)
-  useEffect(() => {
-    if (variant !== "desktop") return;
-    function onKeyDown(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        inputRef.current?.focus();
-        setOpen(true);
-      }
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [variant]);
+  // اختصار Ctrl+K أصبح يفتح لوحة الأوامر المركزية (CommandPalette عبر GlobalHotkeys)
 
   const go = useCallback(
     (href: string) => {
@@ -219,6 +208,17 @@ export function GlobalSearch({ variant = "desktop", autoFocus, className, onNavi
               : "py-2.5 ps-10 pe-10",
           )}
         />
+        {!hasQuery && variant === "desktop" && (
+          <button
+            type="button"
+            onClick={() => openCommandPalette()}
+            className="absolute end-2.5 top-1/2 -translate-y-1/2 rounded border border-border bg-background px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground hover:text-foreground"
+            aria-label="فتح لوحة الأوامر"
+            tabIndex={-1}
+          >
+            Ctrl K
+          </button>
+        )}
         {hasQuery && (
           <button
             type="button"
