@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import { Geist_Mono, Tajawal } from "next/font/google";
+import { Baloo_Bhaijaan_2, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
-const arabicSans = Tajawal({
-  variable: "--font-tajawal",
+const arabicSans = Baloo_Bhaijaan_2({
+  variable: "--font-baloo-bhaijaan",
   subsets: ["arabic"],
-  weight: ["200", "300", "400", "500", "700", "800", "900"],
+  weight: ["400", "500", "600", "700", "800"],
   display: "swap",
 });
 

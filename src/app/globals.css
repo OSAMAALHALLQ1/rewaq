@@ -148,7 +148,23 @@ body {
   min-height: 100vh;
   background: var(--app-background);
   color: var(--foreground);
-  font-family: var(--font-tajawal), "Segoe UI", Arial, sans-serif;
+  font-family: var(--font-baloo-bhaijaan), "Segoe UI", Arial, sans-serif;
+  font-weight: 500;
+  line-height: 1.65;
+}
+
+/* التسلسل الطباعي العام: وزن واضح للعناوين وقراءة مريحة للبيانات العربية. */
+h1,
+h2,
+h3 {
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+button,
+label,
+th {
+  font-weight: 600;
 }
 
 ::selection {
@@ -174,6 +190,25 @@ select {
 }
 
 @media print {
+  body,
+  button,
+  input,
+  select,
+  textarea {
+    font-family: var(--font-baloo-bhaijaan), "Segoe UI", Arial, sans-serif !important;
+  }
+
+  body {
+    font-size: 11pt;
+    line-height: 1.45;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-weight: 700;
+  }
+
   body:has(.invoice-print-root) {
     background: #ffffff !important;
   }
