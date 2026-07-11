@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Boxes, FileText, Megaphone, ReceiptText, ShoppingCart, MessageSquare, Plus, ChevronLeft } from "lucide-react";
+import { Megaphone, ReceiptText, MessageSquare, Plus, ChevronLeft } from "lucide-react";
 import { GlobalSearch } from "@/components/layout/global-search";
 import { NotificationBell } from "@/components/layout/notification-bell";
 import { StatusStrip } from "@/components/layout/status-strip";
@@ -70,27 +69,6 @@ export function AppHeader({ session, branches, notifications, onChatOpen }: AppH
 
         {/* اليسار: إنشاء سريع + الرسائل + الإشعارات + الملف الشخصي */}
         <div className="flex items-center justify-start gap-2">
-          <div className="hidden items-center gap-2 xl:flex">
-            <Button asChild variant="outline" size="sm">
-              <Link href="/dashboard/inventory">
-                <Boxes className="h-4 w-4" />
-                مخزون
-              </Link>
-            </Button>
-            <Button asChild variant="outline" size="sm">
-              <Link href="/dashboard/invoices">
-                <FileText className="h-4 w-4" />
-                فاتورة
-              </Link>
-            </Button>
-            <Button asChild variant="outline" size="sm">
-              <Link href="/dashboard/purchase-orders">
-                <ShoppingCart className="h-4 w-4" />
-                طلب شراء
-              </Link>
-            </Button>
-          </div>
-
           <Button
             onClick={() => openCommandPalette("جديد")}
             size="sm"

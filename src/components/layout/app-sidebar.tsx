@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronDown, Layers, Megaphone, PanelLeftClose, PanelLeftOpen, ReceiptText, ShoppingCart } from "lucide-react";
+import { ChevronDown, Layers, Megaphone, PanelLeftClose, PanelLeftOpen, ReceiptText, ShieldCheck, ShoppingCart } from "lucide-react";
 import {
   appNav,
   adminNav,
@@ -174,14 +174,15 @@ export function AppSidebar({
       )}
     >
       {/* صفّ العلامة التجارية */}
-      <div className="flex min-h-[68px] items-center gap-3 px-4 py-4">
-        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-[var(--primary)] text-lg font-black text-white shadow-xs">
+      <div className="flex items-center gap-3 px-4 py-4">
+        <span className="relative grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[linear-gradient(135deg,var(--primary),var(--brand-700))] text-lg font-black text-white shadow-sm ring-1 ring-white/10">
           ر
+          <span className="absolute -bottom-0.5 -end-0.5 h-3 w-3 rounded-full bg-[var(--success)] ring-2 ring-[var(--sidebar-bg)]" />
         </span>
         {!collapsed && (
           <div className="flex min-w-0 flex-1 flex-col">
-            <span className="block text-xl font-bold leading-tight text-white">رواق</span>
-            <span className="text-[11px] text-[var(--sidebar-muted)]">Restaurant OS</span>
+            <span className="block text-lg font-extrabold leading-tight text-white">رواق</span>
+            <span className="text-[10px] tracking-wide text-[var(--sidebar-muted)]">Restaurant OS</span>
           </div>
         )}
         <button
@@ -194,23 +195,27 @@ export function AppSidebar({
         </button>
       </div>
 
-      {/* بطاقة مساحة العمل */}
+      {/* بطاقة مساحة العمل (مينيمال) */}
       {mode === "app" && !collapsed && (
-        <div className="mx-3 mb-2 flex items-center gap-2.5 rounded-2xl border border-[var(--sidebar-border)] bg-[var(--sidebar-hover)] p-2.5">
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[var(--sidebar-active)] text-sm font-extrabold text-white">
+        <button
+          type="button"
+          className="group mx-3 mb-1 flex w-[calc(100%-1.5rem)] items-center gap-2.5 rounded-2xl border border-transparent px-2.5 py-2 text-start transition hover:border-[var(--sidebar-border)] hover:bg-[var(--sidebar-hover)]"
+        >
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[linear-gradient(135deg,var(--sidebar-active),var(--sidebar-bg))] text-sm font-extrabold text-white ring-1 ring-white/10">
             {initial}
           </span>
           <div className="flex min-w-0 flex-1 flex-col">
             <span className="truncate text-xs font-bold text-white">{organizationName || "مؤسستي"}</span>
             <span className="truncate text-[10px] text-[var(--sidebar-muted)]">
-              {branchName ? `الفرع: ${branchName}` : "كل الفروع"}
+              {branchName ? branchName : "كل الفروع"}
             </span>
           </div>
-        </div>
+          <ChevronDown className="h-4 w-4 shrink-0 text-[var(--sidebar-muted)] transition-transform group-hover:text-white" />
+        </button>
       )}
 
       {/* التنقّل */}
-      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-2">
+      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-2 pb-3 [scrollbar-width:thin] [scrollbar-color:var(--sidebar-border)_transparent]">
         {!collapsed && (
           <p className="px-3 pb-1 pt-2 text-[10px] font-extrabold uppercase tracking-wide text-[var(--sidebar-muted)]">
             مساحة العمل
@@ -229,7 +234,7 @@ export function AppSidebar({
                 "flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-bold transition",
                 collapsed && "justify-center",
                 active
-                  ? "sidebar-active-gradient border-s-[4px] border-[var(--sidebar-active-accent)] text-white"
+                  ? "bg-[var(--sidebar-active)] text-white border-s-2 border-[var(--sidebar-active-accent)]"
                   : "text-[var(--sidebar-text)] hover:bg-[var(--sidebar-hover)] hover:text-white",
               )}
             >
@@ -317,7 +322,7 @@ export function AppSidebar({
                             "flex items-center gap-2.5 rounded-2xl px-3 py-2 text-sm font-bold transition",
                             collapsed && "justify-center",
                             active
-                              ? "sidebar-active-gradient border-s-[4px] border-[var(--sidebar-active-accent)] text-white"
+                              ? "bg-[var(--sidebar-active)] text-white border-s-2 border-[var(--sidebar-active-accent)]"
                               : "text-[var(--sidebar-muted)] hover:bg-[var(--sidebar-hover)] hover:text-white",
                           )}
                         >
@@ -345,22 +350,22 @@ export function AppSidebar({
       </nav>
 
       {/* الجزء السفلي: مبدّل الوضع + مركز الاختصارات */}
-      <div className="space-y-2 border-t border-[var(--sidebar-border)] p-3">
+      <div className="space-y-1.5 border-t border-[var(--sidebar-border)] p-3">
         {!collapsed && (
           <button
             type="button"
             onClick={toggleViewMode}
-            className="flex w-full items-center gap-2.5 rounded-2xl border border-[var(--sidebar-border)] bg-[var(--sidebar-hover)] p-2.5 text-start transition hover:bg-[var(--sidebar-active)]"
+            className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-start transition-colors hover:bg-[var(--sidebar-hover)]"
           >
+            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-[var(--sidebar-active)] text-white">
+              <Layers className="h-4 w-4" />
+            </span>
             <div className="min-w-0 flex-1">
               <span className="block text-[10px] text-[var(--sidebar-muted)]">وضع العرض</span>
               <span className="block text-xs font-bold text-white">
                 {viewMode === "operator" ? "تشغيلي مبسّط" : "محاسبي متقدّم"}
               </span>
             </div>
-            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-[var(--sidebar-active)] text-white">
-              <Layers className="h-4 w-4" />
-            </span>
           </button>
         )}
 
@@ -368,15 +373,15 @@ export function AppSidebar({
           <button
             type="button"
             onClick={() => openCommandPalette()}
-            className="flex w-full items-center gap-2.5 rounded-2xl border border-[var(--sidebar-border)] bg-[var(--sidebar-hover)] p-2.5 text-start transition hover:bg-[var(--sidebar-active)]"
+            className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-start transition-colors hover:bg-[var(--sidebar-hover)]"
           >
+            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-[var(--sidebar-hover)] text-[var(--sidebar-icon)]">
+              <Megaphone className="h-4 w-4" />
+            </span>
             <div className="min-w-0 flex-1">
               <span className="block text-xs font-bold text-white">مركز الاختصارات</span>
-              <span className="block text-[10px] text-[var(--sidebar-muted)]">
-                اضغط <kbd className="rounded border border-[var(--sidebar-border)] bg-[var(--sidebar-bg)] px-1 text-[9px] text-white">؟</kbd> لعرض الكل
-              </span>
+              <span className="block text-[10px] text-[var(--sidebar-muted)]">Ctrl K للأوامر السريعة</span>
             </div>
-            <Megaphone className="h-4 w-4 shrink-0 text-[var(--sidebar-icon)]" />
           </button>
         )}
 
@@ -389,6 +394,13 @@ export function AppSidebar({
           >
             <Layers className="h-4 w-4" />
           </button>
+        )}
+
+        {!collapsed && (
+          <div className="flex items-center gap-1.5 px-2.5 pt-1 text-[10px] text-[var(--sidebar-muted)]">
+            <ShieldCheck className="h-3.5 w-3.5 text-[var(--success)]" />
+            <span>عزل بياناتك مضمون</span>
+          </div>
         )}
       </div>
     </aside>
