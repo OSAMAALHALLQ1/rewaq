@@ -3,9 +3,9 @@
 import { MessageSquare, Plus } from "lucide-react";
 import { GlobalSearch } from "@/components/layout/global-search";
 import { NotificationBell } from "@/components/layout/notification-bell";
-import { StatusStrip } from "@/components/layout/status-strip";
 import { Button } from "@/components/ui/button";
 import { openCommandPalette } from "@/components/layout/global-hotkeys";
+import { SystemStatusMenu } from "@/components/layout/system-status-menu";
 import type { AppSession } from "@/lib/auth/session";
 import type { Notification } from "@/types/domain";
 
@@ -51,6 +51,7 @@ export function AppHeader({ session, notifications, onChatOpen }: AppHeaderProps
           )}
 
           <NotificationBell notifications={notifications} />
+          <SystemStatusMenu />
 
           <div className="hidden items-center gap-2 text-end sm:flex">
             <div className="min-w-0">
@@ -60,15 +61,6 @@ export function AppHeader({ session, notifications, onChatOpen }: AppHeaderProps
           </div>
         </div>
       </div>
-
-      <StatusStrip
-        items={[
-          { kind: "ok", label: "النظام يعمل طبيعيًا" },
-          { kind: "info", label: "12 جهاز POS متصل" },
-          { kind: "warn", label: "1 طابعة تحتاج مراجعة" },
-          { label: "آخر مزامنة: قبل 34ث" },
-        ]}
-      />
     </header>
   );
 }

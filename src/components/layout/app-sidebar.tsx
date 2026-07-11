@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronDown, Layers, Megaphone, PanelLeftClose, PanelLeftOpen, ReceiptText, ShieldCheck, ShoppingCart } from "lucide-react";
+import { ChevronDown, Layers, PanelLeftClose, PanelLeftOpen, ShieldCheck } from "lucide-react";
 import {
   appNav,
   adminNav,
@@ -12,7 +12,6 @@ import {
 } from "@/components/layout/nav-config";
 import { cn } from "@/lib/utils";
 import type { Role } from "@/types/domain";
-import { openCommandPalette } from "@/components/layout/global-hotkeys";
 
 type AppSidebarProps = {
   activePath?: string;
@@ -24,7 +23,6 @@ type AppSidebarProps = {
 
 const STORAGE_GROUPS = "rewaq.sidebar.openGroups";
 const STORAGE_COLLAPSE = "rewaq.sidebar.collapsed";
-const STORAGE_MODE = "rewaq.view-mode";
 
 function canView(item: NavItem, role?: Role) {
   if (!item.roles || item.roles.length === 0) return true;
@@ -44,11 +42,6 @@ function buildGroups(mode: "app" | "admin", role?: Role): NavGroup[] {
     .filter((group) => group.items.length > 0);
 }
 
-function applyViewMode(mode: "accountant" | "operator") {
-  if (typeof document === "undefined") return;
-  document.documentElement.classList.toggle("accountant-mode", mode === "accountant");
-}
-
 export function AppSidebar({
   activePath = "",
   mode = "app",
@@ -61,7 +54,6 @@ export function AppSidebar({
   const groups = React.useMemo(() => buildGroups(mode, role), [mode, role]);
 
   const [collapsed, setCollapsed] = React.useState(false);
-  const [viewMode, setViewMode] = React.useState<"accountant" | "operator">("operator");
   const [flyout, setFlyout] = React.useState<{
     title: string;
     top: number;
@@ -73,15 +65,10 @@ export function AppSidebar({
   React.useEffect(() => {
     try {
       setCollapsed(localStorage.getItem(STORAGE_COLLAPSE) === "1");
-      setViewMode((localStorage.getItem(STORAGE_MODE) as "accountant" | "operator") ?? "operator");
     } catch {
       /* ignore */
     }
   }, []);
-
-  React.useEffect(() => {
-    applyViewMode(viewMode);
-  }, [viewMode]);
 
   const [openGroups, setOpenGroups] = React.useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {};
@@ -159,25 +146,8 @@ export function AppSidebar({
     flyoutCloseTimer.current = setTimeout(() => setFlyout(null), 180);
   };
 
-  const toggleViewMode = () => {
-    setViewMode((prev) => {
-      const next = prev === "operator" ? "accountant" : "operator";
-      try {
-        localStorage.setItem(STORAGE_MODE, next);
-      } catch {
-        /* ignore */
-      }
-      return next;
-    });
-  };
-
   const isActive = (href: string) =>
     currentPath === href || (href !== "/dashboard" && currentPath.startsWith(`${href}/`));
-
-  const quickLinks: NavItem[] = [
-    { title: "فاتورة توريد", href: "/dashboard/invoices", icon: ReceiptText },
-    { title: "طلب شراء", href: "/dashboard/purchase-orders", icon: ShoppingCart },
-  ];
 
   const handleLinkClick = () => {
     if (onNavigate) onNavigate();
@@ -202,46 +172,32 @@ export function AppSidebar({
             <span className="text-[10px] tracking-wide text-[#000000]/65">Restaurant OS</span>
           </div>
         )}
-        <button
-          type="button"
-          onClick={toggleCollapse}
-          className={cn(
-            "grid shrink-0 place-items-center transition-colors",
-            collapsed
-              ? "h-10 w-10 rounded-xl border border-[#B9CDE0] bg-[#E1E8FF] text-[#068FFF] shadow-sm hover:bg-[#D7E2FF]"
-              : "h-9 w-9 rounded-xl text-[#4E4FEB] hover:bg-[var(--sidebar-hover)] hover:text-[#068FFF]",
-          )}
-          aria-label={collapsed ? "توسيع القائمة" : "تصغير القائمة"}
-        >
-          {collapsed ? <PanelLeftOpen className="h-5 w-5 stroke-[2.5]" /> : <PanelLeftClose className="h-4 w-4" />}
-        </button>
+        {!collapsed ? (
+          <button
+            type="button"
+            onClick={toggleCollapse}
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-[#4E4FEB] transition-colors hover:bg-[var(--sidebar-hover)] hover:text-[#068FFF]"
+            aria-label="تصغير القائمة"
+          >
+            <PanelLeftClose className="h-4 w-4" />
+          </button>
+        ) : null}
       </div>
 
       {/* التنقّل */}
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-2 pb-3 [scrollbar-width:thin] [scrollbar-color:var(--sidebar-border)_transparent]">
 
-        {mode === "app" && (
-          <div className="my-2 grid grid-cols-2 gap-2 px-0.5">
-            {quickLinks.map((item) => {
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={handleLinkClick}
-                  title={item.title}
-                  className={cn(
-                    "flex h-12 flex-col items-center justify-center gap-1 rounded-2xl bg-[var(--sidebar-hover)] text-[10px] font-bold text-[#000000] transition hover:bg-[var(--sidebar-active)] hover:text-[#000000]",
-                    collapsed && "col-span-2",
-                  )}
-                >
-                  <Icon className="h-4 w-4" />
-                  {!collapsed && item.title}
-                </Link>
-              );
-            })}
-          </div>
-        )}
+        {mode === "app" && collapsed ? (
+          <button
+            type="button"
+            onClick={toggleCollapse}
+            className="mx-auto my-2 grid h-11 w-11 place-items-center rounded-xl bg-[#E1E8FF] text-[#068FFF] shadow-sm transition hover:bg-[#D7E2FF]"
+            aria-label="توسيع القائمة"
+            title="توسيع القائمة"
+          >
+            <PanelLeftOpen className="h-5 w-5 stroke-[2.5]" />
+          </button>
+        ) : null}
 
         <div className={cn("border-t border-[var(--sidebar-border)]", collapsed ? "my-2" : "my-3")} />
 
@@ -272,9 +228,6 @@ export function AppSidebar({
                 >
                   <GroupIcon className="h-4 w-4 shrink-0 text-[#4E4FEB]" />
                   <span className="flex-1 text-start">{group.title}</span>
-                  <span className="rounded-full bg-[var(--sidebar-hover)] px-1.5 py-0.5 text-[10px] font-bold text-[#000000]/70">
-                    {group.items.length}
-                  </span>
                   <ChevronDown
                     className={cn("h-4 w-4 transition-transform duration-200", open && "rotate-180")}
                   />
@@ -392,53 +345,8 @@ export function AppSidebar({
         );
       })() : null}
 
-      {/* الجزء السفلي: مبدّل الوضع + مركز الاختصارات */}
+      {/* ملحوظة الخصوصية */}
       <div className="space-y-1.5 border-t border-[var(--sidebar-border)] p-3">
-        {!collapsed && (
-          <button
-            type="button"
-            onClick={toggleViewMode}
-            className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-start transition-colors hover:bg-[var(--sidebar-hover)]"
-          >
-            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-[var(--sidebar-active)] text-[#068FFF]">
-              <Layers className="h-4 w-4" />
-            </span>
-            <div className="min-w-0 flex-1">
-              <span className="block text-[10px] text-[#000000]/60">وضع العرض</span>
-              <span className="block text-xs font-bold text-[#000000]">
-                {viewMode === "operator" ? "تشغيلي مبسّط" : "محاسبي متقدّم"}
-              </span>
-            </div>
-          </button>
-        )}
-
-        {!collapsed && (
-          <button
-            type="button"
-            onClick={() => openCommandPalette()}
-            className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-start transition-colors hover:bg-[var(--sidebar-hover)]"
-          >
-            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-[var(--sidebar-hover)] text-[#4E4FEB]">
-              <Megaphone className="h-4 w-4" />
-            </span>
-            <div className="min-w-0 flex-1">
-              <span className="block text-xs font-bold text-[#000000]">مركز الاختصارات</span>
-              <span className="block text-[10px] text-[#000000]/60">Ctrl K للأوامر السريعة</span>
-            </div>
-          </button>
-        )}
-
-        {collapsed && (
-          <button
-            type="button"
-            onClick={toggleViewMode}
-            title={viewMode === "operator" ? "تشغيلي مبسّط" : "محاسبي متقدّم"}
-            className="mx-auto grid h-9 w-9 place-items-center rounded-xl text-[#4E4FEB] transition-colors hover:bg-[var(--sidebar-hover)] hover:text-[#068FFF]"
-          >
-            <Layers className="h-4 w-4" />
-          </button>
-        )}
-
         {!collapsed && (
           <div className="flex items-center gap-1.5 px-2.5 pt-1 text-[10px] text-[#000000]/60">
             <ShieldCheck className="h-3.5 w-3.5 text-[var(--success)]" />

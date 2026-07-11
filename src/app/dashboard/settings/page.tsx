@@ -10,6 +10,7 @@ import { Select } from "@/components/ui/select";
 import { getOrganizationContext } from "@/server/queries/app";
 import { ActionForm } from "@/components/action-form";
 import { saveBranchAction } from "@/server/actions/mutations";
+import { SettingsShortcutsCard } from "@/components/layout/settings-shortcuts-card";
 
 export default async function SettingsPage() {
   const { organization, branches } = await getOrganizationContext();
@@ -47,6 +48,8 @@ export default async function SettingsPage() {
               </div>
             </CardContent>
           </Card>
+
+          <SettingsShortcutsCard />
 
           <Card>
             <CardHeader>
