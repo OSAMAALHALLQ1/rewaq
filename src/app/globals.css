@@ -40,15 +40,15 @@
   --border-strong: #CBD5E1;
   --border-focus: #1E5EFF;
 
-  /* Sidebar — Deep Indigo with Blue Vibrancy */
-  --sidebar-bg: #0A1128;
-  --sidebar-hover: #131E3D;
-  --sidebar-active: rgba(30, 94, 255, 0.15);
-  --sidebar-text: #E0E8FF;
-  --sidebar-muted: #8FA3CC;
-  --sidebar-icon: #A8BFF0;
-  --sidebar-active-accent: #1E5EFF;
-  --sidebar-border: rgba(255, 255, 255, 0.06);
+  /* Sidebar — light, low-noise operational navigation */
+  --sidebar-bg: #F1F6F9;
+  --sidebar-hover: #E5EFF7;
+  --sidebar-active: #E1E8FF;
+  --sidebar-text: #000000;
+  --sidebar-muted: #000000;
+  --sidebar-icon: #4E4FEB;
+  --sidebar-active-accent: #068FFF;
+  --sidebar-border: #D7E3EA;
 
   /* Operational state colours — Crisp & Vibrant */
   --success-bg: #ECFDF5;
@@ -113,7 +113,7 @@
   --primary-foreground: #ffffff;
   --primary-light: var(--brand-50);
   --primary-light-foreground: var(--brand-900);
-  --secondary: var(--sidebar-bg);
+  --secondary: #0A1128;
   --secondary-foreground: #ffffff;
   --muted: var(--surface-tertiary);
   --muted-foreground: var(--text-secondary);

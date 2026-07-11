@@ -7,7 +7,6 @@ import { ChevronDown, Layers, Megaphone, PanelLeftClose, PanelLeftOpen, ReceiptT
 import {
   appNav,
   adminNav,
-  pinnedNav,
   type NavGroup,
   type NavItem,
 } from "@/components/layout/nav-config";
@@ -19,9 +18,6 @@ type AppSidebarProps = {
   activePath?: string;
   mode?: "app" | "admin";
   role?: Role;
-  organizationName?: string;
-  branchName?: string;
-  userName?: string;
   onNavigate?: () => void;
   onChatOpen?: () => void;
 };
@@ -57,9 +53,6 @@ export function AppSidebar({
   activePath = "",
   mode = "app",
   role,
-  organizationName,
-  branchName,
-  userName,
   onNavigate,
   onChatOpen,
 }: AppSidebarProps) {
@@ -143,6 +136,7 @@ export function AppSidebar({
       } catch {
         /* ignore */
       }
+      setFlyout(null);
       return next;
     });
   };
@@ -189,85 +183,42 @@ export function AppSidebar({
     if (onNavigate) onNavigate();
   };
 
-  const initial = (organizationName || "ر").trim().charAt(0) || "ر";
-
   return (
     <aside
       className={cn(
-        "sticky top-0 flex h-screen flex-col overflow-hidden bg-[var(--sidebar-bg)] text-[var(--sidebar-text)] transition-[width] duration-200",
+        "sticky top-0 flex h-screen flex-col overflow-hidden border-e border-[var(--sidebar-border)] bg-[var(--sidebar-bg)] text-[var(--sidebar-text)] transition-[width] duration-200",
         collapsed ? "w-[78px]" : "w-64 xl:w-72",
       )}
     >
       {/* صفّ العلامة التجارية */}
       <div className="flex items-center gap-3 px-4 py-4">
-        <span className="relative grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[linear-gradient(135deg,var(--primary),var(--brand-700))] text-lg font-black text-white shadow-sm ring-1 ring-white/10">
+        <span className="relative grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[linear-gradient(135deg,#068FFF,#4E4FEB)] text-lg font-black text-white shadow-sm">
           ر
           <span className="absolute -bottom-0.5 -end-0.5 h-3 w-3 rounded-full bg-[var(--success)] ring-2 ring-[var(--sidebar-bg)]" />
         </span>
         {!collapsed && (
           <div className="flex min-w-0 flex-1 flex-col">
-            <span className="block text-lg font-extrabold leading-tight text-white">رواق</span>
-            <span className="text-[10px] tracking-wide text-[var(--sidebar-muted)]">Restaurant OS</span>
+            <span className="block text-lg font-extrabold leading-tight text-[#000000]">رواق</span>
+            <span className="text-[10px] tracking-wide text-[#000000]/65">Restaurant OS</span>
           </div>
         )}
         <button
           type="button"
           onClick={toggleCollapse}
-          className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-[var(--sidebar-muted)] transition-colors hover:bg-[var(--sidebar-hover)] hover:text-white"
+          className={cn(
+            "grid shrink-0 place-items-center transition-colors",
+            collapsed
+              ? "h-10 w-10 rounded-xl border border-[#B9CDE0] bg-[#E1E8FF] text-[#068FFF] shadow-sm hover:bg-[#D7E2FF]"
+              : "h-9 w-9 rounded-xl text-[#4E4FEB] hover:bg-[var(--sidebar-hover)] hover:text-[#068FFF]",
+          )}
           aria-label={collapsed ? "توسيع القائمة" : "تصغير القائمة"}
         >
-          {collapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+          {collapsed ? <PanelLeftOpen className="h-5 w-5 stroke-[2.5]" /> : <PanelLeftClose className="h-4 w-4" />}
         </button>
       </div>
 
-      {/* بطاقة مساحة العمل (مينيمال) */}
-      {mode === "app" && !collapsed && (
-        <button
-          type="button"
-          className="group mx-3 mb-1 flex w-[calc(100%-1.5rem)] items-center gap-2.5 rounded-2xl border border-transparent px-2.5 py-2 text-start transition hover:border-[var(--sidebar-border)] hover:bg-[var(--sidebar-hover)]"
-        >
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[linear-gradient(135deg,var(--sidebar-active),var(--sidebar-bg))] text-sm font-extrabold text-white ring-1 ring-white/10">
-            {initial}
-          </span>
-          <div className="flex min-w-0 flex-1 flex-col">
-            <span className="truncate text-xs font-bold text-white">{organizationName || "مؤسستي"}</span>
-            <span className="truncate text-[10px] text-[var(--sidebar-muted)]">
-              {branchName ? branchName : "كل الفروع"}
-            </span>
-          </div>
-          <ChevronDown className="h-4 w-4 shrink-0 text-[var(--sidebar-muted)] transition-transform group-hover:text-white" />
-        </button>
-      )}
-
       {/* التنقّل */}
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-2 pb-3 [scrollbar-width:thin] [scrollbar-color:var(--sidebar-border)_transparent]">
-        {!collapsed && (
-          <p className="px-3 pb-1 pt-2 text-[10px] font-extrabold uppercase tracking-wide text-[var(--sidebar-muted)]">
-            مساحة العمل
-          </p>
-        )}
-        {pinnedNav.map((item) => {
-          const Icon = item.icon;
-          const active = isActive(item.href);
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={handleLinkClick}
-              title={collapsed ? item.title : undefined}
-              className={cn(
-                "flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-bold transition",
-                collapsed && "justify-center",
-                active
-                  ? "bg-[var(--sidebar-active)] text-white border-s-2 border-[var(--sidebar-active-accent)]"
-                  : "text-[var(--sidebar-text)] hover:bg-[var(--sidebar-hover)] hover:text-white",
-              )}
-            >
-              <Icon className={cn("h-4 w-4 shrink-0", active && "text-white")} />
-              {!collapsed && <span className="flex-1 text-start">{item.title}</span>}
-            </Link>
-          );
-        })}
 
         {mode === "app" && (
           <div className="my-2 grid grid-cols-2 gap-2 px-0.5">
@@ -280,7 +231,7 @@ export function AppSidebar({
                   onClick={handleLinkClick}
                   title={item.title}
                   className={cn(
-                    "flex h-12 flex-col items-center justify-center gap-1 rounded-2xl border border-[var(--sidebar-border)] bg-[var(--sidebar-hover)] text-[10px] font-bold text-[var(--sidebar-text)] transition hover:bg-[var(--sidebar-active)] hover:text-white",
+                    "flex h-12 flex-col items-center justify-center gap-1 rounded-2xl bg-[var(--sidebar-hover)] text-[10px] font-bold text-[#000000] transition hover:bg-[var(--sidebar-active)] hover:text-[#000000]",
                     collapsed && "col-span-2",
                   )}
                 >
@@ -306,7 +257,7 @@ export function AppSidebar({
                   onMouseLeave={closeFlyoutSoon}
                   onFocus={(event) => openFlyout(group.title, event.currentTarget)}
                   onClick={(event) => openFlyout(group.title, event.currentTarget)}
-                  className="grid h-10 w-full place-items-center rounded-2xl text-[var(--sidebar-icon)] transition hover:bg-[var(--sidebar-hover)] hover:text-white"
+                  className="grid h-10 w-full place-items-center rounded-2xl text-[#4E4FEB] transition hover:bg-[var(--sidebar-hover)] hover:text-[#068FFF]"
                   aria-label={group.title}
                   aria-expanded={flyout?.title === group.title}
                 >
@@ -316,12 +267,12 @@ export function AppSidebar({
                 <button
                   type="button"
                   onClick={() => toggleGroup(group.title)}
-                  className="flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-xs font-extrabold text-[var(--sidebar-muted)] transition hover:bg-[var(--sidebar-hover)] hover:text-white"
+                  className="flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-xs font-extrabold text-[#000000] transition hover:bg-[var(--sidebar-hover)] hover:text-[#000000]"
                   aria-expanded={open}
                 >
-                  <GroupIcon className="h-4 w-4 shrink-0 text-[var(--sidebar-icon)]" />
+                  <GroupIcon className="h-4 w-4 shrink-0 text-[#4E4FEB]" />
                   <span className="flex-1 text-start">{group.title}</span>
-                  <span className="rounded-full bg-[var(--sidebar-hover)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--sidebar-muted)]">
+                  <span className="rounded-full bg-[var(--sidebar-hover)] px-1.5 py-0.5 text-[10px] font-bold text-[#000000]/70">
                     {group.items.length}
                   </span>
                   <ChevronDown
@@ -358,19 +309,19 @@ export function AppSidebar({
                             "flex items-center gap-2.5 rounded-2xl px-3 py-2 text-sm font-bold transition",
                             collapsed && "justify-center",
                             active
-                              ? "bg-[var(--sidebar-active)] text-white border-s-2 border-[var(--sidebar-active-accent)]"
-                              : "text-[var(--sidebar-muted)] hover:bg-[var(--sidebar-hover)] hover:text-white",
+                              ? "bg-[var(--sidebar-active)] text-[#000000] border-s-2 border-[var(--sidebar-active-accent)]"
+                              : "text-[#000000] hover:bg-[var(--sidebar-hover)] hover:text-[#000000]",
                           )}
                         >
                           <Icon
                             className={cn(
-                              "h-4 w-4 shrink-0 text-[var(--sidebar-icon)]",
-                              active && "text-white",
+                              "h-4 w-4 shrink-0 text-[#4E4FEB]",
+                              active && "text-[#068FFF]",
                             )}
                           />
                           {!collapsed && <span className="flex-1 truncate">{item.title}</span>}
                           {!collapsed && item.badge && (
-                            <span className="rounded-full bg-[var(--sidebar-hover)] px-2 py-0.5 text-[10px] font-bold text-[var(--sidebar-text)]">
+                            <span className="rounded-full bg-[var(--sidebar-hover)] px-2 py-0.5 text-[10px] font-bold text-[#000000]">
                               {item.badge}
                             </span>
                           )}
@@ -403,8 +354,8 @@ export function AppSidebar({
             className="fixed z-50 w-64 rounded-2xl border border-[var(--sidebar-border)] bg-[var(--sidebar-bg)] p-2 shadow-2xl"
             style={flyout.side === "left" ? { top: flyout.top, left: flyout.offset } : { top: flyout.top, right: flyout.offset }}
           >
-            <div className="flex items-center gap-2 px-2 py-2 text-xs font-extrabold text-white">
-              <GroupIcon className="h-4 w-4 text-[var(--sidebar-icon)]" />
+            <div className="flex items-center gap-2 px-2 py-2 text-xs font-extrabold text-[#000000]">
+              <GroupIcon className="h-4 w-4 text-[#4E4FEB]" />
               {group.title}
             </div>
             <div className="space-y-1">
@@ -427,12 +378,12 @@ export function AppSidebar({
                     }}
                     className={cn(
                       "flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-bold transition",
-                      active ? "bg-[var(--sidebar-active)] text-white" : "text-[var(--sidebar-text)] hover:bg-[var(--sidebar-hover)] hover:text-white",
+                      active ? "bg-[var(--sidebar-active)] text-[#000000]" : "text-[#000000] hover:bg-[var(--sidebar-hover)] hover:text-[#000000]",
                     )}
                   >
                     <Icon className="h-4 w-4 shrink-0" />
                     <span className="flex-1 truncate">{item.title}</span>
-                    {item.badge ? <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px]">{item.badge}</span> : null}
+                    {item.badge ? <span className="rounded-full bg-[#DCE7FF] px-2 py-0.5 text-[10px] text-[#000000]">{item.badge}</span> : null}
                   </Link>
                 );
               })}
@@ -449,12 +400,12 @@ export function AppSidebar({
             onClick={toggleViewMode}
             className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-start transition-colors hover:bg-[var(--sidebar-hover)]"
           >
-            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-[var(--sidebar-active)] text-white">
+            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-[var(--sidebar-active)] text-[#068FFF]">
               <Layers className="h-4 w-4" />
             </span>
             <div className="min-w-0 flex-1">
-              <span className="block text-[10px] text-[var(--sidebar-muted)]">وضع العرض</span>
-              <span className="block text-xs font-bold text-white">
+              <span className="block text-[10px] text-[#000000]/60">وضع العرض</span>
+              <span className="block text-xs font-bold text-[#000000]">
                 {viewMode === "operator" ? "تشغيلي مبسّط" : "محاسبي متقدّم"}
               </span>
             </div>
@@ -467,12 +418,12 @@ export function AppSidebar({
             onClick={() => openCommandPalette()}
             className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-start transition-colors hover:bg-[var(--sidebar-hover)]"
           >
-            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-[var(--sidebar-hover)] text-[var(--sidebar-icon)]">
+            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-[var(--sidebar-hover)] text-[#4E4FEB]">
               <Megaphone className="h-4 w-4" />
             </span>
             <div className="min-w-0 flex-1">
-              <span className="block text-xs font-bold text-white">مركز الاختصارات</span>
-              <span className="block text-[10px] text-[var(--sidebar-muted)]">Ctrl K للأوامر السريعة</span>
+              <span className="block text-xs font-bold text-[#000000]">مركز الاختصارات</span>
+              <span className="block text-[10px] text-[#000000]/60">Ctrl K للأوامر السريعة</span>
             </div>
           </button>
         )}
@@ -482,14 +433,14 @@ export function AppSidebar({
             type="button"
             onClick={toggleViewMode}
             title={viewMode === "operator" ? "تشغيلي مبسّط" : "محاسبي متقدّم"}
-            className="mx-auto grid h-9 w-9 place-items-center rounded-xl text-[var(--sidebar-icon)] transition-colors hover:bg-[var(--sidebar-hover)] hover:text-white"
+            className="mx-auto grid h-9 w-9 place-items-center rounded-xl text-[#4E4FEB] transition-colors hover:bg-[var(--sidebar-hover)] hover:text-[#068FFF]"
           >
             <Layers className="h-4 w-4" />
           </button>
         )}
 
         {!collapsed && (
-          <div className="flex items-center gap-1.5 px-2.5 pt-1 text-[10px] text-[var(--sidebar-muted)]">
+          <div className="flex items-center gap-1.5 px-2.5 pt-1 text-[10px] text-[#000000]/60">
             <ShieldCheck className="h-3.5 w-3.5 text-[var(--success)]" />
             <span>عزل بياناتك مضمون</span>
           </div>

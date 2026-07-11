@@ -25,7 +25,6 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <PageShellClient
       session={sessionMock}
-      branches={context.branches}
       notifications={notifications}
       mode="admin"
     >

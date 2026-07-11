@@ -5,12 +5,11 @@ import { AppHeader } from "@/components/layout/app-header";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { X } from "lucide-react";
 import type { AppSession } from "@/lib/auth/session";
-import type { Branch, Notification } from "@/types/domain";
+import type { Notification } from "@/types/domain";
 
 type PageShellProps = {
   children: React.ReactNode;
   session: AppSession;
-  branches: Branch[];
   notifications: Notification[];
   mode?: "app" | "admin";
 };
@@ -18,7 +17,6 @@ type PageShellProps = {
 export function PageShellClient({
   children,
   session,
-  branches,
   notifications,
   mode = "app",
 }: PageShellProps) {
@@ -55,7 +53,7 @@ export function PageShellClient({
 
       {/* Main Content */}
       <div className="min-w-0 flex-1 flex flex-col">
-        <AppHeader session={session} branches={branches} notifications={notifications} />
+        <AppHeader session={session} notifications={notifications} />
         <main className="mx-auto w-full max-w-7xl px-3 py-4 md:px-5 md:py-6 lg:px-8">
           {children}
         </main>

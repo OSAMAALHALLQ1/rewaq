@@ -3,7 +3,6 @@ import {
   ArrowLeft,
   BarChart3,
   Building2,
-  CheckCircle2,
   ChefHat,
   Coffee,
   Megaphone,
@@ -62,63 +61,54 @@ export default function LandingPage() {
     <div className="min-h-screen bg-background">
       <SiteHeader />
       <main className="overflow-hidden">
-        <section className="mx-auto mt-4 max-w-7xl px-3 sm:px-4 lg:px-6">
-          <div className="relative overflow-hidden rounded-[1.75rem] bg-secondary text-white shadow-lift">
-            <div className="grid min-h-[calc(100vh-7rem)] items-center gap-8 px-5 py-8 sm:px-8 lg:grid-cols-[0.82fr_1.18fr] lg:px-10 lg:py-10">
-              <div className="relative z-10">
-                <Badge tone="default" className="mb-5 w-fit border-white/15 bg-white/10 text-accent">
-                  منصة عربية للمطاعم والكافيهات
+        <section className="mx-auto mt-5 max-w-7xl px-3 sm:px-4 lg:px-6">
+          <div className="overflow-hidden rounded-[2rem] border border-[#D7E3EA] bg-[#F1F6F9]">
+            <div className="grid items-center gap-10 px-6 py-12 sm:px-10 lg:min-h-[620px] lg:grid-cols-[0.9fr_1.1fr] lg:px-14">
+              <div>
+                <Badge tone="default" className="w-fit border-[#C9D7FF] bg-[#E7EEFF] text-[#4E4FEB]">
+                  منصة عربية لإدارة المطاعم والكافيهات
                 </Badge>
-                <h1 className="max-w-3xl text-5xl font-black leading-tight tracking-tight text-accent sm:text-6xl lg:text-7xl">
-                  رواق
+                <h1 className="mt-5 max-w-2xl text-5xl font-black leading-[1.12] tracking-tight text-[#000000] sm:text-6xl">
+                  إدارة مطعمك،
+                  <span className="block text-[#068FFF]">بوضوح وسرعة.</span>
                 </h1>
-                <p className="mt-5 max-w-2xl text-lg leading-9 text-white/78 sm:text-xl">
-                  لوحة عملية تجعل البيع، الشراء، المخزون، تكلفة الأطباق، ونشر العروض مفهومة من أول استخدام.
+                <p className="mt-5 max-w-xl text-lg leading-9 text-[#000000]/70">
+                  رواق يجمع البيع والمخزون والمشتريات وتكلفة الأطباق في تجربة واحدة واضحة لفريق المطعم.
                 </p>
 
-                <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-                  <Button size="lg" asChild className="w-full sm:w-auto">
+                <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                  <Button size="lg" asChild className="w-full bg-[#068FFF] hover:bg-[#4E4FEB] sm:w-auto">
                     <Link href="/dashboard" className="flex items-center justify-center gap-2">
-                      فتح لوحة التجربة
+                      ابدأ التجربة
                       <ArrowLeft className="h-4 w-4" />
                     </Link>
                   </Button>
-                  <Button size="lg" variant="light" asChild className="w-full sm:w-auto">
+                  <Button size="lg" variant="outline" asChild className="w-full border-[#4E4FEB]/30 bg-transparent text-[#000000] hover:bg-[#E5EFF7] sm:w-auto">
                     <Link href="/request-demo">احجز عرضًا تجريبيًا</Link>
                   </Button>
                 </div>
 
-                <div className="mt-8 grid gap-2 sm:grid-cols-3">
+                <div className="mt-10 grid gap-5 sm:grid-cols-3">
                   {([
-                    ["بيع سريع", ReceiptText, "/dashboard/customer-invoices/new"],
-                    ["طلب شراء", ShoppingCart, "/dashboard/purchase-orders"],
-                    ["نشر عبر Node-RED", Megaphone, "/dashboard/marketing/create"],
-                  ] as const).map(([item, Icon, href]) => (
-                    <Link
-                      key={String(item)}
-                      href={href}
-                      className="flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-white transition hover:bg-white/10"
-                    >
-                      <Icon className="h-4 w-4 text-accent" />
-                      {item}
-                    </Link>
+                    ["بيع أسرع", "فاتورة واضحة في ثوانٍ", ReceiptText],
+                    ["مخزون أدق", "تنبيهات وكميات فعلية", PackageSearch],
+                    ["قرار أوضح", "تكلفة وربحية مباشرة", BarChart3],
+                  ] as const).map(([title, description, Icon]) => (
+                    <div key={title} className="flex gap-3">
+                      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#E1E8FF] text-[#4E4FEB]">
+                        <Icon className="h-5 w-5" />
+                      </span>
+                      <div>
+                        <p className="text-sm font-extrabold text-[#000000]">{title}</p>
+                        <p className="mt-1 text-xs leading-5 text-[#000000]/60">{description}</p>
+                      </div>
+                    </div>
                   ))}
                 </div>
               </div>
 
-              <div className="relative z-10">
+              <div className="mx-auto w-full max-w-2xl lg:max-w-none">
                 <DashboardMockup />
-              </div>
-            </div>
-
-            <div className="border-t border-white/10 px-5 py-4 sm:px-8 lg:px-10">
-              <div className="flex flex-wrap gap-3 text-sm font-bold text-white/75">
-                {["عزل البيانات", "متعدد العملاء", "قنوات اجتماعية متعددة"].map((item) => (
-                  <span key={item} className="inline-flex items-center gap-2 rounded-full bg-white/6 px-4 py-2">
-                    <CheckCircle2 className="h-4 w-4 text-accent" />
-                    {item}
-                  </span>
-                ))}
               </div>
             </div>
           </div>

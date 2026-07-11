@@ -72,9 +72,6 @@ export function ResponsivePageShell({
           <AppSidebar
             mode={mode}
             role={session.role}
-            organizationName={session.organizationName}
-            branchName={session.branchName}
-            userName={session.user.name}
           />
         </div>
 
@@ -84,7 +81,6 @@ export function ResponsivePageShell({
           <div className="hidden md:block">
             <AppHeader
               session={session}
-              branches={branches}
               notifications={notifications}
             />
           </div>
