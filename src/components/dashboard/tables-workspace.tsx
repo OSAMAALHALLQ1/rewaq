@@ -520,7 +520,7 @@ export default function TablesWorkspaceClient({ initialTables, branches }: Table
       {mergeModal && selectedTable && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col text-right">
-            <div className="bg-[#1e40af] text-white px-5 py-4 flex items-center justify-between shrink-0">
+            <div className="bg-[var(--brand-700)] text-white px-5 py-4 flex items-center justify-between shrink-0">
               <h2 className="font-bold text-base flex items-center gap-2"><ArrowLeftRight className="h-5 w-5" /> دمج الطاولة {selectedTable.number} مع...</h2>
               <button onClick={() => setMergeModal(false)} className="hover:bg-white/20 p-1 rounded transition-colors">
                 <X className="h-5 w-5" />
@@ -551,7 +551,7 @@ export default function TablesWorkspaceClient({ initialTables, branches }: Table
               </div>
 
               <div className="pt-2 flex gap-2">
-                <Button onClick={handleMerge} disabled={busy} className="flex-1 bg-[#1e40af] hover:bg-[#1e3a8a] text-white h-10 font-bold">
+                <Button onClick={handleMerge} disabled={busy} className="flex-1 bg-[var(--brand-700)] hover:bg-[var(--brand-800)] text-white h-10 font-bold">
                   دمج الطاولات
                 </Button>
                 <Button onClick={() => setMergeModal(false)} variant="outline" className="flex-1 h-10 border-slate-200">

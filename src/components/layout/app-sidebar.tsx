@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronDown, Layers, ReceiptText, ShoppingCart } from "lucide-react";
+import { ChevronDown, Layers, Megaphone, PanelLeftClose, PanelLeftOpen, ReceiptText, ShoppingCart } from "lucide-react";
 import {
   appNav,
   adminNav,
@@ -13,16 +13,22 @@ import {
 } from "@/components/layout/nav-config";
 import { cn } from "@/lib/utils";
 import type { Role } from "@/types/domain";
+import { openCommandPalette } from "@/components/layout/global-hotkeys";
 
 type AppSidebarProps = {
   activePath?: string;
   mode?: "app" | "admin";
   role?: Role;
+  organizationName?: string;
+  branchName?: string;
+  userName?: string;
   onNavigate?: () => void;
   onChatOpen?: () => void;
 };
 
-const STORAGE_KEY = "rewaq.sidebar.openGroups";
+const STORAGE_GROUPS = "rewaq.sidebar.openGroups";
+const STORAGE_COLLAPSE = "rewaq.sidebar.collapsed";
+const STORAGE_MODE = "rewaq.view-mode";
 
 function canView(item: NavItem, role?: Role) {
   if (!item.roles || item.roles.length === 0) return true;
@@ -42,10 +48,40 @@ function buildGroups(mode: "app" | "admin", role?: Role): NavGroup[] {
     .filter((group) => group.items.length > 0);
 }
 
-export function AppSidebar({ activePath = "", mode = "app", role, onNavigate, onChatOpen }: AppSidebarProps) {
+function applyViewMode(mode: "accountant" | "operator") {
+  if (typeof document === "undefined") return;
+  document.documentElement.classList.toggle("accountant-mode", mode === "accountant");
+}
+
+export function AppSidebar({
+  activePath = "",
+  mode = "app",
+  role,
+  organizationName,
+  branchName,
+  userName,
+  onNavigate,
+  onChatOpen,
+}: AppSidebarProps) {
   const pathname = usePathname();
   const currentPath = activePath || pathname;
   const groups = React.useMemo(() => buildGroups(mode, role), [mode, role]);
+
+  const [collapsed, setCollapsed] = React.useState(false);
+  const [viewMode, setViewMode] = React.useState<"accountant" | "operator">("operator");
+
+  React.useEffect(() => {
+    try {
+      setCollapsed(localStorage.getItem(STORAGE_COLLAPSE) === "1");
+      setViewMode((localStorage.getItem(STORAGE_MODE) as "accountant" | "operator") ?? "operator");
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  React.useEffect(() => {
+    applyViewMode(viewMode);
+  }, [viewMode]);
 
   const [openGroups, setOpenGroups] = React.useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {};
@@ -55,23 +91,22 @@ export function AppSidebar({ activePath = "", mode = "app", role, onNavigate, on
     return initial;
   });
 
-  // open groups that contain the active route + load persisted state
   React.useEffect(() => {
     let persisted: string[] = [];
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
+      const raw = localStorage.getItem(STORAGE_GROUPS);
       if (raw) persisted = JSON.parse(raw);
     } catch {
       persisted = [];
     }
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setOpenGroups((prev) => {
       const next: Record<string, boolean> = { ...prev };
       groups.forEach((g) => {
         const hasActive = g.items.some(
           (i) => currentPath === i.href || (i.href !== "/dashboard" && currentPath.startsWith(`${i.href}/`)),
         );
-        next[g.title] = persisted.includes(g.title) || hasActive || (prev[g.title] ?? false) || (g.defaultOpen ?? false);
+        next[g.title] =
+          persisted.includes(g.title) || hasActive || (prev[g.title] ?? false) || (g.defaultOpen ?? false);
       });
       return next;
     });
@@ -85,7 +120,31 @@ export function AppSidebar({ activePath = "", mode = "app", role, onNavigate, on
         const open = Object.entries(next)
           .filter(([, v]) => v)
           .map(([k]) => k);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(open));
+        localStorage.setItem(STORAGE_GROUPS, JSON.stringify(open));
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  };
+
+  const toggleCollapse = () => {
+    setCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(STORAGE_COLLAPSE, next ? "1" : "0");
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  };
+
+  const toggleViewMode = () => {
+    setViewMode((prev) => {
+      const next = prev === "operator" ? "accountant" : "operator";
+      try {
+        localStorage.setItem(STORAGE_MODE, next);
       } catch {
         /* ignore */
       }
@@ -105,140 +164,232 @@ export function AppSidebar({ activePath = "", mode = "app", role, onNavigate, on
     if (onNavigate) onNavigate();
   };
 
+  const initial = (organizationName || "ر").trim().charAt(0) || "ر";
+
   return (
-    <aside className="flex h-full w-full flex-col bg-[var(--sidebar-bg)] text-[var(--sidebar-text)]">
-      <div className="sticky top-0 flex h-full flex-col">
-        <Link href="/" className="flex items-center gap-3 border-b border-[var(--sidebar-border)] px-5 py-5">
-          <span className="grid h-10 w-10 place-items-center rounded-full bg-[var(--sidebar-active)] text-white shadow-xs">
-            <Layers className="h-5 w-5" />
-          </span>
-          <span>
-            <span className="block text-xl font-bold text-white">رواق</span>
-            <span className="text-xs text-[var(--sidebar-muted)]">ERP المحاسبة والمخزون</span>
-          </span>
-        </Link>
-
-        {mode === "app" ? (
-          <div className="border-b border-[var(--sidebar-border)] px-3 py-3">
-            <div className="grid grid-cols-2 gap-2">
-              {quickLinks.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className="flex h-14 flex-col items-center justify-center gap-1 rounded-2xl border border-[var(--sidebar-border)] bg-[var(--sidebar-hover)] text-xs font-bold text-[var(--sidebar-text)] transition hover:bg-[var(--sidebar-active)] hover:text-white"
-                  >
-                    <Icon className="h-4 w-4" />
-                    {item.title}
-                  </Link>
-                );
-              })}
-            </div>
+    <aside
+      className={cn(
+        "sticky top-0 flex h-screen flex-col overflow-hidden bg-[var(--sidebar-bg)] text-[var(--sidebar-text)] transition-[width] duration-200",
+        collapsed ? "w-[78px]" : "w-64 xl:w-72",
+      )}
+    >
+      {/* صفّ العلامة التجارية */}
+      <div className="flex min-h-[68px] items-center gap-3 px-4 py-4">
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-[var(--primary)] text-lg font-black text-white shadow-xs">
+          ر
+        </span>
+        {!collapsed && (
+          <div className="flex min-w-0 flex-1 flex-col">
+            <span className="block text-xl font-bold leading-tight text-white">رواق</span>
+            <span className="text-[11px] text-[var(--sidebar-muted)]">Restaurant OS</span>
           </div>
-        ) : null}
+        )}
+        <button
+          type="button"
+          onClick={toggleCollapse}
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-[var(--sidebar-muted)] transition-colors hover:bg-[var(--sidebar-hover)] hover:text-white"
+          aria-label={collapsed ? "توسيع القائمة" : "تصغير القائمة"}
+        >
+          {collapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+        </button>
+      </div>
 
-        <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-          {pinnedNav.map((item) => {
-            const Icon = item.icon;
-            const active = isActive(item.href);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={handleLinkClick}
-                className={cn(
-                  "flex items-center gap-3 rounded-full px-3 py-2.5 text-sm font-bold transition",
-                  active
-                    ? "border-s-[3px] border-[var(--sidebar-active-accent)] bg-[rgba(99,152,255,0.16)] text-white"
-                    : "border-s-[3px] border-transparent text-[var(--sidebar-text)] hover:bg-[var(--sidebar-hover)] hover:text-white",
-                )}
-              >
-                <Icon className="h-4 w-4" />
-                {item.title}
-              </Link>
-            );
-          })}
+      {/* بطاقة مساحة العمل */}
+      {mode === "app" && !collapsed && (
+        <div className="mx-3 mb-2 flex items-center gap-2.5 rounded-2xl border border-[var(--sidebar-border)] bg-[var(--sidebar-hover)] p-2.5">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[var(--sidebar-active)] text-sm font-extrabold text-white">
+            {initial}
+          </span>
+          <div className="flex min-w-0 flex-1 flex-col">
+            <span className="truncate text-xs font-bold text-white">{organizationName || "مؤسستي"}</span>
+            <span className="truncate text-[10px] text-[var(--sidebar-muted)]">
+              {branchName ? `الفرع: ${branchName}` : "كل الفروع"}
+            </span>
+          </div>
+        </div>
+      )}
 
-          <div className="my-2 border-t border-[var(--sidebar-border)]" />
+      {/* التنقّل */}
+      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-2">
+        {!collapsed && (
+          <p className="px-3 pb-1 pt-2 text-[10px] font-extrabold uppercase tracking-wide text-[var(--sidebar-muted)]">
+            مساحة العمل
+          </p>
+        )}
+        {pinnedNav.map((item) => {
+          const Icon = item.icon;
+          const active = isActive(item.href);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={handleLinkClick}
+              title={collapsed ? item.title : undefined}
+              className={cn(
+                "flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-bold transition",
+                collapsed && "justify-center",
+                active
+                  ? "sidebar-active-gradient border-s-[4px] border-[var(--sidebar-active-accent)] text-white"
+                  : "text-[var(--sidebar-text)] hover:bg-[var(--sidebar-hover)] hover:text-white",
+              )}
+            >
+              <Icon className={cn("h-4 w-4 shrink-0", active && "text-white")} />
+              {!collapsed && <span className="flex-1 text-start">{item.title}</span>}
+            </Link>
+          );
+        })}
 
-          {groups.map((group) => {
-            const GroupIcon = group.icon;
-            const open = openGroups[group.title] ?? false;
-            return (
-              <div key={group.title} className="mb-1">
+        {mode === "app" && (
+          <div className="my-2 grid grid-cols-2 gap-2 px-0.5">
+            {quickLinks.map((item) => {
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={handleLinkClick}
+                  title={item.title}
+                  className={cn(
+                    "flex h-12 flex-col items-center justify-center gap-1 rounded-2xl border border-[var(--sidebar-border)] bg-[var(--sidebar-hover)] text-[10px] font-bold text-[var(--sidebar-text)] transition hover:bg-[var(--sidebar-active)] hover:text-white",
+                    collapsed && "col-span-2",
+                  )}
+                >
+                  <Icon className="h-4 w-4" />
+                  {!collapsed && item.title}
+                </Link>
+              );
+            })}
+          </div>
+        )}
+
+        <div className={cn("border-t border-[var(--sidebar-border)]", collapsed ? "my-2" : "my-3")} />
+
+        {groups.map((group) => {
+          const GroupIcon = group.icon;
+          const open = collapsed ? false : openGroups[group.title] ?? false;
+          return (
+            <div key={group.title} className="mb-1">
+              {collapsed ? (
+                <div className="my-1 border-t border-[var(--sidebar-border)]" />
+              ) : (
                 <button
                   type="button"
                   onClick={() => toggleGroup(group.title)}
-                  className="flex w-full items-center gap-2 rounded-full px-3 py-2 text-xs font-bold text-[var(--sidebar-muted)] transition hover:bg-[var(--sidebar-hover)] hover:text-white"
+                  className="flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-xs font-extrabold text-[var(--sidebar-muted)] transition hover:bg-[var(--sidebar-hover)] hover:text-white"
                   aria-expanded={open}
                 >
                   <GroupIcon className="h-4 w-4 shrink-0 text-[var(--sidebar-icon)]" />
                   <span className="flex-1 text-start">{group.title}</span>
+                  <span className="rounded-full bg-[var(--sidebar-hover)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--sidebar-muted)]">
+                    {group.items.length}
+                  </span>
                   <ChevronDown
                     className={cn("h-4 w-4 transition-transform duration-200", open && "rotate-180")}
                   />
                 </button>
+              )}
 
-                <div
-                  className={cn(
-                    "grid transition-all duration-200",
-                    open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
-                  )}
-                >
-                  <div className="overflow-hidden">
-                    <div className="ms-3 mt-1 space-y-1 border-s border-[var(--sidebar-border)] ps-2">
-                      {group.items.map((item) => {
-                        const Icon = item.icon;
-                        const active = isActive(item.href);
-                        return (
-                          <Link
-                            key={item.href}
-                            href={item.href}
-                            onClick={(e) => {
-                              if (item.href === "#chat" && onChatOpen) {
-                                e.preventDefault();
-                                onChatOpen();
-                              } else {
-                                handleLinkClick();
-                              }
-                            }}
+              <div
+                className={cn(
+                  "grid transition-all duration-200",
+                  open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
+                )}
+              >
+                <div className="overflow-hidden">
+                  <div className={cn("mt-1 space-y-1", !collapsed && "border-s border-[var(--sidebar-border)] ps-2")}>
+                    {group.items.map((item) => {
+                      const Icon = item.icon;
+                      const active = isActive(item.href);
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          onClick={(e) => {
+                            if (item.href === "#chat" && onChatOpen) {
+                              e.preventDefault();
+                              onChatOpen();
+                            } else {
+                              handleLinkClick();
+                            }
+                          }}
+                          title={collapsed ? item.title : undefined}
+                          className={cn(
+                            "flex items-center gap-2.5 rounded-2xl px-3 py-2 text-sm font-bold transition",
+                            collapsed && "justify-center",
+                            active
+                              ? "sidebar-active-gradient border-s-[4px] border-[var(--sidebar-active-accent)] text-white"
+                              : "text-[var(--sidebar-muted)] hover:bg-[var(--sidebar-hover)] hover:text-white",
+                          )}
+                        >
+                          <Icon
                             className={cn(
-                              "flex items-center gap-2.5 rounded-full border-s-[3px] border-transparent px-3 py-2 text-sm font-bold transition",
-                              active
-                                ? "border-[var(--sidebar-active-accent)] bg-[rgba(99,152,255,0.16)] text-white"
-                                : "text-[var(--sidebar-muted)] hover:bg-[var(--sidebar-hover)] hover:text-white",
+                              "h-4 w-4 shrink-0 text-[var(--sidebar-icon)]",
+                              active && "text-white",
                             )}
-                          >
-                            <Icon className={cn("h-4 w-4 shrink-0 text-[var(--sidebar-icon)]", active && "text-[var(--sidebar-active-accent)]")} />
-                            <span className="flex-1 truncate">{item.title}</span>
-                            {item.badge && (
-                              <span className="rounded-full bg-[rgba(99,152,255,0.16)] px-2 py-0.5 text-[10px] font-bold text-[var(--sidebar-text)]">
-                                {item.badge}
-                              </span>
-                            )}
-                          </Link>
-                        );
-                      })}
-                    </div>
+                          />
+                          {!collapsed && <span className="flex-1 truncate">{item.title}</span>}
+                          {!collapsed && item.badge && (
+                            <span className="rounded-full bg-[var(--sidebar-hover)] px-2 py-0.5 text-[10px] font-bold text-[var(--sidebar-text)]">
+                              {item.badge}
+                            </span>
+                          )}
+                        </Link>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
-            );
-          })}
-        </nav>
-
-        <div className="border-t border-[var(--sidebar-border)] p-4">
-          <div className="rounded-2xl border border-[var(--sidebar-border)] bg-[var(--sidebar-hover)] p-4 shadow-xs">
-            <div className="flex items-center gap-2 text-sm font-semibold text-white">
-              <Layers className="h-4 w-4" />
-              عزل البيانات جاهز
             </div>
-            <p className="mt-1 text-xs leading-5 text-[var(--sidebar-muted)]">
-              بيانات كل مؤسسة منفصلة، والصلاحيات تظهر لكل مستخدم ما يخصه فقط.
-            </p>
-          </div>
-        </div>
+          );
+        })}
+      </nav>
+
+      {/* الجزء السفلي: مبدّل الوضع + مركز الاختصارات */}
+      <div className="space-y-2 border-t border-[var(--sidebar-border)] p-3">
+        {!collapsed && (
+          <button
+            type="button"
+            onClick={toggleViewMode}
+            className="flex w-full items-center gap-2.5 rounded-2xl border border-[var(--sidebar-border)] bg-[var(--sidebar-hover)] p-2.5 text-start transition hover:bg-[var(--sidebar-active)]"
+          >
+            <div className="min-w-0 flex-1">
+              <span className="block text-[10px] text-[var(--sidebar-muted)]">وضع العرض</span>
+              <span className="block text-xs font-bold text-white">
+                {viewMode === "operator" ? "تشغيلي مبسّط" : "محاسبي متقدّم"}
+              </span>
+            </div>
+            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-[var(--sidebar-active)] text-white">
+              <Layers className="h-4 w-4" />
+            </span>
+          </button>
+        )}
+
+        {!collapsed && (
+          <button
+            type="button"
+            onClick={() => openCommandPalette()}
+            className="flex w-full items-center gap-2.5 rounded-2xl border border-[var(--sidebar-border)] bg-[var(--sidebar-hover)] p-2.5 text-start transition hover:bg-[var(--sidebar-active)]"
+          >
+            <div className="min-w-0 flex-1">
+              <span className="block text-xs font-bold text-white">مركز الاختصارات</span>
+              <span className="block text-[10px] text-[var(--sidebar-muted)]">
+                اضغط <kbd className="rounded border border-[var(--sidebar-border)] bg-[var(--sidebar-bg)] px-1 text-[9px] text-white">؟</kbd> لعرض الكل
+              </span>
+            </div>
+            <Megaphone className="h-4 w-4 shrink-0 text-[var(--sidebar-icon)]" />
+          </button>
+        )}
+
+        {collapsed && (
+          <button
+            type="button"
+            onClick={toggleViewMode}
+            title={viewMode === "operator" ? "تشغيلي مبسّط" : "محاسبي متقدّم"}
+            className="mx-auto grid h-9 w-9 place-items-center rounded-xl text-[var(--sidebar-icon)] transition-colors hover:bg-[var(--sidebar-hover)] hover:text-white"
+          >
+            <Layers className="h-4 w-4" />
+          </button>
+        )}
       </div>
     </aside>
   );

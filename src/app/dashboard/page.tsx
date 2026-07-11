@@ -20,6 +20,7 @@ import {
   Warehouse,
 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
+import { DashboardToolbar, SmartAlerts } from "@/components/dashboard/dashboard-controls";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -142,6 +143,9 @@ export default async function DashboardPage() {
           </>
         }
       />
+
+      <SmartAlerts />
+      <DashboardToolbar />
 
       <section className="mb-6">
         <SectionHeading title="وصول سريع" />

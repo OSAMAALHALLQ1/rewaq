@@ -6,96 +6,101 @@
 @tailwind utilities;
 
 :root {
-  /* Brand: preserve the full scale for data, charts, and component states. */
-  --brand-50: #F1F6FF;
-  --brand-100: #E2ECFF;
-  --brand-200: #C5DAFF;
-  --brand-300: #99BDFF;
-  --brand-400: #6398FF;
-  --brand-500: #3E79F7;
-  --brand-600: #255FDD;
-  --brand-700: #1E4CB7;
-  --brand-800: #1F418F;
-  --brand-900: #20396F;
-  --brand-950: #152448;
+  /* Brand: Vibrant Rewaq Blue — Electric, Modern SaaS Feel */
+  --brand-50: #F0F5FF;
+  --brand-100: #DEE9FF;
+  --brand-200: #C2D6FF;
+  --brand-300: #94B8FF;
+  --brand-400: #6093FF;
+  --brand-500: #3B75FF;
+  --brand-600: #1E5EFF;
+  --brand-700: #1445D1;
+  --brand-800: #1237A8;
+  --brand-900: #11235A;
+  --brand-950: #0A1128;
 
   /* Application surfaces */
-  --app-background: #F6F8FC;
+  --app-background: #F4F7FB;
   --surface-primary: #FFFFFF;
-  --surface-secondary: #F9FAFD;
+  --surface-secondary: #F8FAFD;
   --surface-tertiary: #F1F4F9;
-  --surface-hover: #F4F7FC;
-  --surface-selected: #EEF4FF;
+  --surface-hover: #F8FAFD;
+  --surface-selected: #F0F5FF;
   --surface-elevated: #FFFFFF;
 
   /* Text and borders */
-  --text-primary: #162033;
-  --text-secondary: #4E5D73;
-  --text-tertiary: #718096;
-  --text-muted: #919BAD;
-  --text-disabled: #B6BECA;
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --text-tertiary: #64748B;
+  --text-muted: #94A3B8;
+  --text-disabled: #CBD5E1;
   --text-inverse: #FFFFFF;
-  --border-subtle: #EDF0F5;
-  --border-default: #DDE3EC;
-  --border-strong: #C3CCDA;
-  --border-focus: #255FDD;
+  --border-subtle: #EDF1F7;
+  --border-default: #E2E8F0;
+  --border-strong: #CBD5E1;
+  --border-focus: #1E5EFF;
 
-  /* Sidebar */
-  --sidebar-bg: #0F1F3D;
-  --sidebar-hover: #172C51;
-  --sidebar-active: #203B68;
-  --sidebar-text: #DCE8FF;
-  --sidebar-muted: #91A4C4;
-  --sidebar-icon: #AFC4E8;
-  --sidebar-active-accent: #6398FF;
-  --sidebar-border: rgba(255, 255, 255, 0.08);
+  /* Sidebar — Deep Indigo with Blue Vibrancy */
+  --sidebar-bg: #0A1128;
+  --sidebar-hover: #131E3D;
+  --sidebar-active: rgba(30, 94, 255, 0.15);
+  --sidebar-text: #E0E8FF;
+  --sidebar-muted: #8FA3CC;
+  --sidebar-icon: #A8BFF0;
+  --sidebar-active-accent: #1E5EFF;
+  --sidebar-border: rgba(255, 255, 255, 0.06);
 
-  /* Operational state colours */
-  --success-bg: #ECFDF3;
-  --success-border: #A7F3C4;
-  --success: #16A34A;
-  --success-text: #15803D;
-  --warning-bg: #FFF8EB;
-  --warning-border: #FCD99A;
-  --warning: #D97706;
+  /* Operational state colours — Crisp & Vibrant */
+  --success-bg: #ECFDF5;
+  --success-border: #A7F3D0;
+  --success: #10B981;
+  --success-text: #047857;
+  --warning-bg: #FFFBEB;
+  --warning-border: #FDE68A;
+  --warning: #F59E0B;
   --warning-text: #B45309;
   --danger-bg: #FFF1F2;
   --danger-border: #FECDD3;
-  --danger: #DC2638;
-  --danger-text: #B91C2C;
+  --danger: #F43F5E;
+  --danger-text: #BE123C;
   --info-bg: #ECFEFF;
   --info-border: #A5F3FC;
-  --info: #0891B2;
+  --info: #06B6D4;
   --info-text: #0E7490;
   --accounting-bg: #F5F3FF;
   --accounting-border: #DDD6FE;
   --accounting: #7C3AED;
   --accounting-text: #6D28D9;
-  --marketing-bg: #FFF3F0;
-  --marketing: #F26B5E;
-  --marketing-text: #BD3D34;
+  --marketing-bg: #FFF0F0;
+  --marketing: #FF5A5F;
+  --marketing-text: #C23B40;
 
   /* Component tokens */
   --input-bg: #FFFFFF;
-  --input-border: #DDE3EC;
-  --input-border-hover: #B8C3D2;
-  --input-border-focus: #255FDD;
-  --input-placeholder: #919BAD;
-  --input-disabled-bg: #F1F4F9;
-  --table-header-bg: #F7F9FC;
-  --table-header-text: #4E5D73;
+  --input-border: #E2E8F0;
+  --input-border-hover: #CBD5E1;
+  --input-border-focus: #1E5EFF;
+  --input-placeholder: #94A3B8;
+  --input-disabled-bg: #F1F5F9;
+  --table-header-bg: #F8FAFD;
+  --table-header-text: #475569;
   --table-row-bg: #FFFFFF;
-  --table-row-hover: #F4F7FC;
-  --table-row-selected: #EEF4FF;
-  --table-row-border: #EDF0F5;
-  --overlay-bg: rgba(11, 18, 32, 0.42);
+  --table-row-hover: #F8FAFD;
+  --table-row-selected: #F0F5FF;
+  --table-row-border: #EDF1F7;
+  --overlay-bg: rgba(10, 17, 40, 0.42);
   --drawer-bg: #FFFFFF;
-  --drawer-border: #E8ECF2;
-  --drawer-footer-bg: #F9FAFD;
-  --shadow-xs: 0 1px 2px rgba(15, 31, 61, 0.05);
-  --shadow-sm: 0 2px 6px rgba(15, 31, 61, 0.07);
-  --shadow-md: 0 8px 24px rgba(15, 31, 61, 0.10);
-  --shadow-lg: 0 18px 48px rgba(15, 31, 61, 0.14);
+  --drawer-border: #EDF1F7;
+  --drawer-footer-bg: #F8FAFD;
+
+  /* Vibrant Colored Shadows — replaces gloomy grey shadows */
+  --shadow-xs: 0 2px 8px rgba(10, 17, 40, 0.04);
+  --shadow-sm: 0 4px 12px rgba(10, 17, 40, 0.06);
+  --shadow-md: 0 8px 24px rgba(10, 17, 40, 0.08);
+  --shadow-lg: 0 20px 40px rgba(10, 17, 40, 0.12);
+  --shadow-elevated: 0 20px 40px rgba(30, 94, 255, 0.08);
+  --shadow-glow: 0 4px 14px 0 rgba(30, 94, 255, 0.25);
+  --shadow-glow-hover: 0 6px 20px rgba(30, 94, 255, 0.35);
 
   /* Compatibility aliases used by the existing component layer. */
   --background: var(--app-background);
@@ -119,14 +124,14 @@
   --border: var(--border-default);
   --input: var(--input-border);
   --ring: var(--brand-600);
-  --chart-1: #255FDD;
-  --chart-2: #16A34A;
+  --chart-1: #1E5EFF;
+  --chart-2: #10B981;
   --chart-3: #F59E0B;
   --chart-4: #7C3AED;
-  --chart-5: #0891B2;
-  --chart-6: #F26B5E;
+  --chart-5: #06B6D4;
+  --chart-6: #FF5A5F;
   --chart-7: #64748B;
-  --chart-grid: #E8ECF2;
+  --chart-grid: #E2E8F0;
   --radius: 18px; /* matching concept radius */
 }
 
@@ -165,7 +170,7 @@ select {
 
 .focus-ring:focus-visible {
   outline-color: var(--ring);
-  box-shadow: 0 0 0 3px rgba(37, 95, 221, 0.14);
+  box-shadow: 0 0 0 3px rgba(30, 94, 255, 0.18);
 }
 
 @media print {
@@ -286,17 +291,48 @@ select {
   }
 }
 
+/* Rewaq Vibrant Utilities — Glow Buttons & Gradients */
+@layer utilities {
+  /* Primary button with electric blue glow */
+  .btn-glow {
+    box-shadow: 0 4px 14px 0 rgba(30, 94, 255, 0.25);
+  }
+  .btn-glow:hover {
+    box-shadow: 0 6px 20px rgba(30, 94, 255, 0.35);
+  }
+
+  /* Signature gradient for CTAs, welcome screens, and upsells */
+  .gradient-rewaq {
+    background: linear-gradient(135deg, #00C6FF 0%, #1E5EFF 100%);
+  }
+
+  /* Sidebar active state — subtle blue gradient fade */
+  .sidebar-active-gradient {
+    background: linear-gradient(90deg, rgba(30, 94, 255, 0.15) 0%, rgba(30, 94, 255, 0.0) 100%);
+  }
+
+  /* Colored shadow for elevated dropdowns/menus */
+  .shadow-blue-elevated {
+    box-shadow: 0 20px 40px rgba(30, 94, 255, 0.08);
+  }
+
+  /* Crisp card surface with cool-tinted shadow */
+  .shadow-card {
+    box-shadow: 0 3px 10px rgba(10, 17, 40, 0.04);
+  }
+}
+
 /* ==========================================================================
    تطوير المظهر العام والتنسيق (Single Canvas Concept Overrides)
    ========================================================================== */
 
-/* 1. الحواف والظلال العامة */
+/* 1. الحواف والظلال العامة — Vibrant, Airy, Modern SaaS */
 :root {
   --radius: 18px !important;
-  --shadow-sm: 0 2px 6px rgba(28, 35, 42, 0.03) !important;
-  --shadow-md: 0 8px 24px rgba(28, 35, 42, 0.05) !important;
-  --shadow-lg: 0 18px 55px rgba(23, 31, 40, 0.12) !important;
-  --shadow-xs: 0 1px 2px rgba(28, 35, 42, 0.02) !important;
+  --shadow-xs: 0 2px 8px rgba(10, 17, 40, 0.04) !important;
+  --shadow-sm: 0 4px 12px rgba(10, 17, 40, 0.06) !important;
+  --shadow-md: 0 8px 24px rgba(10, 17, 40, 0.08) !important;
+  --shadow-lg: 0 20px 40px rgba(10, 17, 40, 0.12) !important;
 }
 
 /* 2. تحسين مظهر وحواف البطاقات (Cards) */
@@ -341,7 +377,7 @@ input:focus,
 select:focus, 
 textarea:focus {
   border-color: var(--brand-600) !important;
-  box-shadow: 0 0 0 3px rgba(62, 121, 247, 0.12) !important;
+  box-shadow: 0 0 0 3px rgba(30, 94, 255, 0.15) !important;
 }
 
 /* 5. الأزرار (Buttons) */
@@ -376,4 +412,32 @@ kbd {
   font-size: 11px !important;
   color: #4b5563 !important;
   white-space: nowrap !important;
+}
+
+/* 8. مبدّل وضع العرض (تشغيلي / محاسب) — متطابق مع Single Canvas */
+.accountant-only {
+  display: none;
+}
+.accountant-mode .accountant-only {
+  display: block;
+}
+.accountant-mode .operator-only {
+  display: none;
+}
+
+/* 9. حاوية لوحة العمل الموحّدة (Single Canvas) */
+.single-canvas {
+  display: grid;
+  grid-template-columns: var(--sidebar-width, 18rem) minmax(0, 1fr);
+  min-height: 100vh;
+  transition: grid-template-columns 0.25s ease;
+}
+.single-canvas.sidebar-collapsed {
+  --sidebar-width: 78px;
+}
+
+@media (max-width: 1024px) {
+  .single-canvas {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }

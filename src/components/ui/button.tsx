@@ -11,7 +11,7 @@ export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 const variants: Record<ButtonVariant, string> = {
-  default: "border border-primary bg-primary text-primary-foreground shadow-xs hover:bg-[var(--brand-700)] active:bg-[var(--brand-800)]",
+  default: "border border-primary bg-primary text-primary-foreground shadow-glow hover:bg-[var(--brand-700)] hover:shadow-glow-hover active:bg-[var(--brand-800)]",
   secondary: "border border-secondary bg-secondary text-secondary-foreground hover:bg-[var(--sidebar-hover)]",
   outline: "border border-input bg-card text-foreground hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]",
   ghost: "text-[var(--text-secondary)] hover:bg-muted hover:text-foreground",
