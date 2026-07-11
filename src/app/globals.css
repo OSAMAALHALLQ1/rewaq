@@ -149,21 +149,47 @@ body {
   background: var(--app-background);
   color: var(--foreground);
   font-family: var(--font-baloo-bhaijaan), "Segoe UI", Arial, sans-serif;
-  font-weight: 500;
+  font-weight: 400;
   line-height: 1.65;
 }
 
-/* التسلسل الطباعي العام: وزن واضح للعناوين وقراءة مريحة للبيانات العربية. */
-h1,
-h2,
-h3 {
-  font-weight: 700;
+/* سلم طباعي متدرج: النص أخف، والعناوين أقوى حسب أهميتها. */
+h1 {
+  font-weight: 800;
   line-height: 1.35;
 }
 
+h2 {
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+h3,
+h4,
+h5,
+h6 {
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+label {
+  font-weight: 500;
+}
+
 button,
-label,
 th {
+  font-weight: 600;
+}
+
+input,
+select,
+textarea,
+td {
+  font-weight: 400;
+}
+
+strong,
+b {
   font-weight: 600;
 }
 
@@ -203,10 +229,19 @@ select {
     line-height: 1.45;
   }
 
-  h1,
-  h2,
-  h3 {
+  h1 {
+    font-weight: 800;
+  }
+
+  h2 {
     font-weight: 700;
+  }
+
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-weight: 600;
   }
 
   body:has(.invoice-print-root) {
@@ -385,7 +420,7 @@ table {
 
 th {
   font-size: 10px !important;
-  font-weight: 800 !important;
+  font-weight: 600 !important;
   color: var(--text-secondary) !important;
   background-color: var(--table-header-bg) !important;
   padding: 12px !important;
@@ -396,6 +431,7 @@ td {
   padding: 12px !important;
   border-bottom: 1px solid #eef1f4 !important;
   color: var(--text-primary) !important;
+  font-weight: 400;
 }
 
 /* 4. الحقول والمدخلات (Inputs) */
@@ -420,7 +456,7 @@ button,
 .btn,
 [class*="inline-flex"][class*="rounded-md"] {
   border-radius: 12px !important;
-  font-weight: 700 !important;
+  font-weight: 600 !important;
   font-size: 12px !important;
   transition: all 0.15s ease-in-out !important;
 }
