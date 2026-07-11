@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   Search, Plus, Minus, Trash2, CreditCard, Banknote,
   LogOut, Home, Monitor, ClipboardList, ChevronLeft,
-  ChevronRight, ChevronDown, X, Check, Percent, Tag, User, Wifi, WifiOff,
+  ChevronRight, X, Check, Percent, Tag, User, Wifi, WifiOff,
   ShoppingCart, Printer, RotateCcw, PauseCircle, PlayCircle,
   Lock, Unlock, Utensils, ShoppingBag, Bike, Wallet,
   Landmark, Smartphone, AlertTriangle, Receipt, Undo2, StickyNote,
@@ -54,6 +54,18 @@ type CartItem = {
   discount: number; // % per item
   note?: string;
   selectedModifiers: ModifierOption[];
+};
+
+type OpenOrderDraft = {
+  cart: CartItem[];
+  customerName: string;
+  orderType: OrderType;
+  tableId: string | null;
+  tableName: string;
+  orderNotes: string;
+  orderDiscount: number;
+  serviceFee: number;
+  deliveryFee: number;
 };
 
 type DeviceSession = {
@@ -228,6 +240,9 @@ export default function CashierPOSWorkspace() {
   const [tableId, setTableId] = useState<string | null>(null);
   const [lastReceipt, setLastReceipt] = useState<any>(null);
   const [orderIndex, setOrderIndex] = useState(1);
+  const [lastOrderIndex, setLastOrderIndex] = useState(1);
+  const orderDrafts = useRef(new Map<number, OpenOrderDraft>());
+  const [savedOrderIndexes, setSavedOrderIndexes] = useState<number[]>([]);
   const [customerName, setCustomerName] = useState("عميل سريع");
   const [showCustomerInput, setShowCustomerInput] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -667,9 +682,59 @@ export default function CashierPOSWorkspace() {
   const resetOrder = () => {
     setCart([]); setSelectedItemId(null);
     setOrderDiscount(0); setServiceFee(0); setDeliveryFee(0);
-    setOrderNotes(""); setTableName("");
+    setOrderNotes(""); setTableId(null); setTableName("");
     setCustomerName("عميل سريع");
     setPayments([]); setCashReceived(""); setPayAmount(""); setSplitMode(false);
+  };
+
+  const saveCurrentOrderDraft = () => {
+    orderDrafts.current.set(orderIndex, {
+      cart,
+      customerName,
+      orderType,
+      tableId,
+      tableName,
+      orderNotes,
+      orderDiscount,
+      serviceFee,
+      deliveryFee,
+    });
+    setSavedOrderIndexes(Array.from(orderDrafts.current.keys()).sort((a, b) => a - b));
+  };
+
+  const restoreOrderDraft = (draft: OpenOrderDraft) => {
+    setCart(draft.cart);
+    setSelectedItemId(null);
+    setCustomerName(draft.customerName);
+    setOrderType(draft.orderType);
+    setTableId(draft.tableId);
+    setTableName(draft.tableName);
+    setOrderNotes(draft.orderNotes);
+    setOrderDiscount(draft.orderDiscount);
+    setServiceFee(draft.serviceFee);
+    setDeliveryFee(draft.deliveryFee);
+    setPayments([]); setCashReceived(""); setPayAmount(""); setSplitMode(false);
+  };
+
+  const startNextOrder = (saveCurrent = true) => {
+    if (saveCurrent) saveCurrentOrderDraft();
+    else {
+      orderDrafts.current.delete(orderIndex);
+      setSavedOrderIndexes(Array.from(orderDrafts.current.keys()).sort((a, b) => a - b));
+    }
+    const nextIndex = lastOrderIndex + 1;
+    resetOrder();
+    setOrderIndex(nextIndex);
+    setLastOrderIndex(nextIndex);
+  };
+
+  const navigateOrder = (targetIndex: number) => {
+    if (targetIndex === orderIndex) return;
+    const draft = orderDrafts.current.get(targetIndex);
+    if (!draft) return;
+    saveCurrentOrderDraft();
+    restoreOrderDraft(draft);
+    setOrderIndex(targetIndex);
   };
 
   const selectedItem = cart.find((i) => i.id === selectedItemId);
@@ -840,8 +905,7 @@ export default function CashierPOSWorkspace() {
       const p = await r.json();
       if (!r.ok || !p.success) throw new Error(p.error || "تعذر تعليق الطلب");
       setHeldOrders((prev) => [...prev, p.order]);
-      resetOrder();
-      setOrderIndex((n) => n + 1);
+      startNextOrder(false);
       setStatusMessage("✓ تم تعليق الطلب");
     } catch (e) {
       setStatusMessage(e instanceof Error ? e.message : "تعذر تعليق الطلب");
@@ -893,6 +957,8 @@ export default function CashierPOSWorkspace() {
   useEffect(() => { if (view === "orders" && authorized) loadInvoices(); }, [view, authorized]);
 
   const canRefund = isManager || settings.allowCashierRefund;
+  const previousOrderIndex = [...savedOrderIndexes].reverse().find((index) => index < orderIndex);
+  const nextOpenOrderIndex = savedOrderIndexes.find((index) => index > orderIndex);
 
   const handleRefund = async () => {
     if (!refundTarget || refundBusy) return;
@@ -1016,9 +1082,8 @@ export default function CashierPOSWorkspace() {
     };
 
     const finishSale = () => {
-      resetOrder();
+      startNextOrder(false);
       setPaymentOpen(false);
-      setOrderIndex((n) => n + 1);
       setTableId(null);
       setTableName("");
       if (settings.printOnCheckout) setTimeout(() => window.print(), 400);
@@ -1225,11 +1290,29 @@ export default function CashierPOSWorkspace() {
         {/* New order + counter */}
         <div className="flex items-center gap-1">
           <button
-            onClick={() => { resetOrder(); setOrderIndex((n) => n + 1); }}
+            onClick={() => navigateOrder(previousOrderIndex ?? orderIndex)}
+            disabled={!previousOrderIndex}
+            className="h-9 w-9 rounded bg-white/10 hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-35 flex items-center justify-center transition-colors"
+            title="الطلب السابق"
+            aria-label="الطلب السابق"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => startNextOrder()}
             className="h-9 w-9 rounded bg-[#1E5EFF] hover:bg-[#1445D1] flex items-center justify-center transition-colors"
             title="طلب جديد"
           >
             <Plus className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => navigateOrder(nextOpenOrderIndex ?? orderIndex)}
+            disabled={!nextOpenOrderIndex}
+            className="h-9 w-9 rounded bg-white/10 hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-35 flex items-center justify-center transition-colors"
+            title="الطلب اللاحق"
+            aria-label="الطلب اللاحق"
+          >
+            <ChevronLeft className="h-4 w-4" />
           </button>
           <div className="w-28 h-9 bg-white/10 rounded flex items-center justify-center text-xs font-semibold">
             طلب #{orderIndex}
