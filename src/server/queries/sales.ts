@@ -205,6 +205,9 @@ async function loadRecipesBundle(admin: AdminClient, organizationId: string) {
       return mapMenuItem({
         ...row,
         recipe_id: primaryMapping?.recipe_id ?? "",
+        recipe_cost: recipeCost,
+      }, branchMap);
+    }),
   };
 }
 
