@@ -4,10 +4,12 @@ import { authenticateDepartmentDevice, requireDepartmentDeviceCapability } from 
 import { canUseDemoFallback } from "@/lib/supabase/env";
 import { demoCustomerInvoices } from "@/lib/demo-data";
 import { demoEntries } from "@/server/queries/accounting";
+import { todayLocal } from "@/lib/accounting/posting";
 
 const refundSchema = z.object({
   invoiceId: z.string().min(1, "معرف الفاتورة مطلوب"),
   reason: z.string().min(2, "سبب الإرجاع مطلوب"),
+  idempotencyKey: z.string().trim().min(8).max(120).optional(),
   items: z.array(z.object({
     catalogItemId: z.string(),
     quantity: z.coerce.number().positive(),
@@ -16,16 +18,30 @@ const refundSchema = z.object({
 
 type PosRefundRpcClient = {
   rpc(
-    fn: "pos_refund_atomic",
+    fn: "pos_refund_v2_atomic",
     args: {
       p_org_id: string;
       p_branch_id: string;
       p_invoice_id: string;
       p_reason: string;
-      p_user_id: string;
+      p_refund_date: string;
+      p_idempotency_key: string;
+      p_actor_user_id: string | null;
+      p_actor_device_id: string | null;
       p_items: Array<{ catalog_item_id: string; quantity: number }> | null;
     },
-  ): Promise<{ data: { success: boolean; refundNumber: string; invoiceId: string; refundTotal: number; reason: string } | null; error: { message: string } | null }>;
+  ): Promise<{
+    data: {
+      success: boolean;
+      idempotent: boolean;
+      refundNumber: string;
+      invoiceId: string;
+      refundTotal: number;
+      reason: string;
+      invoiceStatus: string;
+    } | null;
+    error: { message: string } | null;
+  }>;
 };
 
 export async function POST(request: Request) {
@@ -232,7 +248,7 @@ export async function POST(request: Request) {
     demoEntries.unshift({
       id: `je-refund-${Date.now()}`,
       entryNumber: `JE-RFD-${Date.now().toString().slice(-6)}`,
-      entryDate: new Date().toISOString().split("T")[0],
+      entryDate: todayLocal(),
       sourceDocType: "refund",
       memo: `قيد إرجاع - ${refundNumber} - السبب: ${parsed.data.reason}`,
       debitTotal: debitSum,
@@ -261,12 +277,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: "الفاتورة غير موجودة" }, { status: 404 });
   }
 
-  const { data, error: rpcError } = await (auth.admin as unknown as PosRefundRpcClient).rpc("pos_refund_atomic", {
+  const { data, error: rpcError } = await (auth.admin as unknown as PosRefundRpcClient).rpc("pos_refund_v2_atomic", {
     p_org_id: auth.device.organizationId,
     p_branch_id: invoice.branch_id,
     p_invoice_id: parsed.data.invoiceId,
     p_reason: parsed.data.reason,
-    p_user_id: auth.device.id,
+    p_refund_date: todayLocal(),
+    p_idempotency_key: parsed.data.idempotencyKey ?? crypto.randomUUID(),
+    p_actor_user_id: null,
+    p_actor_device_id: auth.device.id,
     p_items: parsed.data.items ? parsed.data.items.map(item => ({
       catalog_item_id: item.catalogItemId,
       quantity: item.quantity
@@ -283,9 +302,11 @@ export async function POST(request: Request) {
 
   return NextResponse.json({
     success: true,
+    idempotent: data.idempotent === true,
     refundNumber: data.refundNumber,
     invoiceId: data.invoiceId,
     refundTotal: data.refundTotal,
+    invoiceStatus: data.invoiceStatus,
     reason: data.reason,
   });
 }

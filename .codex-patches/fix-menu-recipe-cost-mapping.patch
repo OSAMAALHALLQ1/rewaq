@@ -1,0 +1,84 @@
+diff --git a/src/server/queries/recipes.ts b/src/server/queries/recipes.ts
+--- a/src/server/queries/recipes.ts
++++ b/src/server/queries/recipes.ts
+@@ -41,20 +41,32 @@
+-  const [recipeRows, ingredientRows, menuItemRows, itemRows, unitRows, branchRows] = await Promise.all([
++  const [recipeRows, ingredientRows, menuItemRows, mappingRows, itemRows, unitRows, branchRows] = await Promise.all([
+     query(admin.from("recipes").select("*").eq("organization_id", organizationId).order("name"), "recipes"),
+     query(admin.from("recipe_ingredients").select("*").eq("organization_id", organizationId), "recipe_ingredients"),
+     query(admin.from("menu_items").select("*").eq("organization_id", organizationId).order("name"), "menu_items"),
++    query(admin.from("menu_item_recipe_mapping").select("*").eq("organization_id", organizationId), "menu_item_recipe_mapping"),
+     query(admin.from("inventory_items").select("*").eq("organization_id", organizationId), "inventory_items"),
+     query(admin.from("units").select("*").eq("organization_id", organizationId), "units"),
+     query(admin.from("branches").select("*").eq("organization_id", organizationId), "branches"),
+   ]);
+ 
+   const itemMap = indexBy(itemRows, (row) => row.id);
+   const unitMap = indexBy(unitRows, (row) => row.id);
+   const branchMap = indexBy(branchRows, (row) => row.id);
++  const recipeMap = indexBy(recipeRows, (row) => row.id);
+   const ingredientsByRecipe = groupBy(ingredientRows, (row) => row.recipe_id);
++  const mappingsByMenuItem = groupBy(mappingRows, (row) => row.menu_item_id);
+ 
+   return {
+     recipes: recipeRows.map((row) => {
+       const ingredients = (ingredientsByRecipe.get(row.id) ?? []).map((ing) => mapRecipeIngredient(ing, itemMap, unitMap));
+       return mapRecipe(row, ingredients, branchMap);
+     }),
+-    menuItems: menuItemRows.map((row) => mapMenuItem(row, branchMap)),
++    menuItems: menuItemRows.map((row) => {
++      const mappings = mappingsByMenuItem.get(row.id) ?? [];
++      const primaryMapping = mappings[0];
++      const recipeCost = mappings.reduce((sum, mapping) => {
++        const recipe = recipeMap.get(mapping.recipe_id);
++        return sum + numberValue(recipe?.cost_per_serving) * numberValue(mapping.portion_multiplier || 1);
++      }, 0);
++      return mapMenuItem({
++        ...row,
++        recipe_id: primaryMapping?.recipe_id ?? "",
++        recipe_name: mappings.map((mapping) => recipeMap.get(mapping.recipe_id)?.name).filter(Boolean).join(" + "),
++        recipe_cost: recipeCost,
++      }, branchMap);
++    }),
+diff --git a/src/server/queries/sales.ts b/src/server/queries/sales.ts
+--- a/src/server/queries/sales.ts
++++ b/src/server/queries/sales.ts
+@@ -176,20 +176,32 @@
+-  const [recipeRows, ingredientRows, menuItemRows, itemRows, unitRows, branchRows] = await Promise.all([
++  const [recipeRows, ingredientRows, menuItemRows, mappingRows, itemRows, unitRows, branchRows] = await Promise.all([
+     query(admin.from("recipes").select("*").eq("organization_id", organizationId).order("name"), "recipes"),
+     query(admin.from("recipe_ingredients").select("*").eq("organization_id", organizationId), "recipe_ingredients"),
+     query(admin.from("menu_items").select("*").eq("organization_id", organizationId).order("name"), "menu_items"),
++    query(admin.from("menu_item_recipe_mapping").select("*").eq("organization_id", organizationId), "menu_item_recipe_mapping"),
+     query(admin.from("inventory_items").select("*").eq("organization_id", organizationId), "inventory_items"),
+     query(admin.from("units").select("*").eq("organization_id", organizationId), "units"),
+     query(admin.from("branches").select("*").eq("organization_id", organizationId), "branches"),
+   ]);
+ 
+   const itemMap = indexBy(itemRows, (row) => row.id);
+   const unitMap = indexBy(unitRows, (row) => row.id);
+   const branchMap = indexBy(branchRows, (row) => row.id);
++  const recipeMap = indexBy(recipeRows, (row) => row.id);
+   const ingredientsByRecipe = groupBy(ingredientRows, (row) => row.recipe_id);
++  const mappingsByMenuItem = groupBy(mappingRows, (row) => row.menu_item_id);
+ 
+   return {
+     recipes: recipeRows.map((row) => {
+       const ingredients = (ingredientsByRecipe.get(row.id) ?? []).map((ing) => mapRecipeIngredient(ing, itemMap, unitMap));
+       return mapRecipe(row, ingredients, branchMap);
+     }),
+-    menuItems: menuItemRows.map((row) => mapMenuItem(row, branchMap)),
++    menuItems: menuItemRows.map((row) => {
++      const mappings = mappingsByMenuItem.get(row.id) ?? [];
++      const primaryMapping = mappings[0];
++      const recipeCost = mappings.reduce((sum, mapping) => {
++        const recipe = recipeMap.get(mapping.recipe_id);
++        return sum + numberValue(recipe?.cost_per_serving) * numberValue(mapping.portion_multiplier || 1);
++      }, 0);
++      return mapMenuItem({
++        ...row,
++        recipe_id: primaryMapping?.recipe_id ?? "",
++        recipe_name: mappings.map((mapping) => recipeMap.get(mapping.recipe_id)?.name).filter(Boolean).join(" + "),
++        recipe_cost: recipeCost,
++      }, branchMap);
++    }),

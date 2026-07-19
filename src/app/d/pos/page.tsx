@@ -290,6 +290,11 @@ export default function CashierPOSWorkspace() {
   const [refundReason, setRefundReason] = useState("");
   const [refundBusy, setRefundBusy] = useState(false);
   const [refundError, setRefundError] = useState("");
+  // Stable per-refund-attempt key so a network retry cannot double-post the refund.
+  const refundIdempotencyKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    refundIdempotencyKeyRef.current = null;
+  }, [refundTarget?.id]);
 
   // ── lock screen ──
   const [locked, setLocked] = useState(false);
@@ -964,14 +969,22 @@ export default function CashierPOSWorkspace() {
     if (!refundTarget || refundBusy) return;
     if (refundReason.trim().length < 2) { setRefundError("سبب الإرجاع مطلوب"); return; }
     setRefundBusy(true); setRefundError("");
+    if (!refundIdempotencyKeyRef.current) {
+      refundIdempotencyKeyRef.current = `pos-refund-${refundTarget.id}-${crypto.randomUUID()}`;
+    }
     try {
       const r = await fetch("/api/department/pos/refund", {
         method: "POST",
         headers: apiHeaders(),
-        body: JSON.stringify({ invoiceId: refundTarget.id, reason: refundReason.trim() }),
+        body: JSON.stringify({
+          invoiceId: refundTarget.id,
+          reason: refundReason.trim(),
+          idempotencyKey: refundIdempotencyKeyRef.current,
+        }),
       });
       const p = await r.json();
       if (!r.ok || !p.success) throw new Error(p.error || "تعذر تنفيذ المرتجع");
+      refundIdempotencyKeyRef.current = null;
       setRefundTarget(null); setRefundReason("");
       loadInvoices();
       setStatusMessage(`✓ مرتجع ${p.refundNumber ?? ""}`);

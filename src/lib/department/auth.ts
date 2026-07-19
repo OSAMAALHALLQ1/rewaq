@@ -2,8 +2,13 @@ import "server-only";
 
 import { createHash } from "crypto";
 import { cookies } from "next/headers";
+import { isRewaqModule, type RewaqModule } from "@/lib/billing/plans";
 import { createAdminClient, hasSupabaseAdminEnv } from "@/lib/supabase/admin";
 import { isDemoModeEnabled } from "@/lib/supabase/env";
+import {
+  SubscriptionEntitlementError,
+  requireOrganizationModule,
+} from "@/server/billing/entitlements";
 
 export type DepartmentDeviceContext = {
   id: string;
@@ -27,9 +32,19 @@ const DEPARTMENT_CAPABILITY_ROLES = {
   pos_shift: new Set(["cashier", "manager"]),
   pos_hold: new Set(["cashier", "manager"]),
   pos_read: new Set(["cashier", "manager", "staff"]),
-  kitchen_write: new Set(["chef", "kitchen", "manager"]),
+  kitchen_write: new Set(["chef", "kitchen", "manager", "staff"]),
+  waiter_write: new Set(["cashier", "manager", "staff"]),
+  expo_write: new Set(["chef", "kitchen", "manager", "staff"]),
   inventory_write: new Set(["inventory_manager", "manager"]),
 } as const;
+
+const DEPARTMENT_MODULE_ENTITLEMENTS: Readonly<Record<string, RewaqModule>> = {
+  waiter: "restaurant_workflow",
+  orders: "restaurant_workflow",
+  kitchen: "restaurant_workflow",
+  kds: "restaurant_workflow",
+  expo: "restaurant_workflow",
+};
 
 export type DepartmentDeviceCapability = keyof typeof DEPARTMENT_CAPABILITY_ROLES;
 
@@ -67,9 +82,9 @@ export async function authenticateDepartmentDevice(
         id: "demo-device-id",
         organizationId: "00000000-0000-4000-8000-000000000001",
         branchId: "00000000-0000-4000-8000-000000000101",
-        role: "cashier",
+        role: "manager",
         deviceName: "جهاز كاشير تجريبي",
-        allowedModules: ["pos", "inventory", "recipes", "waste"],
+        allowedModules: ["pos", "inventory", "recipes", "waste", "waiter", "kitchen", "expo"],
       },
     };
   }
@@ -103,6 +118,30 @@ export async function authenticateDepartmentDevice(
 
   if (requiredModule && !allowedModules.includes(requiredModule)) {
     return { ok: false, status: 403, error: "هذا الجهاز لا يملك صلاحية هذه الشاشة." };
+  }
+
+  const commercialModule = requiredModule
+    ? (isRewaqModule(requiredModule) ? requiredModule : DEPARTMENT_MODULE_ENTITLEMENTS[requiredModule])
+    : undefined;
+
+  if (commercialModule) {
+    try {
+      await requireOrganizationModule(admin, data.organization_id, commercialModule);
+    } catch (entitlementError) {
+      if (entitlementError instanceof SubscriptionEntitlementError) {
+        return { ok: false, status: 403, error: entitlementError.message };
+      }
+
+      console.error(
+        "[department-entitlements]",
+        entitlementError instanceof Error ? entitlementError.message : entitlementError,
+      );
+      return {
+        ok: false,
+        status: 503,
+        error: "تعذر التحقق من باقة المؤسسة. لم يتم فتح الشاشة أو تنفيذ العملية.",
+      };
+    }
   }
 
   await (admin as any)

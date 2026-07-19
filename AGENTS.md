@@ -14,11 +14,11 @@ Arabic restaurant management SaaS: POS, kitchen tickets, inventory, purchasing, 
 - **Typecheck is NOT a package script and NOT in CI:** `npx tsc --noEmit -p tsconfig.json`.
 - `npm run test` → `vitest`. Single file: `npx vitest run __tests__/server/queries/ledger.test.ts`. Coverage: `npm run test:coverage`.
 - `npm run dev` and `npm run build` use `--webpack` (not Turbopack).
-- CI (`.github/workflows/ci.yml`) runs **only** `lint` + `build`. It does **not** run typecheck or tests — run those manually before a PR.
+- CI (`.github/workflows/ci.yml`) runs typecheck, lint, tests, and build. Run the same checks locally before a PR.
 
 ## Database & types (easy to get wrong)
 - **Two migration directories — only one is active:**
-  - `supabase/migrations/` (001–038) is the live schema, managed by the Supabase CLI. New migrations go here, named sequentially (e.g. `039_*.sql`).
+  - `supabase/migrations/` (001–045) is the live schema, managed by the Supabase CLI. New migrations go here, named sequentially (e.g. `046_*.sql`).
   - `db/migrations/` (001–009) is **legacy**. `npm run db:apply` applies only a hardcoded list from there (`scripts/apply-supabase-sql.ps1`) and does **NOT** touch `supabase/migrations/`. Do not add new schema to `db/migrations/`.
   - Apply live schema with `npm run db:push` (Supabase CLI). `db:apply` needs `DATABASE_URL` in `.env`/`.env.local` and the CLI; it is only for the old seed path.
 - **Type source of truth is the hand-written `src/types/database.ts`** (code imports `@/types/database`). When you add/alter a table or column in a migration, also edit `src/types/database.ts` or typecheck will fail. `npm run db:types` regenerates `src/types/supabase.generated.ts`, but app code does **not** import that file.
@@ -41,6 +41,22 @@ Arabic restaurant management SaaS: POS, kitchen tickets, inventory, purchasing, 
 
 ## Before a large feature
 - Define the DB tables, lifecycle workflow, permissions, and accounting/inventory impact first. Keep features modular, testable, and safe in production. Restaurant workflows must stay connected (sales → recipe deduction → stock → purchasing → supplier invoices → ledger).
+
+## Production engineering rules
+- Inspect the existing workflow before changing it; never create a parallel accounting, inventory, permissions, or ordering subsystem.
+- Every multi-step financial or stock operation must be atomic and idempotent. A retry must not duplicate a source document, stock movement, payment, or journal entry.
+- Monetary database columns must use decimal-safe types with explicit rounding rules; do not rely on binary floating-point arithmetic for posted amounts.
+- Do not apply production migrations automatically. Prepare SQL, validation queries, risk notes, and a rollback or forward-correction plan for review first.
+- Do not add fake data, placeholder actions, cosmetic filters, or controls that do nothing.
+- Sensitive approvals must support segregation of duties when enabled; a user cannot approve their own transaction.
+- Cost and profit visibility are separate permissions from quantity, sales, and operational visibility.
+- Prefer small, domain-scoped changes with tests and acceptance criteria. State any checks that were not run or could not be verified.
+
+## Agent kit
+- Project-specific skills live in `.agents/skills/`, including accounting integrity, Supabase RLS, permissions, purchasing/inventory, POS/KDS, RTL/accessibility, Playwright, architecture, and release-gate workflows.
+- Claude reviewer definitions live in `.claude/agents/`; review-only agents must not edit implementation files.
+- The accounting audit source and remediation plan live in `docs/audits/`.
+- MCP setup guidance is documentation only. Never commit tokens, project secrets, PATs, or service-role keys.
 
 ## Preferred skill order for large work
 `database-architect` → `event-sourcing-architect` (immutable stock/invoice/audit/accounting) → `backend-architect` → `workflow-automation` → `frontend-developer` / `design-system-architect` → `business-analyst` → `payment-integration` → `security-auditor` → `test-automator`.

@@ -22,31 +22,7 @@ export async function GET(request: Request) {
     // 3. Resolve organization ID
     const admin = createAdminClientWithContext("social/oauth/connect");
 
-    let organizationId = auth.organizationId;
-    if (!organizationId) {
-      // Look up org from membership
-      const { data: membership } = await admin
-        .from("organization_memberships")
-        .select("organization_id")
-        .eq("user_id", auth.id)
-        .order("created_at", { ascending: true })
-        .limit(1)
-        .maybeSingle();
-
-      organizationId = membership?.organization_id || null;
-    }
-
-    if (!organizationId) {
-      // Last resort: pick the first org for the user
-      const { data: firstOrg } = await admin
-        .from("organizations")
-        .select("id")
-        .order("created_at", { ascending: true })
-        .limit(1)
-        .maybeSingle();
-
-      organizationId = firstOrg?.id || null;
-    }
+    const organizationId = auth.organizationId;
 
     if (!organizationId) {
       return NextResponse.json(
@@ -55,9 +31,13 @@ export async function GET(request: Request) {
       );
     }
 
-    // 4. Check Meta Client ID is configured
+    // 4. Production requires a complete Meta application and public callback URL.
     const clientId = process.env.FACEBOOK_CLIENT_ID;
-
+    const clientSecret = process.env.FACEBOOK_CLIENT_SECRET;
+    const configuredAppUrl = process.env.NEXT_PUBLIC_APP_URL;
+    if (process.env.NODE_ENV === "production" && (!clientId || !clientSecret || !configuredAppUrl)) {
+      return NextResponse.json({ error: "إعداد ربط Meta غير مكتمل." }, { status: 503 });
+    }
     // 5. Generate secure state
     const state = crypto.randomBytes(16).toString("hex");
 
@@ -82,12 +62,12 @@ export async function GET(request: Request) {
     }
 
     // 7. Build Meta OAuth redirect URL
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const appUrl = configuredAppUrl || "http://localhost:3000";
     const redirectUri = `${appUrl}/api/social/oauth/callback`;
 
     // If client ID is not configured in .env, redirect directly to callback with 'mock' code for developer testing
     if (!clientId) {
-      console.warn("FACEBOOK_CLIENT_ID is not configured in .env. Redirecting to developer mock flow.");
+      console.warn("FACEBOOK_CLIENT_ID is not configured. Redirecting to developer mock flow outside production.");
       return NextResponse.redirect(`${redirectUri}?code=mock&state=${state}`);
     }
 

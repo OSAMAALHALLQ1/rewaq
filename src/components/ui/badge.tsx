@@ -13,13 +13,14 @@ const tones: Record<StatusTone, string> = {
 export function Badge({
   className,
   tone = "default",
+  variant,
   ...props
-}: React.HTMLAttributes<HTMLSpanElement> & { tone?: StatusTone }) {
+}: React.HTMLAttributes<HTMLSpanElement> & { tone?: StatusTone; variant?: "outline" }) {
   return (
     <span
       className={cn(
         "inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold",
-        tones[tone],
+        variant === "outline" ? "bg-transparent" : tones[tone],
         className,
       )}
       {...props}

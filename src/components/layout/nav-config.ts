@@ -121,6 +121,7 @@ export const appNav: NavGroup[] = [
     icon: Utensils,
     items: [
       { title: "أطباق القائمة", href: "/dashboard/menu-items", icon: Utensils },
+      { title: "المنيو والموقع", href: "/dashboard/digital-presence", icon: Store, badge: "باقة 250$" },
       { title: "مجموعات الإضافات", href: "/dashboard/modifiers", icon: ListPlus },
     ],
   },

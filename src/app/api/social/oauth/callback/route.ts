@@ -7,7 +7,11 @@ export async function GET(request: Request) {
   const code = requestUrl.searchParams.get("code");
   const state = requestUrl.searchParams.get("state");
   
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const configuredAppUrl = process.env.NEXT_PUBLIC_APP_URL;
+  if (process.env.NODE_ENV === "production" && !configuredAppUrl) {
+    return NextResponse.json({ error: "إعداد رابط التطبيق غير مكتمل." }, { status: 503 });
+  }
+  const appUrl = configuredAppUrl || "http://localhost:3000";
   const redirectUri = `${appUrl}/api/social/oauth/callback`;
   
   if (!state) {
@@ -34,6 +38,12 @@ export async function GET(request: Request) {
       return NextResponse.redirect(`${appUrl}/dashboard/social-publishing?error=expired_state`);
     }
     
+    const clientId = process.env.FACEBOOK_CLIENT_ID;
+    const clientSecret = process.env.FACEBOOK_CLIENT_SECRET;
+    if (process.env.NODE_ENV === "production" && (!clientId || !clientSecret || code === "mock")) {
+      return NextResponse.redirect(`${appUrl}/dashboard/social-publishing?error=oauth_not_configured`);
+    }
+
     // Consume the state
     await admin
       .from("social_oauth_states")
@@ -55,8 +65,6 @@ export async function GET(request: Request) {
       };
     }> = [];
     
-    const clientId = process.env.FACEBOOK_CLIENT_ID;
-    const clientSecret = process.env.FACEBOOK_CLIENT_SECRET;
     const isMockMode = !clientId || !clientSecret || code === "mock";
     
     if (isMockMode) {

@@ -137,8 +137,6 @@ export async function resolveScope(admin: AdminClient): Promise<AppScope> {
       .from("organization_memberships")
       .select("organization_id, branch_id")
       .eq("user_id", userId)
-      .order("created_at", { ascending: true })
-      .limit(1)
       .maybeSingle();
 
     if (!error && membership?.organization_id) {

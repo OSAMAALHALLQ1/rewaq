@@ -136,6 +136,23 @@ type PosReceiptProps = {
   data: ReceiptData;
 };
 
+type ReceiptRowProps = {
+  label: string;
+  value?: string;
+  bold?: boolean;
+};
+
+function Row({ label, value, bold }: ReceiptRowProps) {
+  if (!value) return null;
+
+  return (
+    <div className="flex justify-between" style={bold ? { fontWeight: 700 } : undefined}>
+      <span>{label}</span>
+      <span>{value}</span>
+    </div>
+  );
+}
+
 export function PosReceipt({ design, settings, data }: PosReceiptProps) {
   const cur = settings.currencySymbol || "";
   const accent = design.accentColor;
@@ -147,14 +164,6 @@ export function PosReceipt({ design, settings, data }: PosReceiptProps) {
     paddingTop: "6px",
     ...extra,
   });
-
-  const Row = ({ label, value, bold }: { label: string; value?: string; bold?: boolean }) =>
-    value ? (
-      <div className="flex justify-between" style={bold ? { fontWeight: 700 } : undefined}>
-        <span>{label}</span>
-        <span>{value}</span>
-      </div>
-    ) : null;
 
   // ── Header ──
   const header = (

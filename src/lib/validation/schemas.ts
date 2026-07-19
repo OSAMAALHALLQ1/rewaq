@@ -6,6 +6,20 @@ export const authSchema = z.object({
   password: z.string().min(8, "كلمة المرور يجب أن تكون 8 أحرف على الأقل"),
 });
 
+export const ownerPasswordLoginSchema = z.object({
+  password: z.string().min(8, "تحقق من كلمة المرور"),
+});
+
+export const employeeInviteLoginSchema = z.object({
+  inviteCode: z
+    .string()
+    .trim()
+    .min(6, "تحقق من كود الموظف")
+    .max(64, "تحقق من كود الموظف")
+    .transform((value) => value.toUpperCase()),
+  password: z.string().min(8, "تحقق من كلمة المرور"),
+});
+
 export const registerSchema = authSchema.extend({
   name: z.string().min(2, "أدخل الاسم"),
   organizationName: z.string().min(2, "أدخل اسم المطعم أو الشركة"),
@@ -50,9 +64,13 @@ export const inventoryItemSchema = z.object({
 export const purchaseOrderSchema = z.object({
   supplierId: z.string().min(1, "اختر المورد"),
   branchId: z.string().min(1, "اختر الفرع"),
+  itemId: z.string().uuid("اختر الصنف"),
+  quantity: z.coerce.number().positive("الكمية يجب أن تكون أكبر من صفر"),
+  unitPrice: z.coerce.number().nonnegative("سعر الوحدة يجب ألا يكون سالباً"),
   status: z.enum(["draft", "sent", "received", "partially_received", "cancelled"]),
   orderDate: z.string().min(1, "التاريخ مطلوب"),
   notes: z.string().optional(),
+  idempotencyKey: z.string().min(8, "مفتاح منع التكرار غير صالح"),
 });
 
 export const transferSchema = z.object({
@@ -60,18 +78,6 @@ export const transferSchema = z.object({
   toBranchId: z.string().min(1, "اختر القسم المستقبل"),
   itemId: z.string().min(1, "اختر المادة"),
   quantity: z.coerce.number().positive("الكمية يجب أن تكون أكبر من صفر"),
-  notes: z.string().optional(),
-});
-
-export const supplyInvoiceSchema = z.object({
-  supplierId: z.string().min(1, "اختر المورد"),
-  branchId: z.string().min(1, "اختر الفرع"),
-  invoiceNumber: z.string().min(1, "رقم الفاتورة مطلوب"),
-  issuedAt: z.string().min(1, "تاريخ الفاتورة مطلوب"),
-  itemId: z.string().min(1, "اختر الصنف"),
-  quantity: z.coerce.number().positive("الكمية يجب أن تكون أكبر من صفر"),
-  unitPrice: z.coerce.number().nonnegative("السعر يجب أن يكون صفر أو أكثر"),
-  expirationDate: z.string().optional(),
   notes: z.string().optional(),
 });
 

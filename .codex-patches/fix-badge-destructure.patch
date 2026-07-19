@@ -1,0 +1,10 @@
+diff --git a/src/components/ui/badge.tsx b/src/components/ui/badge.tsx
+--- a/src/components/ui/badge.tsx
++++ b/src/components/ui/badge.tsx
+@@ -14,5 +14,5 @@
+   className,
+   tone = "default",
+-  ...props
+   variant,
++  ...props
+ }: React.HTMLAttributes<HTMLSpanElement> & { tone?: StatusTone; variant?: "outline" }) {

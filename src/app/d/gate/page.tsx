@@ -45,33 +45,31 @@ function GatewayContent() {
         throw new Error(data.error || "رمز غير صالح أو تم إلغاء تنشيطه.");
       }
 
-      // Store device credentials in localStorage for API-driven requests
-      localStorage.setItem("rwq_dept_key", data.token);
+      // Authentication stays in the short-lived httpOnly cookie; never persist the raw key in JavaScript storage.
+      localStorage.removeItem("rwq_dept_key");
       localStorage.setItem("rwq_dept_role", data.role);
       localStorage.setItem("rwq_dept_org_id", data.organizationId);
       localStorage.setItem("rwq_dept_branch_id", data.branchId || "");
       localStorage.setItem("rwq_dept_allowed", JSON.stringify(data.allowedModules));
       localStorage.setItem("rwq_dept_device", data.deviceName);
 
-      // Save cookie so server components can authorize next layouts
-      document.cookie = `rwq_dept_token=${data.token}; path=/; max-age=31536000; SameSite=Lax`;
 
       // Redirect to the first permitted page based on allowed modules
       const allowed = data.allowedModules || [];
       
-      if (allowed.includes("pos")) {
+      if (allowed.includes("waiter")) {
+        router.push("/d/waiter");
+      } else if (allowed.includes("kitchen")) {
+        router.push("/d/kitchen");
+      } else if (allowed.includes("expo")) {
+        router.push("/d/expo");
+      } else if (allowed.includes("pos")) {
         router.push("/d/pos");
       } else if (allowed.includes("recipes")) {
         router.push("/d/kitchen");
       } else if (allowed.includes("inventory")) {
         router.push("/d/inventory");
       } else {
-        // Fallback depending on role
-        if (data.role === "cashier") {
-          router.push("/d/pos");
-        } else {
-          router.push("/d/kitchen");
-        }
       }
     } catch (err: any) {
       setError(err.message || "حدث خطأ غير متوقع أثناء التوثيق.");

@@ -1,14 +1,20 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { sendAccountApprovedMagicLink, sendRegistrationRequestNotification } from "@/lib/email/registration-notifications";
-import { authSchema, registerSchema, teamInviteSchema } from "@/lib/validation/schemas";
+import {
+  authSchema,
+  registerSchema,
+  teamInviteSchema,
+} from "@/lib/validation/schemas";
 import { createAdminClient, hasSupabaseAdminEnv } from "@/lib/supabase/admin";
 import { hasSupabaseEnv } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/auth/require-auth";
 import { requireAdminSession } from "@/lib/auth/admin-session";
+import { createDemoTrialToken, DEMO_TRIAL_COOKIE, DEMO_TRIAL_HOURS } from "@/lib/auth/demo-trial";
 import { logAuditEvent } from "@/lib/audit/log";
 import { demoOrganization } from "@/lib/demo-data";
 import { isDemoUserEmail } from "@/lib/auth/demo";
@@ -61,6 +67,22 @@ export async function startDemoSessionAction(): Promise<ActionState> {
       await supabase.auth.signOut();
       return { ok: false, message: "الحساب التجريبي غير مرتبط بالمؤسسة التجريبية." };
     }
+  }
+
+  // Stamp the 8-hour trial ticket; the proxy ends the demo session once it
+  // expires. Without INTERNAL_ADMIN_SECRET the ticket cannot be signed and the
+  // window is unenforced.
+  const trialToken = await createDemoTrialToken();
+  if (trialToken) {
+    (await cookies()).set(DEMO_TRIAL_COOKIE, trialToken, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      maxAge: DEMO_TRIAL_HOURS * 60 * 60,
+      path: "/",
+    });
+  } else {
+    console.warn("[demo-trial] INTERNAL_ADMIN_SECRET غير مضبوط؛ لن تُفرض مدة 8 ساعات للتجربة.");
   }
 
   redirect("/dashboard");
@@ -173,7 +195,10 @@ export async function loginAction(_prevState: ActionState, formData: FormData): 
  * behavior; the demo session is created entirely on the server.
  */
 export async function demoLoginFormAction(_formData: FormData): Promise<void> {
-  await startDemoSessionAction();
+  const result = await startDemoSessionAction();
+  if (!result.ok) {
+    console.error("[Demo Login Error]:", result.message);
+  }
 }
 
 export async function registerAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
@@ -540,6 +565,10 @@ export async function rejectAccountRequestAction(_prevState: ActionState, formDa
   if (!requestId) {
     return { ok: false, message: "طلب غير معروف" };
   }
+
+  // Server actions are callable outside /admin routes, so the platform-admin
+  // session must be verified inside the action, not only by the admin layout.
+  await requireAdminSession();
 
   if (hasSupabaseAdminEnv()) {
     const admin = createAdminClient();

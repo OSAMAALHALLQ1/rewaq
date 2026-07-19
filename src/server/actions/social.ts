@@ -13,6 +13,7 @@ import { requireAuth } from "@/lib/auth/require-auth";
 import type { SocialPlatform } from "@/types/domain";
 import type { ActionState } from "./auth";
 import { isDemoUserEmail } from "@/lib/auth/demo";
+import { requireOrganizationModule } from "@/server/billing/entitlements";
 
 const isSocialPlatform = (value: string): value is SocialPlatform =>
   demoSocialAccounts.some((account) => account.platform === value);
@@ -29,25 +30,11 @@ async function resolveSocialScope() {
 
   // Get organization ID from authenticated user
   if (auth.organizationId) {
+    await requireOrganizationModule(admin, auth.organizationId, "marketing", { write: true });
     return { admin, organizationId: auth.organizationId, userId: auth.id, auth };
   }
 
-  // Fallback: look up org from membership
-  const { data: membership } = await (admin as any)
-    .from("organization_memberships")
-    .select("organization_id")
-    .eq("user_id", auth.id)
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
-
-  if (membership?.organization_id) {
-    return { admin, organizationId: membership.organization_id, userId: auth.id, auth };
-  }
-
-  // No valid membership. Super-admins/owners must select the organization
-  // explicitly — never fall back to the first organization in the database.
-  throw new Error("لم يتم العثور على مؤسسة مرتبطة بحسابك. اختر المؤسسة صراحةً من لوحة الإدارة.");
+  throw new Error("لم يتم تحديد مؤسسة نشطة للجلسة. اختر المؤسسة صراحةً ثم أعد المحاولة.");
 }
 
 function postStatusForMode(mode: "now" | "schedule" | "draft") {

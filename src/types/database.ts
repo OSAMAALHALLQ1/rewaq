@@ -13,6 +13,8 @@ export type Database = {
           created_at: string;
           updated_at: string;
           created_by: string | null;
+          plan_selected_at: string | null;
+          plan_selected_by: string | null;
         };
         Insert: {
           id?: string;
@@ -23,6 +25,8 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
           created_by?: string | null;
+          plan_selected_at?: string | null;
+          plan_selected_by?: string | null;
         };
         Update: {
           id?: string;
@@ -33,6 +37,8 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
           created_by?: string | null;
+          plan_selected_at?: string | null;
+          plan_selected_by?: string | null;
         };
         Relationships: [];
       };
@@ -141,7 +147,9 @@ export type Database = {
           code: string;
           name: string;
           monthly_price: number;
+          currency: string;
           features: Json;
+          limits: Json;
           status: Database["public"]["Enums"]["record_status"];
           created_at: string;
           updated_at: string;
@@ -152,7 +160,9 @@ export type Database = {
           code: string;
           name: string;
           monthly_price?: number;
+          currency?: string;
           features?: Json;
+          limits?: Json;
           status?: Database["public"]["Enums"]["record_status"];
           created_at?: string;
           updated_at?: string;
@@ -163,7 +173,9 @@ export type Database = {
           code?: string;
           name?: string;
           monthly_price?: number;
+          currency?: string;
           features?: Json;
+          limits?: Json;
           status?: Database["public"]["Enums"]["record_status"];
           created_at?: string;
           updated_at?: string;
@@ -704,6 +716,7 @@ export type Database = {
           expected_date: string | null;
           total: number;
           notes: string | null;
+          idempotency_key: string | null;
           created_at: string;
           updated_at: string;
           created_by: string | null;
@@ -718,6 +731,7 @@ export type Database = {
           expected_date?: string | null;
           total?: number;
           notes?: string | null;
+          idempotency_key?: string | null;
           created_at?: string;
           updated_at?: string;
           created_by?: string | null;
@@ -732,6 +746,7 @@ export type Database = {
           expected_date?: string | null;
           total?: number;
           notes?: string | null;
+          idempotency_key?: string | null;
           created_at?: string;
           updated_at?: string;
           created_by?: string | null;
@@ -793,6 +808,7 @@ export type Database = {
           balance_due: number;
           due_date: string | null;
           payment_method: string | null;
+          idempotency_key: string | null;
           file_path: string | null;
           created_at: string;
           updated_at: string;
@@ -813,6 +829,7 @@ export type Database = {
           balance_due?: number;
           due_date?: string | null;
           payment_method?: string | null;
+          idempotency_key?: string | null;
           file_path?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -833,6 +850,7 @@ export type Database = {
           balance_due?: number;
           due_date?: string | null;
           payment_method?: string | null;
+          idempotency_key?: string | null;
           file_path?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -890,6 +908,7 @@ export type Database = {
           payment_method: string;
           payment_date: string;
           reference: string | null;
+          idempotency_key: string | null;
           journal_entry_id: string | null;
           created_by: string | null;
           created_at: string;
@@ -904,6 +923,7 @@ export type Database = {
           payment_method: string;
           payment_date: string;
           reference?: string | null;
+          idempotency_key?: string | null;
           journal_entry_id?: string | null;
           created_by?: string | null;
           created_at?: string;
@@ -918,6 +938,7 @@ export type Database = {
           payment_method?: string;
           payment_date?: string;
           reference?: string | null;
+          idempotency_key?: string | null;
           journal_entry_id?: string | null;
           created_by?: string | null;
           created_at?: string;
@@ -2525,6 +2546,15 @@ export type Database = {
           },
         ];
       };
+      kitchen_stations: { Row: { id: string; organization_id: string; branch_id: string; code: string; name: string; display_order: number; is_active: boolean; created_by_user_id: string | null; created_at: string; updated_at: string; }; Insert: { id?: string; organization_id: string; branch_id: string; code: string; name: string; display_order?: number; is_active?: boolean; created_by_user_id?: string | null; created_at?: string; updated_at?: string; }; Update: { id?: string; organization_id?: string; branch_id?: string; code?: string; name?: string; display_order?: number; is_active?: boolean; created_by_user_id?: string | null; created_at?: string; updated_at?: string; }; Relationships: []; };
+      kitchen_station_devices: { Row: { id: string; organization_id: string; branch_id: string; station_id: string; device_id: string; is_active: boolean; created_by_user_id: string | null; created_at: string; updated_at: string; }; Insert: { id?: string; organization_id: string; branch_id: string; station_id: string; device_id: string; is_active?: boolean; created_by_user_id?: string | null; created_at?: string; updated_at?: string; }; Update: { id?: string; organization_id?: string; branch_id?: string; station_id?: string; device_id?: string; is_active?: boolean; created_by_user_id?: string | null; created_at?: string; updated_at?: string; }; Relationships: []; };
+      restaurant_orders: { Row: { id: string; organization_id: string; branch_id: string; order_number: string; idempotency_key: string; status: string; restaurant_table_id: string | null; waiter_user_id: string | null; waiter_name: string | null; customer_name: string | null; customer_phone: string | null; channel: Database["public"]["Enums"]["sales_channel"]; guest_count: number | null; priority: string; notes: string | null; allergens: string[]; currency: string; subtotal: number; item_discount_total: number; order_discount: number; discount_total: number; tax_total: number; service_fee: number; delivery_fee: number; total: number; customer_invoice_id: string | null; version: number; submitted_at: string | null; accepted_at: string | null; preparing_at: string | null; ready_at: string | null; served_at: string | null; closed_at: string | null; cancelled_at: string | null; cancel_reason: string | null; created_by_user_id: string | null; created_by_device_id: string | null; created_at: string; updated_at: string; }; Insert: { id?: string; organization_id: string; branch_id: string; order_number: string; idempotency_key: string; status?: string; restaurant_table_id?: string | null; waiter_user_id?: string | null; waiter_name?: string | null; customer_name?: string | null; customer_phone?: string | null; channel?: Database["public"]["Enums"]["sales_channel"]; guest_count?: number | null; priority?: string; notes?: string | null; allergens?: string[]; currency?: string; subtotal?: number; item_discount_total?: number; order_discount?: number; discount_total?: number; tax_total?: number; service_fee?: number; delivery_fee?: number; total?: number; customer_invoice_id?: string | null; version?: number; submitted_at?: string | null; accepted_at?: string | null; preparing_at?: string | null; ready_at?: string | null; served_at?: string | null; closed_at?: string | null; cancelled_at?: string | null; cancel_reason?: string | null; created_by_user_id?: string | null; created_by_device_id?: string | null; created_at?: string; updated_at?: string; }; Update: { id?: string; organization_id?: string; branch_id?: string; order_number?: string; idempotency_key?: string; status?: string; restaurant_table_id?: string | null; waiter_user_id?: string | null; waiter_name?: string | null; customer_name?: string | null; customer_phone?: string | null; channel?: Database["public"]["Enums"]["sales_channel"]; guest_count?: number | null; priority?: string; notes?: string | null; allergens?: string[]; currency?: string; subtotal?: number; item_discount_total?: number; order_discount?: number; discount_total?: number; tax_total?: number; service_fee?: number; delivery_fee?: number; total?: number; customer_invoice_id?: string | null; version?: number; submitted_at?: string | null; accepted_at?: string | null; preparing_at?: string | null; ready_at?: string | null; served_at?: string | null; closed_at?: string | null; cancelled_at?: string | null; cancel_reason?: string | null; created_by_user_id?: string | null; created_by_device_id?: string | null; created_at?: string; updated_at?: string; }; Relationships: []; };
+      restaurant_order_items: { Row: { id: string; organization_id: string; branch_id: string; order_id: string; client_line_id: string; station_id: string; catalog_item_id: string; menu_item_id: string | null; item_name: string; quantity: number; unit_price: number; line_subtotal: number; discount_amount: number; tax_rate: number; tax_amount: number; line_total: number; status: string; notes: string | null; allergens: string[]; modifiers: Json; price_override_reason: string | null; accepted_at: string | null; preparing_at: string | null; ready_at: string | null; served_at: string | null; cancelled_at: string | null; created_at: string; updated_at: string; }; Insert: { id?: string; organization_id: string; branch_id: string; order_id: string; client_line_id: string; station_id: string; catalog_item_id: string; menu_item_id?: string | null; item_name: string; quantity: number; unit_price: number; line_subtotal: number; discount_amount?: number; tax_rate?: number; tax_amount?: number; line_total: number; status?: string; notes?: string | null; allergens?: string[]; modifiers?: Json; price_override_reason?: string | null; accepted_at?: string | null; preparing_at?: string | null; ready_at?: string | null; served_at?: string | null; cancelled_at?: string | null; created_at?: string; updated_at?: string; }; Update: { id?: string; organization_id?: string; branch_id?: string; order_id?: string; client_line_id?: string; station_id?: string; catalog_item_id?: string; menu_item_id?: string | null; item_name?: string; quantity?: number; unit_price?: number; line_subtotal?: number; discount_amount?: number; tax_rate?: number; tax_amount?: number; line_total?: number; status?: string; notes?: string | null; allergens?: string[]; modifiers?: Json; price_override_reason?: string | null; accepted_at?: string | null; preparing_at?: string | null; ready_at?: string | null; served_at?: string | null; cancelled_at?: string | null; created_at?: string; updated_at?: string; }; Relationships: []; };
+      restaurant_order_status_events: { Row: { id: string; organization_id: string; branch_id: string; order_id: string; order_item_id: string | null; station_id: string | null; event_sequence: number; event_scope: string; event_type: string; from_status: string | null; to_status: string; reason: string | null; idempotency_key: string; correlation_id: string | null; metadata: Json; actor_user_id: string | null; actor_device_id: string | null; occurred_at: string; created_at: string; }; Insert: { id?: string; organization_id: string; branch_id: string; order_id: string; order_item_id?: string | null; station_id?: string | null; event_sequence: number; event_scope: string; event_type: string; from_status?: string | null; to_status: string; reason?: string | null; idempotency_key: string; correlation_id?: string | null; metadata?: Json; actor_user_id?: string | null; actor_device_id?: string | null; occurred_at: string; created_at?: string; }; Update: { id?: string; organization_id?: string; branch_id?: string; order_id?: string; order_item_id?: string | null; station_id?: string | null; event_sequence?: number; event_scope?: string; event_type?: string; from_status?: string | null; to_status?: string; reason?: string | null; idempotency_key?: string; correlation_id?: string | null; metadata?: Json; actor_user_id?: string | null; actor_device_id?: string | null; occurred_at?: string; created_at?: string; }; Relationships: []; };
+      restaurant_sites: { Row: { id: string; organization_id: string; branch_id: string | null; slug: string; display_name: string; tagline: string | null; description: string | null; logo_url: string | null; cover_url: string | null; primary_color: string; contact_phone: string | null; whatsapp_phone: string | null; address: string | null; status: string; published_at: string | null; created_by_user_id: string | null; created_at: string; updated_at: string; }; Insert: { id?: string; organization_id: string; branch_id?: string | null; slug: string; display_name: string; tagline?: string | null; description?: string | null; logo_url?: string | null; cover_url?: string | null; primary_color?: string; contact_phone?: string | null; whatsapp_phone?: string | null; address?: string | null; status?: string; published_at?: string | null; created_by_user_id?: string | null; created_at?: string; updated_at?: string; }; Update: { id?: string; organization_id?: string; branch_id?: string | null; slug?: string; display_name?: string; tagline?: string | null; description?: string | null; logo_url?: string | null; cover_url?: string | null; primary_color?: string; contact_phone?: string | null; whatsapp_phone?: string | null; address?: string | null; status?: string; published_at?: string | null; created_by_user_id?: string | null; created_at?: string; updated_at?: string; }; Relationships: []; };
+      restaurant_site_menu_items: { Row: { id: string; organization_id: string; site_id: string; menu_item_id: string; category_name: string; public_description: string | null; image_url: string | null; display_order: number; is_featured: boolean; is_visible: boolean; created_by_user_id: string | null; created_at: string; updated_at: string; }; Insert: { id?: string; organization_id: string; site_id: string; menu_item_id: string; category_name?: string; public_description?: string | null; image_url?: string | null; display_order?: number; is_featured?: boolean; is_visible?: boolean; created_by_user_id?: string | null; created_at?: string; updated_at?: string; }; Update: { id?: string; organization_id?: string; site_id?: string; menu_item_id?: string; category_name?: string; public_description?: string | null; image_url?: string | null; display_order?: number; is_featured?: boolean; is_visible?: boolean; created_by_user_id?: string | null; created_at?: string; updated_at?: string; }; Relationships: []; };
+      journal_entries: { Row: { id: string; organization_id: string; branch_id: string | null; entry_number: string; entry_date: string; source_doc_type: string | null; source_doc_id: string | null; memo: string | null; status: string; created_at: string; created_by: string | null; reversal_of_entry_id: string | null; posting_fingerprint: string | null; }; Insert: { id?: string; organization_id: string; branch_id?: string | null; entry_number: string; entry_date?: string; source_doc_type?: string | null; source_doc_id?: string | null; memo?: string | null; status?: string; created_at?: string; created_by?: string | null; reversal_of_entry_id?: string | null; posting_fingerprint?: string | null; }; Update: { id?: string; organization_id?: string; branch_id?: string | null; entry_number?: string; entry_date?: string; source_doc_type?: string | null; source_doc_id?: string | null; memo?: string | null; status?: string; created_at?: string; created_by?: string | null; reversal_of_entry_id?: string | null; posting_fingerprint?: string | null; }; Relationships: []; };
+      journal_lines: { Row: { id: string; organization_id: string; journal_entry_id: string; account_id: string; branch_id: string | null; debit: number; credit: number; memo: string | null; created_at: string; cost_center_id: string | null; }; Insert: { id?: string; organization_id: string; journal_entry_id: string; account_id: string; branch_id?: string | null; debit?: number; credit?: number; memo?: string | null; created_at?: string; cost_center_id?: string | null; }; Update: { id?: string; organization_id?: string; journal_entry_id?: string; account_id?: string; branch_id?: string | null; debit?: number; credit?: number; memo?: string | null; created_at?: string; cost_center_id?: string | null; }; Relationships: []; };
       restaurant_tables: {
         Row: { id: string; organization_id: string; branch_id: string; number: number; name: string | null; zone: string; seats: number; capacity: number | null; status: string; opened_at: string | null; waiter_name: string | null; guests: number | null; current_total: number; created_at: string; updated_at: string; };
         Insert: { id?: string; organization_id: string; branch_id: string; number?: number; name?: string | null; zone?: string; seats?: number; capacity?: number | null; status?: string; opened_at?: string | null; waiter_name?: string | null; guests?: number | null; current_total?: number; created_at?: string; updated_at?: string; };
@@ -2568,6 +2598,29 @@ export type Database = {
       };
     };
     Functions: {
+      select_trial_plan_atomic: {
+        Args: {
+          p_organization_id: string;
+          p_plan_code: string;
+          p_actor_user_id: string;
+        };
+        Returns: Json;
+      };
+      save_restaurant_site_atomic: { Args: { p_organization_id: string; p_site_id: string | null; p_branch_id: string | null; p_slug: string; p_display_name: string; p_tagline: string | null; p_description: string | null; p_logo_url: string | null; p_cover_url: string | null; p_primary_color: string; p_contact_phone: string | null; p_whatsapp_phone: string | null; p_address: string | null; p_status: string; p_actor_user_id: string; }; Returns: Json; };
+      set_restaurant_site_menu_item_atomic: { Args: { p_organization_id: string; p_site_id: string; p_menu_item_id: string; p_category_name: string; p_public_description: string | null; p_image_url: string | null; p_display_order: number; p_is_featured: boolean; p_is_visible: boolean; p_actor_user_id: string; }; Returns: Json; };
+      get_public_restaurant_site: { Args: { p_slug: string; }; Returns: Json; };
+      upsert_kitchen_station_atomic: { Args: { p_organization_id: string; p_branch_id: string; p_station_id: string | null; p_code: string; p_name: string; p_display_order: number; p_is_active: boolean; p_actor_user_id: string; }; Returns: Json; };
+      assign_kitchen_station_device_atomic: { Args: { p_organization_id: string; p_branch_id: string; p_station_id: string; p_device_id: string; p_is_active: boolean; p_actor_user_id: string; }; Returns: Json; };
+      submit_restaurant_order_atomic: { Args: { p_organization_id: string; p_branch_id: string; p_idempotency_key: string; p_items: Json; p_restaurant_table_id?: string | null; p_waiter_user_id?: string | null; p_waiter_name?: string | null; p_customer_name?: string | null; p_customer_phone?: string | null; p_channel?: Database["public"]["Enums"]["sales_channel"]; p_guest_count?: number | null; p_notes?: string | null; p_allergens?: string[]; p_currency?: string; p_order_discount?: number; p_service_fee?: number; p_delivery_fee?: number; p_actor_user_id?: string | null; p_actor_device_id?: string | null; p_submitted_at?: string; }; Returns: Json; };
+      transition_restaurant_order_item_atomic: { Args: { p_organization_id: string; p_branch_id: string; p_order_id: string; p_order_item_id: string; p_to_status: string; p_idempotency_key: string; p_reason?: string | null; p_actor_user_id?: string | null; p_actor_device_id?: string | null; p_occurred_at?: string; }; Returns: Json; };
+      transition_restaurant_order_atomic: { Args: { p_organization_id: string; p_branch_id: string; p_order_id: string; p_to_status: string; p_idempotency_key: string; p_reason?: string | null; p_actor_user_id?: string | null; p_actor_device_id?: string | null; p_occurred_at?: string; }; Returns: Json; };
+      link_restaurant_order_invoice_atomic: { Args: { p_organization_id: string; p_branch_id: string; p_order_id: string; p_customer_invoice_id: string; p_idempotency_key: string; p_actor_user_id?: string | null; p_actor_device_id?: string | null; }; Returns: Json; };
+      set_restaurant_order_priority_atomic: { Args: { p_organization_id: string; p_branch_id: string; p_order_id: string; p_priority: string; p_idempotency_key: string; p_actor_user_id?: string | null; p_actor_device_id?: string | null; p_occurred_at?: string; }; Returns: Json; };
+      submit_restaurant_order_with_priority_atomic: { Args: { p_organization_id: string; p_branch_id: string; p_idempotency_key: string; p_items: Json; p_restaurant_table_id?: string | null; p_waiter_user_id?: string | null; p_waiter_name?: string | null; p_customer_name?: string | null; p_customer_phone?: string | null; p_channel?: Database["public"]["Enums"]["sales_channel"]; p_guest_count?: number | null; p_priority?: string; p_notes?: string | null; p_allergens?: string[]; p_currency?: string; p_order_discount?: number; p_service_fee?: number; p_delivery_fee?: number; p_actor_user_id?: string | null; p_actor_device_id?: string | null; p_submitted_at?: string; }; Returns: Json; };
+      transition_restaurant_order_items_bulk_atomic: { Args: { p_organization_id: string; p_branch_id: string; p_order_id: string; p_order_item_ids: string[]; p_to_status: string; p_idempotency_key: string; p_actor_user_id?: string | null; p_actor_device_id?: string | null; p_occurred_at?: string; }; Returns: Json; };
+      provision_restaurant_workflow_device_atomic: { Args: { p_organization_id: string; p_branch_id: string; p_device_name: string; p_key_hash: string; p_role: Database["public"]["Enums"]["app_role"]; p_allowed_modules: string[]; p_actor_user_id: string; }; Returns: Json; };
+      post_balanced_journal_atomic: { Args: { p_organization_id: string; p_branch_id: string | null; p_source_doc_type: string; p_source_doc_id: string; p_memo: string; p_entry_date: string; p_lines: Json; p_created_by?: string | null; }; Returns: Json; };
+      reverse_journal_entry_atomic: { Args: { p_organization_id: string; p_entry_id: string; p_reason: string; p_reversal_date: string; p_created_by?: string | null; }; Returns: Json; };
       can_access_branch: {
         Args: { target_org_id: string; target_branch_id: string };
         Returns: boolean;
@@ -2619,6 +2672,64 @@ export type Database = {
       next_invoice_number: {
         Args: { p_organization_id: string };
         Returns: string;
+      };
+      record_supplier_payment_atomic: {
+        Args: {
+          p_organization_id: string;
+          p_invoice_id: string;
+          p_amount: number;
+          p_payment_method: string;
+          p_payment_date: string;
+          p_reference?: string | null;
+          p_idempotency_key?: string | null;
+          p_created_by?: string | null;
+        };
+        Returns: Json;
+      };
+      create_purchase_order_atomic: {
+        Args: {
+          p_organization_id: string;
+          p_supplier_id: string;
+          p_branch_id: string;
+          p_item_id: string;
+          p_quantity: number;
+          p_unit_price: number;
+          p_order_date: string;
+          p_status?: Database["public"]["Enums"]["purchase_order_status"];
+          p_notes?: string | null;
+          p_idempotency_key?: string | null;
+          p_created_by?: string | null;
+        };
+        Returns: Json;
+      };
+      record_purchase_receipt_atomic: {
+        Args: {
+          p_organization_id: string;
+          p_purchase_order_id: string;
+          p_received_at: string;
+          p_idempotency_key: string;
+          p_created_by?: string | null;
+        };
+        Returns: Json;
+      };
+      create_supplier_invoice_atomic: {
+        Args: {
+          p_organization_id: string;
+          p_supplier_id: string;
+          p_branch_id: string;
+          p_invoice_number: string;
+          p_issued_at: string;
+          p_due_date: string;
+          p_item_id: string;
+          p_quantity: number;
+          p_unit_price: number;
+          p_purchase_order_id?: string | null;
+          p_payment_method?: string | null;
+          p_expiry_date?: string | null;
+          p_idempotency_key?: string | null;
+          p_created_by?: string | null;
+        };
+        Returns: Json;
       };
     };
     Enums: {

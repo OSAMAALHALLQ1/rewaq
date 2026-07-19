@@ -17,9 +17,10 @@ import { z } from "zod";
 import { createAdminClientWithContext, hasSupabaseAdminEnv } from "@/lib/supabase/admin";
 import { requireAuth, requireSensitiveActionCapability } from "@/lib/auth/require-auth";
 import { logAuditEvent } from "@/lib/audit/log";
-import { postExpenseJournal, reverseJournalEntry } from "@/lib/accounting/posting";
+import { postExpenseJournal, reverseJournalEntry, todayLocal } from "@/lib/accounting/posting";
 import { EXPENSE_CATEGORIES } from "@/lib/accounting/constants";
 import { isDemoUserEmail } from "@/lib/auth/demo";
+import { requireOrganizationModule } from "@/server/billing/entitlements";
 import type { ActionState } from "./auth";
 
 function ok(message: string): ActionState {
@@ -35,22 +36,11 @@ async function resolveAccountingScope() {
   const admin = createAdminClientWithContext("accounting.ts/resolveAccountingScope");
 
   if (auth.organizationId) {
+    await requireOrganizationModule(admin, auth.organizationId, "accounting", { write: true });
     return { admin, organizationId: auth.organizationId, userId: auth.id, auth };
   }
 
-  const { data: membership } = await (admin as any)
-    .from("organization_memberships")
-    .select("organization_id")
-    .eq("user_id", auth.id)
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
-
-  if (!membership?.organization_id) {
-    throw new Error("تعذر تحديد المؤسسة للمستخدم الحالي.");
-  }
-
-  return { admin, organizationId: membership.organization_id, userId: auth.id, auth };
+  throw new Error("لم يتم تحديد مؤسسة نشطة للجلسة. اختر المؤسسة صراحةً ثم أعد المحاولة.");
 }
 
 async function assertPeriodOpen(admin: any, organizationId: string, date: string) {
@@ -127,7 +117,7 @@ export async function saveAccountAction(_prevState: ActionState, formData: FormD
         .maybeSingle();
 
       if (equityAccount?.id) {
-        const today = new Date().toISOString().slice(0, 10);
+        const today = todayLocal();
         await assertPeriodOpen(admin, organizationId, today);
 
         const compactDate = today.replaceAll("-", "");
@@ -135,7 +125,7 @@ export async function saveAccountAction(_prevState: ActionState, formData: FormD
           .from("journal_entries")
           .select("id", { count: "exact", head: true })
           .eq("organization_id", organizationId)
-          .gte("created_at", `${today}T00:00:00.000Z`);
+          .eq("entry_date", today);
 
         const { data: entry, error: entryError } = await (admin as any)
           .from("journal_entries")
@@ -444,8 +434,6 @@ export async function reverseJournalEntryAction(_prevState: ActionState, formDat
   try {
     const { admin, organizationId, userId, auth } = await resolveAccountingScope();
     requireSensitiveActionCapability(auth, "accounting_write");
-    await assertPeriodOpen(admin, organizationId, new Date().toISOString().slice(0, 10));
-
     const reversalId = await reverseJournalEntry(admin, {
       organizationId,
       entryId,

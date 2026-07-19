@@ -37,6 +37,7 @@ export default async function InvoicesPage() {
           </CardHeader>
           <CardContent>
             <ActionForm action={saveInvoiceAction} submitLabel="حفظ الفاتورة (ترحيل كدين)" className="space-y-4">
+              <input type="hidden" name="idempotencyKey" value={`supplier-invoice:${crypto.randomUUID()}`} />
               <div className="grid gap-2">
                 <Label htmlFor="supplierId">اسم المورد</Label>
                 <Select id="supplierId" name="supplierId" required>

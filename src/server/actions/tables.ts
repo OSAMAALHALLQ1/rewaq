@@ -1,11 +1,38 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { isDemoMode, withAdminScope } from "../queries/_shared/utils";
+import {
+  isDemoMode,
+  withAdminScope,
+  type AdminClient,
+  type AppScope,
+} from "../queries/_shared/utils";
 import { demoRestaurantTables } from "@/lib/demo-data";
 import type { RestaurantTable, RestaurantTableStatus } from "@/types/domain";
+import {
+  SubscriptionEntitlementError,
+  requireOrganizationModule,
+} from "@/server/billing/entitlements";
 
 type TableActionResult = { success: boolean; error?: string; table?: RestaurantTable };
+
+async function withTableScope<T extends { error?: string }>(
+  fallback: T,
+  loader: (admin: AdminClient, scope: AppScope) => Promise<T>,
+) {
+  return withAdminScope<T>(fallback, async (admin, scope) => {
+    try {
+      await requireOrganizationModule(admin, scope.organizationId, "tables", { write: true });
+    } catch (error) {
+      if (error instanceof SubscriptionEntitlementError) {
+        return { ...fallback, error: error.message };
+      }
+      throw error;
+    }
+
+    return loader(admin, scope);
+  });
+}
 
 // Helper to find/update in-memory demo data
 function updateDemoTable(tableId: string, updates: Partial<any>) {
@@ -41,7 +68,7 @@ export async function createRestaurantTable(
     return { success: true, table };
   }
 
-  return withAdminScope<TableActionResult>({ success: false, error: "لا يمكن الاتصال بقاعدة البيانات" }, async (admin, scope) => {
+  return withTableScope<TableActionResult>({ success: false, error: "لا يمكن الاتصال بقاعدة البيانات" }, async (admin, scope) => {
     const { data: branch, error: branchError } = await admin
       .from("branches")
       .select("id, name")
@@ -83,7 +110,7 @@ export async function openTableSession(tableId: string, waiterName: string, gues
     return { success: true };
   }
 
-  return withAdminScope<{ success: boolean; error?: string }>({ success: false, error: "لا يمكن الاتصال بقاعدة البيانات" }, async (admin, scope) => {
+  return withTableScope<{ success: boolean; error?: string }>({ success: false, error: "لا يمكن الاتصال بقاعدة البيانات" }, async (admin, scope) => {
     const { error } = await admin
       .from("restaurant_tables")
       .update({
@@ -117,7 +144,7 @@ export async function updateTableStatus(tableId: string, status: RestaurantTable
     return { success: true };
   }
 
-  return withAdminScope<{ success: boolean; error?: string }>({ success: false, error: "لا يمكن الاتصال بقاعدة البيانات" }, async (admin, scope) => {
+  return withTableScope<{ success: boolean; error?: string }>({ success: false, error: "لا يمكن الاتصال بقاعدة البيانات" }, async (admin, scope) => {
     const updates: Record<string, any> = { status };
     if (status === "available") {
       updates.waiter_name = null;
@@ -158,7 +185,7 @@ export async function mergeTables(sourceTableId: string, targetTableId: string):
     return { success: true };
   }
 
-  return withAdminScope<{ success: boolean; error?: string }>({ success: false, error: "لا يمكن الاتصال بقاعدة البيانات" }, async (admin, scope) => {
+  return withTableScope<{ success: boolean; error?: string }>({ success: false, error: "لا يمكن الاتصال بقاعدة البيانات" }, async (admin, scope) => {
     // 1. Get totals
     const { data: src, error: sourceError } = await admin.from("restaurant_tables").select("current_total").eq("id", sourceTableId).eq("organization_id", scope.organizationId).single();
     const { data: tgt, error: targetError } = await admin.from("restaurant_tables").select("current_total").eq("id", targetTableId).eq("organization_id", scope.organizationId).single();
@@ -191,7 +218,7 @@ export async function getTableDetails(tableId: string): Promise<{ success: boole
     return { success: true, table };
   }
 
-  return withAdminScope<{ success: boolean; table?: any; error?: string }>({ success: false, error: "لا يمكن الاتصال بقاعدة البيانات" }, async (admin, scope) => {
+  return withTableScope<{ success: boolean; table?: any; error?: string }>({ success: false, error: "لا يمكن الاتصال بقاعدة البيانات" }, async (admin, scope) => {
     const { data: table, error } = await admin
       .from("restaurant_tables")
       .select("*")

@@ -9,7 +9,6 @@ import {
   purchaseOrderSchema,
   recipeSchema,
   supplierSchema,
-  supplyInvoiceSchema,
   salesReturnSchema,
 } from "@/lib/validation/schemas";
 import { createClient } from "@/lib/supabase/server";
@@ -17,13 +16,12 @@ import { hasSupabaseEnv } from "@/lib/supabase/env";
 import { createAdminClient, createAdminClientWithContext, hasSupabaseAdminEnv } from "@/lib/supabase/admin";
 import { requireAuth, requireSensitiveActionCapability } from "@/lib/auth/require-auth";
 import { logAuditEvent } from "@/lib/audit/log";
+import type { RewaqModule } from "@/lib/billing/plans";
+import { requireOrganizationModule } from "@/server/billing/entitlements";
 import {
   postCashVarianceJournal,
   postCustomerInvoiceJournal,
   postInventoryWriteOffJournal,
-  postPurchaseReceiptJournal,
-  postSupplierInvoiceJournal,
-  postSupplierPaymentJournal,
   todayLocal,
 } from "@/lib/accounting/posting";
 import { addCashDrawerEntry } from "@/lib/sales/shift-posting";
@@ -108,32 +106,17 @@ const productionOrderSchema = z.object({
   notes: z.string().optional(),
 });
 
-async function resolveMutationScope() {
+async function resolveMutationScope(module: RewaqModule) {
   const auth = await requireAuth();
   const admin = createAdminClientWithContext("mutations.ts/resolveMutationScope");
 
   // Use the user's org from auth (populated by requireAuth via membership lookup)
   if (auth.organizationId) {
+    await requireOrganizationModule(admin, auth.organizationId, module, { write: true });
     return { admin, organizationId: auth.organizationId, userId: auth.id, auth };
   }
 
-  // Fallback: direct membership lookup
-  const { data: membership } = await (admin as any)
-    .from("organization_memberships")
-    .select("organization_id")
-    .eq("user_id", auth.id)
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
-
-  if (membership?.organization_id) {
-    return { admin, organizationId: membership.organization_id, userId: auth.id, auth };
-  }
-
-  // No valid membership for this user. Super-admins must select the target
-  // organization explicitly from the admin console — they must NEVER be
-  // auto-scoped to the first organization in the database.
-  throw new Error("لم يتم العثور على مؤسسة مرتبطة بحسابك. اختر المؤسسة صراحةً من لوحة الإدارة.");
+  throw new Error("لم يتم تحديد مؤسسة نشطة للجلسة. اختر المؤسسة صراحةً ثم أعد المحاولة.");
 }
 
 function inferUnitKind(name: string) {
@@ -444,7 +427,7 @@ export async function issueCustomerInvoiceAction(input: unknown) {
   if (!parsed.success) return invalid(parsed.error.issues[0]?.message ?? "بيانات الفاتورة غير صحيحة");
 
   try {
-    const { admin, organizationId, userId, auth } = await resolveMutationScope();
+    const { admin, organizationId, userId, auth } = await resolveMutationScope("sales");
     requireSensitiveActionCapability(auth, "sales_write", parsed.data.branchId);
     const branch = await getScopedBranch(admin, organizationId, parsed.data.branchId);
     if (!branch?.id) return invalid("الفرع المختار غير موجود في المؤسسة الحالية.");
@@ -758,7 +741,7 @@ export async function saveInventoryItemAction(_prevState: ActionState, formData:
   }
 
   try {
-    const { admin, organizationId, userId, auth } = await resolveMutationScope();
+    const { admin, organizationId, userId, auth } = await resolveMutationScope("inventory");
     requireSensitiveActionCapability(auth, "inventory_catalog_write");
 
     const supplierResult = parsed.data.primarySupplierId
@@ -844,7 +827,7 @@ export async function saveSupplierAction(_prevState: ActionState, formData: Form
   }
 
   try {
-    const { admin, organizationId, userId, auth } = await resolveMutationScope();
+    const { admin, organizationId, userId, auth } = await resolveMutationScope("suppliers");
     requireSensitiveActionCapability(auth, "purchasing_write");
     const { error } = await admin.from("suppliers").insert({
       organization_id: organizationId,
@@ -869,94 +852,6 @@ export async function saveSupplierAction(_prevState: ActionState, formData: Form
   return ok("تم حفظ المورد في Supabase.");
 }
 
-export async function saveSupplyInvoiceAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
-  const parsed = supplyInvoiceSchema.safeParse({
-    supplierId: formData.get("supplierId"),
-    branchId: formData.get("branchId"),
-    invoiceNumber: formData.get("invoiceNumber"),
-    issuedAt: formData.get("issuedAt"),
-    itemId: formData.get("itemId"),
-    quantity: formData.get("quantity"),
-    unitPrice: formData.get("unitPrice"),
-    expirationDate: formData.get("expirationDate") || "",
-    notes: formData.get("notes") || "",
-  });
-
-  if (!parsed.success) return invalid(parsed.error.issues[0]?.message ?? "بيانات الفاتورة غير صحيحة");
-
-  if (!hasSupabaseAdminEnv()) {
-    return invalid("مفتاح Supabase الإداري غير موجود. لا يمكن حفظ الفاتورة في قاعدة البيانات.");
-  }
-
-  try {
-    const { admin, organizationId, userId, auth } = await resolveMutationScope();
-    requireSensitiveActionCapability(auth, "purchasing_write", parsed.data.branchId);
-    const [supplierResult, branch, item] = await Promise.all([
-      admin
-        .from("suppliers")
-        .select("id")
-        .eq("id", parsed.data.supplierId)
-        .eq("organization_id", organizationId)
-        .maybeSingle(),
-      getScopedBranch(admin, organizationId, parsed.data.branchId),
-      getScopedInventoryItem(admin, organizationId, parsed.data.itemId),
-    ]);
-
-    if (supplierResult.error) return invalid(supplierResult.error.message);
-    if (!supplierResult.data?.id) return invalid("المورد المختار غير موجود في المؤسسة الحالية.");
-    if (!branch?.id) return invalid("الفرع المختار غير موجود في المؤسسة الحالية.");
-    if (!item?.id) return invalid("المادة المختارة غير موجودة في المؤسسة الحالية.");
-
-    const invoiceTotal = Math.round(parsed.data.quantity * parsed.data.unitPrice * 100) / 100;
-    const { data: invoice, error: invoiceError } = await admin
-      .from("invoices")
-      .insert({
-        organization_id: organizationId,
-        supplier_id: parsed.data.supplierId,
-        branch_id: parsed.data.branchId,
-        invoice_number: parsed.data.invoiceNumber,
-        issued_at: parsed.data.issuedAt,
-        status: "posted",
-        payment_status: "unpaid",
-        paid_amount: 0,
-        balance_due: invoiceTotal,
-        total: invoiceTotal,
-        created_by: userId,
-      })
-      .select("id")
-      .single();
-
-    if (invoiceError) return invalid(invoiceError.message);
-    if (!invoice?.id) return invalid("تعذر إنشاء فاتورة التوريد.");
-
-    const { error: itemError } = await admin.from("invoice_items").insert({
-      organization_id: organizationId,
-      invoice_id: invoice.id,
-      item_id: parsed.data.itemId,
-      quantity: parsed.data.quantity,
-      unit_price: parsed.data.unitPrice,
-      created_by: userId,
-    });
-
-    if (itemError) return invalid(itemError.message);
-
-    await postSupplierInvoiceJournal(admin, {
-      organizationId,
-      branchId: parsed.data.branchId,
-      invoiceId: invoice.id,
-      invoiceNumber: parsed.data.invoiceNumber,
-      total: invoiceTotal,
-      entryDate: parsed.data.issuedAt,
-      createdBy: userId,
-    });
-  } catch (error) {
-    return invalid(error instanceof Error ? error.message : "تعذر حفظ فاتورة التوريد في Supabase.");
-  }
-
-  revalidatePath("/dashboard/invoices");
-  return ok("تم حفظ فاتورة التوريد.");
-}
-
 export async function saveSalesReturnAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
   const parsed = salesReturnSchema.safeParse({
     branchId: formData.get("branchId"),
@@ -973,7 +868,7 @@ export async function saveSalesReturnAction(_prevState: ActionState, formData: F
   }
 
   try {
-    const { admin, organizationId, userId, auth } = await resolveMutationScope();
+    const { admin, organizationId, userId, auth } = await resolveMutationScope("inventory");
     requireSensitiveActionCapability(auth, "inventory_movement_write", parsed.data.branchId);
     const [branch, item] = await Promise.all([
       getScopedBranch(admin, organizationId, parsed.data.branchId),
@@ -1013,9 +908,13 @@ export async function savePurchaseOrderAction(_prevState: ActionState, formData:
   const parsed = purchaseOrderSchema.safeParse({
     supplierId: formData.get("supplierId"),
     branchId: formData.get("branchId"),
+    itemId: formData.get("itemId"),
+    quantity: formData.get("quantity"),
+    unitPrice: formData.get("unitPrice"),
     status: formData.get("status") || "draft",
     orderDate: formData.get("orderDate"),
     notes: formData.get("notes") || "",
+    idempotencyKey: formData.get("idempotencyKey"),
   });
 
   if (!parsed.success) return invalid(parsed.error.issues[0]?.message ?? "بيانات طلب الشراء غير صحيحة");
@@ -1025,14 +924,20 @@ export async function savePurchaseOrderAction(_prevState: ActionState, formData:
   }
 
   try {
-    const { admin, organizationId, userId, auth } = await resolveMutationScope();
+    const { admin, organizationId, userId, auth } = await resolveMutationScope("purchasing");
     requireSensitiveActionCapability(auth, "purchasing_write", parsed.data.branchId);
-    const [branch, supplierResult] = await Promise.all([
+    const [branch, supplierResult, itemResult] = await Promise.all([
       getScopedBranch(admin, organizationId, parsed.data.branchId),
       admin
         .from("suppliers")
         .select("id")
         .eq("id", parsed.data.supplierId)
+        .eq("organization_id", organizationId)
+        .maybeSingle(),
+      admin
+        .from("inventory_items")
+        .select("id")
+        .eq("id", parsed.data.itemId)
         .eq("organization_id", organizationId)
         .maybeSingle(),
     ]);
@@ -1048,20 +953,26 @@ export async function savePurchaseOrderAction(_prevState: ActionState, formData:
     if (!supplierResult.data?.id) {
       return invalid("المورد المختار غير موجود في المؤسسة الحالية.");
     }
+    if (itemResult.error) return invalid(itemResult.error.message);
+    if (!itemResult.data?.id) return invalid("الصنف المختار غير موجود في المؤسسة الحالية.");
 
-    const { error } = await admin.from("purchase_orders").insert({
-      organization_id: organizationId,
-      supplier_id: parsed.data.supplierId,
-      branch_id: parsed.data.branchId,
-      status: parsed.data.status,
-      order_date: parsed.data.orderDate,
-      notes: parsed.data.notes || null,
-      created_by: userId,
+    const { data: result, error } = await admin.rpc("create_purchase_order_atomic", {
+      p_organization_id: organizationId,
+      p_supplier_id: parsed.data.supplierId,
+      p_branch_id: parsed.data.branchId,
+      p_item_id: parsed.data.itemId,
+      p_quantity: parsed.data.quantity,
+      p_unit_price: parsed.data.unitPrice,
+      p_order_date: parsed.data.orderDate,
+      p_status: parsed.data.status,
+      p_notes: parsed.data.notes || null,
+      p_idempotency_key: parsed.data.idempotencyKey,
+      p_created_by: userId,
     });
 
-    if (error) {
-      return invalid(error.message);
-    }
+    if (error) return invalid(error.message);
+    const response = result as { success?: boolean } | null;
+    if (!response?.success) return invalid("تعذر إنشاء أمر الشراء ببنوده.");
   } catch (error) {
     return invalid(error instanceof Error ? error.message : "تعذر حفظ طلب الشراء في Supabase.");
   }
@@ -1072,14 +983,17 @@ export async function savePurchaseOrderAction(_prevState: ActionState, formData:
 
 export async function receivePurchaseOrderAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
   const purchaseOrderId = String(formData.get("purchaseOrderId") ?? "");
+  const idempotencyKey = String(formData.get("idempotencyKey") ?? "");
+  const receivedAt = String(formData.get("receivedAt") || todayLocal());
   if (!purchaseOrderId) return invalid("طلب الشراء غير معروف");
+  if (idempotencyKey.length < 8) return invalid("مفتاح منع التكرار غير صالح.");
 
   if (!hasSupabaseAdminEnv()) {
     return invalid("مفتاح Supabase الإداري غير موجود. لا يمكن استلام طلب الشراء.");
   }
 
   try {
-    const { admin, organizationId, userId, auth } = await resolveMutationScope();
+    const { admin, organizationId, userId, auth } = await resolveMutationScope("purchasing");
     requireSensitiveActionCapability(auth, "purchasing_write");
     const { data: order, error: orderError } = await admin
       .from("purchase_orders")
@@ -1091,151 +1005,18 @@ export async function receivePurchaseOrderAction(_prevState: ActionState, formDa
     if (orderError) return invalid(orderError.message);
     if (!order) return invalid("طلب الشراء غير موجود.");
     requireSensitiveActionCapability(auth, "purchasing_write", order.branch_id);
-    if (!order) return invalid("طلب الشراء غير موجود في المؤسسة الحالية.");
-
-    const { data: orderItems, error: itemsError } = await admin
-      .from("purchase_order_items")
-      .select("*")
-      .eq("organization_id", organizationId)
-      .eq("purchase_order_id", purchaseOrderId);
-
-    if (itemsError) return invalid(itemsError.message);
-
-    // Idempotency: a client-generated key (or stable derived key) makes a
-    // retried/multi-clicked submission safe. The atomic RPC also guards each
-    // stock movement independently.
-    const idempotencyKey = String(formData.get("idempotencyKey") || `${purchaseOrderId}:receive:${crypto.randomUUID()}`);
-
-    const { data: existingReceipt } = await admin
-      .from("goods_receipts")
-      .select("id")
-      .eq("organization_id", organizationId)
-      .eq("idempotency_key", idempotencyKey)
-      .maybeSingle();
-
-    if (existingReceipt?.id) {
-      return ok("تم استلام طلب الشراء مسبقاً (تم تجاهل التكرار).");
-    }
-
-    const receiptId = crypto.randomUUID();
-    const receiptItems: Array<{
-      organization_id: string;
-      goods_receipt_id: string;
-      purchase_order_item_id: string | null;
-      item_id: string | null;
-      quantity: number;
-      unit_cost: number;
-      total: number;
-    }> = [];
-
-    let receiptTotal = 0;
-
-    for (const item of orderItems ?? []) {
-      const quantity = Number(item.quantity ?? 0);
-      const alreadyReceived = Number(item.received_quantity ?? 0);
-      const quantityToReceive = Math.max(0, quantity - alreadyReceived);
-      const unitCost = Number(item.expected_unit_price ?? 0);
-      if (quantityToReceive <= 0) continue;
-
-      // Atomic, idempotent stock + movement via the canonical RPC. It checks
-      // the idempotency key BEFORE modifying stock, so a retried receipt can
-      // never double-count inventory.
-      const { data: rpcResult, error: rpcError } = await (admin as any).rpc("apply_stock_movement", {
-        p_org_id: organizationId,
-        p_branch_id: order.branch_id,
-        p_item_id: item.item_id,
-        p_movement_type: "purchase",
-        p_quantity: quantityToReceive,
-        p_unit_cost: unitCost,
-        p_reference: `goods_receipt:${receiptId}`,
-        p_idempotency_key: `${receiptId}:${item.item_id}`,
-        p_notes: "استلام طلب شراء",
-        p_created_by: userId,
-      });
-
-      if (rpcError) return invalid(rpcError.message);
-
-      const result = rpcResult as { success?: boolean; duplicate?: boolean } | null;
-      if (!result?.success) return invalid("تعذر تحديث المخزون عند الاستلام.");
-
-      await admin
-        .from("purchase_order_items")
-        .update({ received_quantity: alreadyReceived + quantityToReceive })
-        .eq("id", item.id);
-
-      await admin.from("supplier_price_history").insert({
-        organization_id: organizationId,
-        supplier_id: order.supplier_id,
-        item_id: item.item_id,
-        unit_price: unitCost,
-        source_doc_type: "purchase_order",
-        source_doc_id: purchaseOrderId,
-        created_by: userId,
-      });
-
-      receiptItems.push({
-        organization_id: organizationId,
-        goods_receipt_id: receiptId,
-        purchase_order_item_id: item.id,
-        item_id: item.item_id,
-        quantity: quantityToReceive,
-        unit_cost: unitCost,
-        total: quantityToReceive * unitCost,
-      });
-
-      receiptTotal += quantityToReceive * unitCost;
-    }
-
-    if (receiptItems.length === 0) {
-      return invalid("لا توجد كميات جديدة لاستلامها في هذا الطلب.");
-    }
-
-    const { error: receiptError } = await admin.from("goods_receipts").insert({
-      id: receiptId,
-      organization_id: organizationId,
-      purchase_order_id: purchaseOrderId,
-      supplier_id: order.supplier_id,
-      branch_id: order.branch_id,
-      idempotency_key: idempotencyKey,
-      received_at: todayLocal(),
-      total: receiptTotal,
-      status: "posted",
-      created_by: userId,
+    const { data: receiptResult, error: receiptError } = await admin.rpc("record_purchase_receipt_atomic", {
+      p_organization_id: organizationId,
+      p_purchase_order_id: purchaseOrderId,
+      p_received_at: receivedAt,
+      p_idempotency_key: idempotencyKey,
+      p_created_by: userId,
     });
 
     if (receiptError) return invalid(receiptError.message);
-
-    const { error: itemsError2 } = await admin.from("goods_receipt_items").insert(receiptItems);
-    if (itemsError2) return invalid(itemsError2.message);
-
-    // Update PO status: partial if anything remains, else fully received.
-    const { data: remaining } = await admin
-      .from("purchase_order_items")
-      .select("received_quantity, quantity")
-      .eq("purchase_order_id", purchaseOrderId);
-
-    const allReceived = (remaining ?? []).every(
-      (r: { received_quantity: number; quantity: number }) =>
-        Number(r.received_quantity ?? 0) >= Number(r.quantity ?? 0),
-    );
-
-    const { error: updateError } = await admin
-      .from("purchase_orders")
-      .update({ status: allReceived ? "received" : "partially_received" })
-      .eq("id", purchaseOrderId)
-      .eq("organization_id", organizationId);
-
-    if (updateError) return invalid(updateError.message);
-
-    await postPurchaseReceiptJournal(admin, {
-      organizationId,
-      branchId: order.branch_id,
-      purchaseOrderId,
-      orderLabel: `PO-${purchaseOrderId.slice(0, 8)}`,
-      total: receiptTotal,
-      entryDate: todayLocal(),
-      createdBy: userId,
-    });
+    const response = receiptResult as { success?: boolean; duplicate?: boolean } | null;
+    if (!response?.success) return invalid("تعذر استلام أمر الشراء.");
+    if (response.duplicate) return ok("تم استلام أمر الشراء مسبقاً (تم تجاهل التكرار).");
   } catch (error) {
     return invalid(error instanceof Error ? error.message : "تعذر استلام طلب الشراء في Supabase.");
   }
@@ -1269,7 +1050,7 @@ export async function saveRecipeAction(_prevState: ActionState, formData: FormDa
   }
 
   try {
-    const { admin, organizationId, userId, auth } = await resolveMutationScope();
+    const { admin, organizationId, userId, auth } = await resolveMutationScope("recipes");
     requireSensitiveActionCapability(auth, "recipe_write");
     const servings = parsed.data.servings;
     const { error } = await admin.from("recipes").insert({
@@ -1311,7 +1092,7 @@ export async function saveMenuItemAction(_prevState: ActionState, formData: Form
   }
 
   try {
-    const { admin, organizationId, userId, auth } = await resolveMutationScope();
+    const { admin, organizationId, userId, auth } = await resolveMutationScope("recipes");
     requireSensitiveActionCapability(auth, "menu_write", parsed.data.branchId ?? null);
     const [{ data: recipe, error: recipeError }, branch] = await Promise.all([
       admin
@@ -1393,7 +1174,7 @@ export async function saveProductionOrderAction(_prevState: ActionState, formDat
   }
 
   try {
-    const { admin, organizationId, userId, auth } = await resolveMutationScope();
+    const { admin, organizationId, userId, auth } = await resolveMutationScope("production");
     requireSensitiveActionCapability(auth, "inventory_movement_write", parsed.data.branchId);
     requireSensitiveActionCapability(auth, "inventory_movement_write", parsed.data.sourceBranchId);
     const db = admin as any;
@@ -1600,7 +1381,7 @@ export async function saveWasteLogAction(_prevState: ActionState, formData: Form
   }
 
   try {
-    const { admin, organizationId, userId, auth } = await resolveMutationScope();
+    const { admin, organizationId, userId, auth } = await resolveMutationScope("waste");
     requireSensitiveActionCapability(auth, "inventory_movement_write", parsed.data.branchId);
     const [branch, item] = await Promise.all([
       getScopedBranch(admin, organizationId, parsed.data.branchId),
@@ -1694,7 +1475,7 @@ export async function saveStockCountAction(_prevState: ActionState, formData: Fo
   }
 
   try {
-    const { admin, organizationId, userId, auth } = await resolveMutationScope();
+    const { admin, organizationId, userId, auth } = await resolveMutationScope("inventory");
     requireSensitiveActionCapability(auth, "inventory_movement_write", parsed.data.branchId);
     const branch = await getScopedBranch(admin, organizationId, parsed.data.branchId);
     if (!branch?.id) return invalid("الفرع المختار غير موجود في المؤسسة الحالية.");
@@ -1886,6 +1667,7 @@ const invoiceSchema = z.object({
   dueDate: z.string().optional(),
   paymentMethod: z.string().optional(),
   purchaseOrderId: z.string().optional(),
+  idempotencyKey: z.string().min(8, "مفتاح منع التكرار غير صالح"),
 });
 
 const transferSchema = z.object({
@@ -1926,7 +1708,7 @@ export async function saveCatalogItemAction(_prevState: ActionState, formData: F
   }
 
   try {
-    const { admin, organizationId, userId, auth } = await resolveMutationScope();
+    const { admin, organizationId, userId, auth } = await resolveMutationScope("inventory");
     requireSensitiveActionCapability(auth, "inventory_catalog_write");
 
     const { data: createdItem, error: itemError } = await admin
@@ -1982,7 +1764,10 @@ export async function saveInvoiceAction(_prevState: ActionState, formData: FormD
     quantity: formData.get("quantity"),
     unitPrice: formData.get("unitPrice"),
     expiryDate: formData.get("expiryDate") || undefined,
+    dueDate: formData.get("dueDate") || undefined,
+    paymentMethod: formData.get("paymentMethod") || undefined,
     purchaseOrderId: formData.get("purchaseOrderId") || undefined,
+    idempotencyKey: formData.get("idempotencyKey"),
   });
 
   if (!parsed.success) return invalid(parsed.error.issues[0]?.message ?? "بيانات الفاتورة غير صحيحة");
@@ -1992,7 +1777,7 @@ export async function saveInvoiceAction(_prevState: ActionState, formData: FormD
   }
 
   try {
-    const { admin, organizationId, userId, auth } = await resolveMutationScope();
+    const { admin, organizationId, userId, auth } = await resolveMutationScope("purchasing");
     requireSensitiveActionCapability(auth, "purchasing_write", parsed.data.branchId);
 
     const [supplier, branch, item] = await Promise.all([
@@ -2005,107 +1790,28 @@ export async function saveInvoiceAction(_prevState: ActionState, formData: FormD
     if (!branch.data?.id) return invalid("القسم/الفرع غير موجود.");
     if (!item.data?.id) return invalid("المادة غير موجودة.");
 
-    const total = parsed.data.quantity * parsed.data.unitPrice;
-    // Creating the invoice records a payable — it does NOT mean it is paid.
     const dueDate = parsed.data.dueDate || addDaysLocal(parsed.data.issuedAt, 30);
-
-    const { data: invoice, error: invoiceError } = await admin
-      .from("invoices")
-      .insert({
-        organization_id: organizationId,
-        supplier_id: parsed.data.supplierId,
-        branch_id: parsed.data.branchId,
-        invoice_number: parsed.data.invoiceNumber,
-        purchase_order_id: parsed.data.purchaseOrderId || null,
-        total,
-        issued_at: parsed.data.issuedAt,
-        due_date: dueDate,
-        payment_method: parsed.data.paymentMethod || null,
-        status: "posted",
-        payment_status: "unpaid",
-        paid_amount: 0,
-        balance_due: total,
-        created_by: userId,
-      })
-      .select("id")
-      .single();
+    const { data: invoiceResult, error: invoiceError } = await admin.rpc("create_supplier_invoice_atomic", {
+      p_organization_id: organizationId,
+      p_supplier_id: parsed.data.supplierId,
+      p_branch_id: parsed.data.branchId,
+      p_invoice_number: parsed.data.invoiceNumber,
+      p_issued_at: parsed.data.issuedAt,
+      p_due_date: dueDate,
+      p_item_id: parsed.data.itemId,
+      p_quantity: parsed.data.quantity,
+      p_unit_price: parsed.data.unitPrice,
+      p_purchase_order_id: parsed.data.purchaseOrderId || null,
+      p_payment_method: parsed.data.paymentMethod || null,
+      p_expiry_date: parsed.data.expiryDate || null,
+      p_idempotency_key: parsed.data.idempotencyKey,
+      p_created_by: userId,
+    });
 
     if (invoiceError) return invalid(invoiceError.message);
-
-    const { error: itemError } = await admin
-      .from("invoice_items")
-      .insert({
-        organization_id: organizationId,
-        invoice_id: invoice.id,
-        item_id: parsed.data.itemId,
-        quantity: parsed.data.quantity,
-        unit_price: parsed.data.unitPrice,
-        created_by: userId,
-      });
-
-    if (itemError) return invalid(itemError.message);
-
-    const hasPo = !!parsed.data.purchaseOrderId;
-
-    if (!hasPo) {
-      await addToBranchStock(admin, organizationId, parsed.data.branchId, parsed.data.itemId, parsed.data.quantity, userId);
-
-      const { error: movementError } = await admin.from("stock_movements").insert({
-        organization_id: organizationId,
-        branch_id: parsed.data.branchId,
-        item_id: parsed.data.itemId,
-        movement_type: "purchase",
-        quantity: parsed.data.quantity,
-        unit_cost: parsed.data.unitPrice,
-        source_doc_type: "invoice",
-        source_doc_id: invoice.id,
-        idempotency_key: `${invoice.id}:${parsed.data.itemId}:receive`,
-        notes: `فاتورة توريد رقم ${parsed.data.invoiceNumber}${parsed.data.expiryDate ? ` - انتهاء: ${parsed.data.expiryDate}` : ""}`,
-        created_by: userId,
-      });
-
-      if (movementError && !movementError.message.includes("duplicate key")) return invalid(movementError.message);
-
-      await admin.from("supplier_price_history").insert({
-        organization_id: organizationId,
-        supplier_id: parsed.data.supplierId,
-        item_id: parsed.data.itemId,
-        unit_price: parsed.data.unitPrice,
-        source_doc_type: "invoice",
-        source_doc_id: invoice.id,
-        created_by: userId,
-      });
-
-      const { data: stockRows } = await admin
-        .from("branch_stock")
-        .select("quantity")
-        .eq("organization_id", organizationId)
-        .eq("item_id", parsed.data.itemId);
-      
-      const currentStock = stockRows?.reduce((sum, s) => sum + Number(s.quantity ?? 0), 0) ?? 0;
-      const oldStock = Math.max(0, currentStock - parsed.data.quantity);
-      const oldCost = Number(item.data.average_cost ?? 0);
-      const newAverageCost = (oldCost * oldStock + total) / Math.max(1, currentStock);
-
-      await admin
-        .from("inventory_items")
-        .update({
-          average_cost: newAverageCost,
-          last_purchase_price: parsed.data.unitPrice,
-        })
-        .eq("id", parsed.data.itemId);
-    }
-
-    await postSupplierInvoiceJournal(admin, {
-      organizationId,
-      branchId: parsed.data.branchId,
-      invoiceId: invoice.id,
-      invoiceNumber: parsed.data.invoiceNumber,
-      total,
-      entryDate: parsed.data.issuedAt,
-      linkedToReceipt: hasPo,
-      createdBy: userId,
-    });
+    const response = invoiceResult as { success?: boolean; duplicate?: boolean } | null;
+    if (!response?.success) return invalid("تعذر حفظ فاتورة المورد وترحيلها.");
+    if (response.duplicate) return ok("تم حفظ الفاتورة مسبقاً (تم تجاهل التكرار).");
   } catch (error) {
     return invalid(error instanceof Error ? error.message : "تعذر حفظ الفاتورة في Supabase.");
   }
@@ -2124,6 +1830,7 @@ const supplierPaymentSchema = z.object({
   paymentMethod: z.string().min(1, "طريقة الدفع مطلوبة"),
   paymentDate: z.string().min(1, "تاريخ الدفع مطلوب"),
   reference: z.string().optional(),
+  idempotencyKey: z.string().min(8, "مفتاح منع التكرار غير صالح"),
 });
 
 export async function paySupplierInvoiceAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
@@ -2133,6 +1840,7 @@ export async function paySupplierInvoiceAction(_prevState: ActionState, formData
     paymentMethod: formData.get("paymentMethod"),
     paymentDate: formData.get("paymentDate"),
     reference: formData.get("reference") || undefined,
+    idempotencyKey: formData.get("idempotencyKey"),
   });
 
   if (!parsed.success) return invalid(parsed.error.issues[0]?.message ?? "بيانات الدفع غير صحيحة");
@@ -2142,7 +1850,7 @@ export async function paySupplierInvoiceAction(_prevState: ActionState, formData
   }
 
   try {
-    const { admin, organizationId, userId, auth } = await resolveMutationScope();
+    const { admin, organizationId, userId, auth } = await resolveMutationScope("purchasing");
     requireSensitiveActionCapability(auth, "purchasing_write");
 
     const { data: invoice, error: invoiceError } = await admin
@@ -2161,67 +1869,23 @@ export async function paySupplierInvoiceAction(_prevState: ActionState, formData
       return invalid(`المبلغ أكبر من الرصيد المستحق (${balanceDue}).`);
     }
 
-    const { data: supplier } = await admin
-      .from("suppliers")
-      .select("name")
-      .eq("id", invoice.supplier_id)
-      .maybeSingle();
+    requireSensitiveActionCapability(auth, "purchasing_write", invoice.branch_id);
 
-    // Central period guard + balanced journal: debit payable, credit cash/bank.
-    const journalEntryId = await postSupplierPaymentJournal(admin, {
-      organizationId,
-      branchId: invoice.branch_id,
-      invoiceId: invoice.id,
-      invoiceNumber: invoice.invoice_number ?? invoice.id,
-      supplierName: supplier?.name ?? "مورد",
-      amount,
-      paymentMethod: parsed.data.paymentMethod,
-      entryDate: parsed.data.paymentDate,
-      createdBy: userId,
+    const { data: paymentResult, error: paymentError } = await admin.rpc("record_supplier_payment_atomic", {
+      p_organization_id: organizationId,
+      p_invoice_id: invoice.id,
+      p_amount: amount,
+      p_payment_method: parsed.data.paymentMethod,
+      p_payment_date: parsed.data.paymentDate,
+      p_reference: parsed.data.reference ?? null,
+      p_idempotency_key: parsed.data.idempotencyKey,
+      p_created_by: userId,
     });
 
-    const newPaid = Number(invoice.paid_amount ?? 0) + amount;
-    const newBalance = Math.max(0, balanceDue - amount);
-    const newStatus = newBalance <= 0.001 ? "paid" : "partially_paid";
+    if (paymentError) return invalid(paymentError.message);
 
-    const { error: payError } = await admin.from("supplier_payments").insert({
-      organization_id: organizationId,
-      invoice_id: invoice.id,
-      supplier_id: invoice.supplier_id,
-      branch_id: invoice.branch_id,
-      amount,
-      payment_method: parsed.data.paymentMethod,
-      payment_date: parsed.data.paymentDate,
-      reference: parsed.data.reference ?? null,
-      journal_entry_id: journalEntryId,
-      created_by: userId,
-    });
-
-    if (payError) return invalid(payError.message);
-
-    const { error: updError } = await admin
-      .from("invoices")
-      .update({
-        paid_amount: newPaid,
-        balance_due: newBalance,
-        payment_status: newStatus,
-        status: newStatus,
-      })
-      .eq("id", invoice.id)
-      .eq("organization_id", organizationId);
-
-    if (updError) return invalid(updError.message);
-
-    await logAuditEvent({
-      organizationId,
-      branchId: invoice.branch_id,
-      userId,
-      action: "supplier_payment",
-      entityType: "invoice",
-      entityId: invoice.id,
-      oldData: { balance_due: balanceDue, paid_amount: invoice.paid_amount },
-      newData: { amount, balance_due: newBalance, paid_amount: newPaid },
-    });
+    const result = paymentResult as { success?: boolean } | null;
+    if (!result?.success) return invalid("تعذر تسجيل دفعة المورد محاسبياً.");
   } catch (error) {
     return invalid(error instanceof Error ? error.message : "تعذر تسجيل دفعة المورد في Supabase.");
   }
@@ -2252,7 +1916,7 @@ export async function saveTransferAction(_prevState: ActionState, formData: Form
   }
 
   try {
-    const { admin, organizationId, userId, auth } = await resolveMutationScope();
+    const { admin, organizationId, userId, auth } = await resolveMutationScope("transfers");
     requireSensitiveActionCapability(auth, "inventory_movement_write", parsed.data.fromBranchId);
     requireSensitiveActionCapability(auth, "inventory_movement_write", parsed.data.toBranchId);
 
@@ -2370,7 +2034,7 @@ export async function saveReturnAction(_prevState: ActionState, formData: FormDa
   }
 
   try {
-    const { admin, organizationId, userId, auth } = await resolveMutationScope();
+    const { admin, organizationId, userId, auth } = await resolveMutationScope("inventory");
     requireSensitiveActionCapability(auth, "inventory_movement_write", parsed.data.branchId);
 
     const [branch, item] = await Promise.all([
@@ -2434,7 +2098,7 @@ export async function saveBranchAction(_prevState: ActionState, formData: FormDa
   }
 
   try {
-    const { admin, organizationId, userId, auth } = await resolveMutationScope();
+    const { admin, organizationId, userId, auth } = await resolveMutationScope("administration");
     requireSensitiveActionCapability(auth, "branch_write");
 
     const { error } = await admin.from("branches").insert({
@@ -2475,7 +2139,7 @@ export async function closeSalesShiftAction(_prevState: ActionState, formData: F
   }
 
   try {
-    const { admin, organizationId, userId, auth } = await resolveMutationScope();
+    const { admin, organizationId, userId, auth } = await resolveMutationScope("shifts");
     requireSensitiveActionCapability(auth, "shift_close");
     const { data: shift, error: shiftError } = await (admin as any)
       .from("sales_shifts")
@@ -2613,7 +2277,7 @@ export async function saveJournalEntryAction(_prevState: ActionState, formData: 
   }
 
   try {
-    const { admin, organizationId, userId, auth } = await resolveMutationScope();
+    const { admin, organizationId, userId, auth } = await resolveMutationScope("accounting");
     requireSensitiveActionCapability(auth, "accounting_write");
 
     // Closed accounting periods reject new entries (also enforced by DB trigger).

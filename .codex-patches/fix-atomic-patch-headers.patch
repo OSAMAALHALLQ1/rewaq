@@ -1,0 +1,12 @@
+diff --git a/.codex-patches/atomic-posting.patch b/.codex-patches/atomic-posting.patch
+--- a/.codex-patches/atomic-posting.patch
++++ b/.codex-patches/atomic-posting.patch
+@@ -4 +4 @@
+-@@ -108,15 +108,6 @@ export function todayLocal(): string {
++@@ -108,18 +108,6 @@ export function todayLocal(): string {
+@@ -23 +23 @@
+-@@ -125,151 +116,72 @@ function paymentMethodToSystemKey(method: string) {
++@@ -125,150 +113,55 @@ function paymentMethodToSystemKey(method: string) {
+@@ -188 +188 @@
+-@@ -611,114 +523,39 @@ type ReverseJournalInput = {
++@@ -611,110 +504,28 @@ type ReverseJournalInput = {

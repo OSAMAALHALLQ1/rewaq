@@ -1,74 +1,103 @@
+import type { Metadata } from "next";
 import Link from "next/link";
-import { Check } from "lucide-react";
+import { ArrowLeft, Layers3, ShieldCheck, WalletCards } from "lucide-react";
+import { PlanCard } from "@/components/billing/plan-card";
+import { PlanComparison } from "@/components/billing/plan-comparison";
 import { SiteHeader } from "@/components/public/site-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { REWAQ_MODULES, REWAQ_PLAN_LIST } from "@/lib/billing/plans";
 
-const plans = [
-  {
-    name: "البداية",
-    price: "₪129",
-    description: "لمطعم أو كافيه بفرع واحد يريد ضبط المخزون والتكلفة.",
-    features: ["فرع واحد", "500 مادة مخزون", "موردون ومشتريات", "تقارير أساسية"],
-  },
-  {
-    name: "النمو",
-    price: "₪249",
-    description: "للفرق التي تدير عدة فروع وتحتاج وصفات وتسويق.",
-    features: ["حتى 5 فروع", "تكلفة الوصفات", "مركز التسويق", "صلاحيات مرنة", "تنبيهات داخلية"],
-    highlighted: true,
-  },
-  {
-    name: "التوسع",
-    price: "₪499",
-    description: "للمجموعات التي تحتاج توسعًا وصلاحيات وأتمتة.",
-    features: ["فروع غير محدودة", "تقارير متقدمة", "Feature flags", "SLA دعم", "تكاملات مخصصة"],
-  },
-];
+export const metadata: Metadata = {
+  title: "باقات رواق وأسعار الاشتراك",
+  description: "باقات شهرية واضحة لتشغيل المطاعم وإدارة المخزون والمحاسبة من رواق.",
+};
 
 export default function PricingPage() {
   return (
     <div className="min-h-screen bg-background">
       <SiteHeader />
-      <main className="mx-auto max-w-7xl px-4 py-16 lg:px-6">
-        <div className="mx-auto max-w-3xl text-center">
-          <Badge tone="default">باقات رواق</Badge>
-          <h1 className="mt-4 text-4xl font-black tracking-tight sm:text-5xl">أسعار تناسب نمو مطعمك</h1>
-          <p className="mt-4 text-lg leading-8 text-muted-foreground">
-            كل الباقات تشمل عزل بيانات بين العملاء، واجهة عربية، وبنية قاعدة بيانات جاهزة للتشغيل.
-          </p>
-        </div>
-        <div className="mt-10 grid gap-4 md:grid-cols-3">
-          {plans.map((plan) => (
-            <Card
-              key={plan.name}
-              variant={plan.highlighted ? "dark" : plan.name === "التوسع" ? "light" : "default"}
-              className={plan.highlighted ? "shadow-lift" : ""}
-            >
-              <CardContent className="p-6">
-                {plan.highlighted ? <Badge className="mb-4 border-white/15 bg-white/10 text-accent">الأكثر طلبًا</Badge> : null}
-                <h2 className="text-2xl font-extrabold">{plan.name}</h2>
-                <p className={plan.highlighted ? "mt-2 min-h-14 text-sm leading-7 text-white/70" : "mt-2 min-h-14 text-sm leading-7 text-muted-foreground"}>{plan.description}</p>
-                <div className="mt-6 flex items-end gap-2">
-                  <span className="text-5xl font-black tabular-nums">{plan.price}</span>
-                  <span className={plan.highlighted ? "pb-1 text-sm text-white/70" : "pb-1 text-sm text-muted-foreground"}>شهريًا</span>
+      <main>
+        <section className="border-b border-border bg-card">
+          <div className="mx-auto max-w-7xl px-4 pb-12 pt-14 text-center sm:pb-16 sm:pt-20 lg:px-6">
+            <Badge tone="default">اشتراك شهري واضح بالدولار</Badge>
+            <h1 className="mx-auto mt-5 max-w-4xl text-4xl font-black leading-tight text-foreground sm:text-5xl">
+              باقات رواق لإدارة المطاعم
+            </h1>
+            <p className="mx-auto mt-4 max-w-2xl text-base leading-8 text-muted-foreground sm:text-lg">
+              ابدأ بالتشغيل اليومي، أضف إدارة المخزون والمشتريات عند النمو، أو افتح النظام
+              الكامل بالمحاسبة والتسويق والأتمتة.
+            </p>
+
+            <dl className="mx-auto mt-8 grid max-w-3xl grid-cols-1 divide-y divide-border border-y border-border sm:grid-cols-3 sm:divide-x sm:divide-x-reverse sm:divide-y-0">
+              <div className="flex items-center justify-center gap-3 px-4 py-4">
+                <WalletCards className="h-5 w-5 text-primary" aria-hidden="true" />
+                <div className="text-right">
+                  <dt className="text-xs text-muted-foreground">الباقات</dt>
+                  <dd className="font-extrabold">{REWAQ_PLAN_LIST.length} خيارات واضحة</dd>
                 </div>
-                <Button className="mt-6 w-full" variant={plan.highlighted ? "light" : "default"} asChild>
-                  <Link href="/register">ابدأ بهذه الباقة</Link>
-                </Button>
-                <ul className="mt-6 space-y-3">
-                  {plan.features.map((feature) => (
-                    <li key={feature} className="flex items-center gap-2 text-sm font-bold">
-                      <Check className={plan.highlighted ? "h-4 w-4 text-accent" : "h-4 w-4 text-primary"} />
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+              </div>
+              <div className="flex items-center justify-center gap-3 px-4 py-4">
+                <Layers3 className="h-5 w-5 text-emerald-600" aria-hidden="true" />
+                <div className="text-right">
+                  <dt className="text-xs text-muted-foreground">الباقة المتكاملة</dt>
+                  <dd className="font-extrabold">جميع الوحدات وعددها {REWAQ_MODULES.length}</dd>
+                </div>
+              </div>
+              <div className="flex items-center justify-center gap-3 px-4 py-4">
+                <ShieldCheck className="h-5 w-5 text-amber-600" aria-hidden="true" />
+                <div className="text-right">
+                  <dt className="text-xs text-muted-foreground">سعر البداية</dt>
+                  <dd className="font-extrabold" dir="ltr">
+                    150 USD / month
+                  </dd>
+                </div>
+              </div>
+            </dl>
+          </div>
+        </section>
+
+        <section
+          className="mx-auto max-w-7xl px-4 py-12 sm:py-16 lg:px-6"
+          aria-labelledby="plans-title"
+        >
+          <div className="mb-7">
+            <h2 id="plans-title" className="text-2xl font-extrabold text-foreground sm:text-3xl">
+              اختر الباقة المناسبة لمرحلتك
+            </h2>
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">
+              الأسعار والحدود والمزايا أدناه هي كتالوج رواق المعتمد.
+            </p>
+          </div>
+          <div className="grid items-stretch gap-5 lg:grid-cols-3">
+            {REWAQ_PLAN_LIST.map((plan) => (
+              <PlanCard
+                key={plan.code}
+                plan={plan}
+                action={{ href: "/register", label: "ابدأ طلب الحساب" }}
+              />
+            ))}
+          </div>
+        </section>
+
+        <PlanComparison className="mx-auto max-w-7xl px-4 pb-16 lg:px-6" />
+
+        <section className="border-t border-border bg-secondary text-secondary-foreground">
+          <div className="mx-auto flex max-w-7xl flex-col gap-5 px-4 py-10 sm:flex-row sm:items-center sm:justify-between lg:px-6">
+            <div>
+              <h2 className="text-2xl font-extrabold">تحتاج مساعدة في اختيار الباقة؟</h2>
+              <p className="mt-1 text-sm leading-6 text-secondary-foreground/70">
+                شاركنا عدد الفروع والأجهزة ودورة العمل المطلوبة لنرشح لك البداية الأنسب.
+              </p>
+            </div>
+            <Button variant="light" asChild>
+              <Link href="/request-demo">
+                اطلب عرضًا مخصصًا
+                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+              </Link>
+            </Button>
+          </div>
+        </section>
       </main>
     </div>
   );

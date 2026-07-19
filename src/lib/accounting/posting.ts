@@ -50,7 +50,7 @@ type SupplierInvoicePostingInput = {
 type PurchaseReceiptPostingInput = {
   organizationId: string;
   branchId: string;
-  purchaseOrderId: string;
+  receiptId: string;
   orderLabel: string;
   total: number;
   entryDate: string;
@@ -107,141 +107,63 @@ export function todayLocal(): string {
   return `${y}-${m}-${d}`;
 }
 
-/** Throws if the accounting period containing `date` is closed for the org. */
-async function assertPeriodOpen(admin: AdminClient, organizationId: string, date: string) {
-  const { data: closed } = await (admin as any).rpc("is_accounting_period_closed", {
-    target_org_id: organizationId,
-    target_date: date,
-  });
-
-  if (closed === true) {
-    throw new Error("هذه الفترة المحاسبية مقفلة. أعد فتح الفترة من صفحة الإقفال الشهري قبل التسجيل فيها.");
-  }
-}
-
 function paymentMethodToSystemKey(method: string) {
   if (method === "cash") return "cash_on_hand";
   if (method === "receivable") return "accounts_receivable";
   return "bank_card";
 }
 
-async function nextJournalNumber(admin: AdminClient, organizationId: string) {
-  const today = new Date().toISOString().slice(0, 10);
-  const compactDate = today.replaceAll("-", "");
-  const { count, error } = await (admin as any)
-    .from("journal_entries")
-    .select("id", { count: "exact", head: true })
-    .eq("organization_id", organizationId)
-    .gte("created_at", `${today}T00:00:00.000Z`)
-    .lt("created_at", `${today}T23:59:59.999Z`);
-
-  if (error) throw new Error(error.message);
-
-  return `JE-${compactDate}-${String((count ?? 0) + 1).padStart(4, "0")}`;
-}
-
-async function loadPostingAccounts(admin: AdminClient, organizationId: string, systemKeys: string[]) {
-  await (admin as any).rpc("ensure_default_chart_accounts", { target_org_id: organizationId });
-
-  const { data, error } = await (admin as any)
-    .from("chart_of_accounts")
-    .select("id, system_key")
-    .eq("organization_id", organizationId)
-    .in("system_key", systemKeys);
-
-  if (error) throw new Error(error.message);
-
-  const accounts = new Map<string, string>();
-  for (const account of data ?? []) {
-    if (account.system_key) {
-      accounts.set(account.system_key, account.id);
-    }
-  }
-
-  for (const key of systemKeys) {
-    if (!accounts.has(key)) {
-      throw new Error(`الحساب المحاسبي غير موجود: ${key}`);
-    }
-  }
-
-  return accounts;
-}
-
 export async function postBalancedJournal(admin: AdminClient, input: BalancedJournalInput) {
   const entryDate = input.entryDate || todayLocal();
-
-  // Central guard: never post into a closed accounting period. Every caller is
-  // protected here rather than relying on each document flow to check on its own.
-  await assertPeriodOpen(admin, input.organizationId, entryDate);
-
-  const { data: existing, error: existingError } = await (admin as any)
-    .from("journal_entries")
-    .select("id")
-    .eq("organization_id", input.organizationId)
-    .eq("source_doc_type", input.sourceDocType)
-    .eq("source_doc_id", input.sourceDocId)
-    .maybeSingle();
-
-  if (existingError) throw new Error(existingError.message);
-  if (existing?.id) return existing.id as string;
-
   const debitTotal = roundMoney(input.lines.reduce((sum, line) => sum + (line.debit ?? 0), 0));
   const creditTotal = roundMoney(input.lines.reduce((sum, line) => sum + (line.credit ?? 0), 0));
 
+  if (input.lines.length < 2 || input.lines.length > 500) {
+    throw new Error("القيد يحتاج سطرين إلى 500 سطر.");
+  }
   if (debitTotal <= 0 || creditTotal <= 0) {
     throw new Error("لا يمكن إنشاء قيد محاسبي بقيمة صفرية.");
   }
-
   if (debitTotal !== creditTotal) {
     throw new Error(`القيد غير متوازن: مدين ${debitTotal} / دائن ${creditTotal}`);
   }
-
-  const systemKeys = Array.from(
-    new Set(input.lines.filter((line) => !line.accountId && line.systemKey).map((line) => line.systemKey as string)),
-  );
-  const accounts = systemKeys.length > 0 ? await loadPostingAccounts(admin, input.organizationId, systemKeys) : new Map<string, string>();
 
   for (const line of input.lines) {
     if (!line.accountId && !line.systemKey) {
       throw new Error("سطر قيد بدون حساب محاسبي.");
     }
+    const debit = roundMoney(line.debit ?? 0);
+    const credit = roundMoney(line.credit ?? 0);
+    if (!((debit > 0 && credit === 0) || (credit > 0 && debit === 0))) {
+      throw new Error("كل سطر يجب أن يحتوي قيمة موجبة في المدين أو الدائن فقط.");
+    }
+    if (!line.memo.trim()) throw new Error("وصف سطر القيد مطلوب.");
   }
-  const entryNumber = await nextJournalNumber(admin, input.organizationId);
 
-  const { data: entry, error: entryError } = await (admin as any)
-    .from("journal_entries")
-    .insert({
-      organization_id: input.organizationId,
-      branch_id: input.branchId || null,
-      entry_number: entryNumber,
-      entry_date: entryDate,
-      source_doc_type: input.sourceDocType,
-      source_doc_id: input.sourceDocId,
-      memo: input.memo,
-      status: "posted",
-      created_by: input.createdBy ?? null,
-    })
-    .select("id")
-    .single();
-
-  if (entryError || !entry) throw new Error(entryError?.message ?? "تعذر إنشاء القيد المحاسبي.");
-
-  const { error: lineError } = await (admin as any).from("journal_lines").insert(
-    input.lines.map((line) => ({
-      organization_id: input.organizationId,
-      journal_entry_id: entry.id,
-      account_id: line.accountId ?? accounts.get(line.systemKey as string),
-      branch_id: input.branchId || null,
+  const { data, error } = await (admin as any).rpc("post_balanced_journal_atomic", {
+    p_organization_id: input.organizationId,
+    p_branch_id: input.branchId,
+    p_source_doc_type: input.sourceDocType,
+    p_source_doc_id: input.sourceDocId,
+    p_memo: input.memo,
+    p_entry_date: entryDate,
+    p_lines: input.lines.map((line) => ({
+      system_key: line.systemKey ?? null,
+      account_id: line.accountId ?? null,
       debit: roundMoney(line.debit ?? 0),
       credit: roundMoney(line.credit ?? 0),
-      memo: line.memo,
+      memo: line.memo.trim(),
       cost_center_id: line.costCenterId ?? null,
     })),
-  );
+    p_created_by: input.createdBy ?? null,
+  });
+  if (error) throw new Error(error.message);
 
-  if (lineError) throw new Error(lineError.message);
-
-  return entry.id as string;
+  const entryId = (data as { entry_id?: unknown } | null)?.entry_id;
+  if (typeof entryId !== "string" || !entryId) {
+    throw new Error("تعذر اعتماد القيد المحاسبي ذرياً.");
+  }
+  return entryId;
 }
 
 export async function postCustomerInvoiceJournal(admin: AdminClient, input: CustomerInvoicePostingInput) {
@@ -445,6 +367,7 @@ type SupplierPaymentPostingInput = {
   organizationId: string;
   branchId: string | null;
   invoiceId: string;
+  paymentId: string;
   invoiceNumber: string;
   supplierName: string;
   amount: number;
@@ -468,7 +391,7 @@ export async function postSupplierPaymentJournal(admin: AdminClient, input: Supp
     organizationId: input.organizationId,
     branchId: input.branchId,
     sourceDocType: "supplier_payment",
-    sourceDocId: input.invoiceId,
+    sourceDocId: input.paymentId,
     memo: `دفع فاتورة مورد ${input.invoiceNumber} - ${input.supplierName}`,
     createdBy: input.createdBy,
     entryDate: input.entryDate,
@@ -495,7 +418,7 @@ export async function postPurchaseReceiptJournal(admin: AdminClient, input: Purc
     organizationId: input.organizationId,
     branchId: input.branchId,
     sourceDocType: "purchase_receipt",
-    sourceDocId: input.purchaseOrderId,
+    sourceDocId: input.receiptId,
     memo: `قيد استلام طلب شراء ${input.orderLabel}`,
     createdBy: input.createdBy,
     entryDate: input.entryDate,
@@ -583,80 +506,30 @@ type ReverseJournalInput = {
   entryId: string;
   reason: string;
   createdBy?: string | null;
+  entryDate?: string;
 };
 
 /**
- * Creates a reversal entry (never deletes): each debit becomes a credit and
- * vice versa. Idempotent via the (source_doc_type, source_doc_id) uniqueness.
+ * Creates a complete reversal in one database transaction. The reversal is
+ * dated in an open correction period instead of rewriting the original period.
  */
 export async function reverseJournalEntry(admin: AdminClient, input: ReverseJournalInput) {
-  const { data: original, error: originalError } = await (admin as any)
-    .from("journal_entries")
-    .select("id, entry_number, entry_date, branch_id, status, source_doc_type, reversal_of_entry_id, journal_lines(account_id, debit, credit, memo, cost_center_id)")
-    .eq("organization_id", input.organizationId)
-    .eq("id", input.entryId)
-    .maybeSingle();
+  const reason = input.reason.trim();
+  if (reason.length < 3) throw new Error("سبب العكس مطلوب (3 أحرف على الأقل).");
+  const { data, error } = await (admin as any).rpc("reverse_journal_entry_atomic", {
+    p_organization_id: input.organizationId,
+    p_entry_id: input.entryId,
+    p_reason: reason,
+    p_reversal_date: input.entryDate || todayLocal(),
+    p_created_by: input.createdBy ?? null,
+  });
+  if (error) throw new Error(error.message);
 
-  if (originalError) throw new Error(originalError.message);
-  if (!original) throw new Error("القيد المطلوب عكسه غير موجود.");
-  if (original.reversal_of_entry_id) throw new Error("لا يمكن عكس قيد هو نفسه قيد عكسي.");
-  if (original.source_doc_type === "journal_reversal") throw new Error("لا يمكن عكس قيد عكسي.");
-
-  const { data: existingReversal } = await (admin as any)
-    .from("journal_entries")
-    .select("id")
-    .eq("organization_id", input.organizationId)
-    .eq("source_doc_type", "journal_reversal")
-    .eq("source_doc_id", input.entryId)
-    .maybeSingle();
-
-  if (existingReversal?.id) throw new Error("هذا القيد معكوس مسبقاً.");
-
-  // Reversing an entry is itself a posting into the original entry's period,
-  // so the closed-period guard applies here too.
-  const originalDate = original.entry_date || todayLocal();
-  await assertPeriodOpen(admin, input.organizationId, originalDate);
-
-  const lines = (original.journal_lines ?? []) as Array<{ account_id: string; debit: number; credit: number; memo: string | null; cost_center_id: string | null }>;
-  if (lines.length === 0) throw new Error("القيد لا يحتوي على أسطر.");
-
-  const entryNumber = await nextJournalNumber(admin, input.organizationId);
-
-  const { data: reversal, error: reversalError } = await (admin as any)
-    .from("journal_entries")
-    .insert({
-      organization_id: input.organizationId,
-      branch_id: original.branch_id,
-      entry_number: entryNumber,
-      entry_date: originalDate,
-      source_doc_type: "journal_reversal",
-      source_doc_id: input.entryId,
-      memo: `عكس قيد ${original.entry_number}: ${input.reason}`,
-      status: "posted",
-      reversal_of_entry_id: input.entryId,
-      created_by: input.createdBy ?? null,
-    })
-    .select("id")
-    .single();
-
-  if (reversalError || !reversal) throw new Error(reversalError?.message ?? "تعذر إنشاء القيد العكسي.");
-
-  const { error: lineError } = await (admin as any).from("journal_lines").insert(
-    lines.map((line) => ({
-      organization_id: input.organizationId,
-      journal_entry_id: reversal.id,
-      account_id: line.account_id,
-      branch_id: original.branch_id,
-      debit: roundMoney(Number(line.credit) || 0),
-      credit: roundMoney(Number(line.debit) || 0),
-      memo: line.memo ? `عكس: ${line.memo}` : `عكس قيد ${original.entry_number}`,
-      cost_center_id: line.cost_center_id,
-    })),
-  );
-
-  if (lineError) throw new Error(lineError.message);
-
-  return reversal.id as string;
+  const reversalId = (data as { entry_id?: unknown } | null)?.entry_id;
+  if (typeof reversalId !== "string" || !reversalId) {
+    throw new Error("تعذر اعتماد القيد العكسي ذرياً.");
+  }
+  return reversalId;
 }
 
 export async function postInventoryWriteOffJournal(admin: AdminClient, input: InventoryWriteOffPostingInput) {

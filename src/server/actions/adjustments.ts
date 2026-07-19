@@ -6,6 +6,7 @@ import { createAdminClientWithContext, hasSupabaseAdminEnv } from "@/lib/supabas
 import { requireAuth, requireSensitiveActionCapability } from "@/lib/auth/require-auth";
 import { postInventoryWriteOffJournal, todayLocal } from "@/lib/accounting/posting";
 import { logAuditEvent } from "@/lib/audit/log";
+import { requireOrganizationModule } from "@/server/billing/entitlements";
 
 type ActionState = {
   ok: boolean;
@@ -41,18 +42,8 @@ export async function saveManualAdjustmentAction(formData: FormData): Promise<Ac
     const auth = await requireAuth();
     requireSensitiveActionCapability(auth, "inventory_movement_write", parsed.data.branchId);
     const admin = createAdminClientWithContext("adjustments.ts/saveManualAdjustmentAction");
-    
-    // Find organization membership
-    const { data: membership } = await (admin as any)
-      .from("organization_memberships")
-      .select("organization_id")
-      .eq("user_id", auth.id)
-      .maybeSingle();
-
-    const organizationId = membership?.organization_id;
-    if (!organizationId) {
-      return { ok: false, message: "لم يتم العثور على مؤسسة مرتبطة بحسابك." };
-    }
+    const organizationId = auth.organizationId;
+    await requireOrganizationModule(admin, organizationId, "inventory", { write: true });
 
     const branchId = parsed.data.branchId;
     const itemId = parsed.data.itemId;

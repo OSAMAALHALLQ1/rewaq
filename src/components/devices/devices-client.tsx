@@ -69,6 +69,9 @@ const moduleLabels: Record<string, { title: string; desc: string; icon: string }
   waste: { title: "الهدر والتالف", desc: "تسجيل كميات الهدر والمحاريق فورياً", icon: "🗑️" },
   pos: { title: "شاشة الكاشير والبيع السريع", desc: "واجهة البيع السريع ونقاط البيع للأقسام", icon: "💻" },
   reports: { title: "التقارير المالية", desc: "رؤية المؤشرات وتذبذبات أسعار المواد", icon: "📊" },
+  waiter: { title: "شاشة النادل", desc: "فتح الطاولات وإرسال الطلب إلى المطبخ", icon: "🧑‍🍳" },
+  kitchen: { title: "شاشة المطبخ KDS", desc: "استلام العناصر وتحضيرها وإعلان الجاهزية", icon: "🔥" },
+  expo: { title: "شاشة Expo", desc: "مطابقة الطلب وتجميعه وإثبات التقديم", icon: "✅" },
 };
 
 const roleColors: Record<string, { text: string; bg: string; border: string; label: string }> = {
@@ -76,13 +79,17 @@ const roleColors: Record<string, { text: string; bg: string; border: string; lab
   cashier: { text: "text-emerald-700", bg: "bg-emerald-50", border: "border-emerald-100", label: "شاشة كاشير (POS)" },
   inventory_manager: { text: "text-purple-700", bg: "bg-purple-50", border: "border-purple-100", label: "أمين مخزن ومستودع" },
   staff: { text: "text-slate-700", bg: "bg-slate-50", border: "border-slate-100", label: "موظف عام" },
+  waiter: { text: "text-sky-700", bg: "bg-sky-50", border: "border-sky-100", label: "نادل / جرسون" },
+  expo: { text: "text-teal-700", bg: "bg-teal-50", border: "border-teal-100", label: "Expo / تسليم" },
 };
 
 const roleDefaultModules: Record<string, string[]> = {
-  chef: ["recipes", "inventory", "waste"],
+  waiter: ["waiter"],
+  chef: ["kitchen"],
   cashier: ["pos"],
   inventory_manager: ["inventory", "purchasing", "waste", "reports"],
   staff: ["inventory"],
+  expo: ["expo"],
 };
 
 export function DevicesClient({ orgId, branches, currentRole, currentName, initialTab = "list" }: DevicesClientProps) {
@@ -276,7 +283,7 @@ export function DevicesClient({ orgId, branches, currentRole, currentName, initi
         body: JSON.stringify({
           deviceName: deviceName.trim(),
           branchId: selectedBranch || null,
-          role: selectedRole,
+          role: selectedRole === "waiter" || selectedRole === "expo" ? "staff" : selectedRole,
           allowedModules: selectedModules,
         }),
       });
@@ -600,7 +607,9 @@ export function DevicesClient({ orgId, branches, currentRole, currentName, initi
                         onChange={(e) => setSelectedRole(e.target.value)}
                         className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 outline-none focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/50"
                       >
+                        <option value="waiter">نادل / جرسون (Waiter)</option>
                         <option value="chef">المطبخ / الشيف (KDS)</option>
+                        <option value="expo">التجميع والتسليم (Expo)</option>
                         <option value="cashier">كاشير بيع سريع (POS)</option>
                         <option value="inventory_manager">المخازن والمستودع</option>
                       </select>
@@ -745,7 +754,7 @@ export function DevicesClient({ orgId, branches, currentRole, currentName, initi
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-100">
                     <th className="p-4 font-black text-slate-800 text-right w-1/3">البرنامج / الوحدة التشغيلية</th>
-                    {["chef", "cashier", "inventory_manager", "staff"].map(r => (
+                    {["waiter", "chef", "expo", "cashier", "inventory_manager"].map(r => (
                       <th key={r} className="p-4 font-black text-slate-800 text-center">
                         <span className={`inline-block px-2.5 py-1 rounded-full text-[10px] border ${roleColors[r]?.bg} ${roleColors[r]?.text} ${roleColors[r]?.border}`}>
                           {roleColors[r]?.label}
@@ -755,7 +764,7 @@ export function DevicesClient({ orgId, branches, currentRole, currentName, initi
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {["pos", "recipes", "inventory", "purchasing", "waste", "reports"].map(modKey => {
+                  {["waiter", "kitchen", "expo", "pos", "recipes", "inventory", "purchasing", "waste", "reports"].map(modKey => {
                     const mod = moduleLabels[modKey];
                     return (
                       <tr key={modKey} className="hover:bg-slate-50/50 transition-colors">
@@ -768,7 +777,7 @@ export function DevicesClient({ orgId, branches, currentRole, currentName, initi
                             </div>
                           </div>
                         </td>
-                        {["chef", "cashier", "inventory_manager", "staff"].map(role => {
+                        {["waiter", "chef", "expo", "cashier", "inventory_manager"].map(role => {
                           const hasAccess = roleDefaultModules[role]?.includes(modKey);
                           return (
                             <td key={role} className="p-4 text-center">

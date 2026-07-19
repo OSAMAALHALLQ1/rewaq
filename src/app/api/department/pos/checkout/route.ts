@@ -10,6 +10,7 @@ import {
 } from "@/lib/demo-data";
 import { demoEntries } from "@/server/queries/accounting";
 import { canUseDemoFallback } from "@/lib/supabase/env";
+import { todayLocal } from "@/lib/accounting/posting";
 
 const checkoutItemSchema = z.object({
   catalogItemId: z.string().uuid(),
@@ -377,7 +378,7 @@ export async function POST(request: Request) {
     demoEntries.unshift({
       id: `je-demo-${Date.now()}`,
       entryNumber: `JE-POS-${Date.now().toString().slice(-6)}`,
-      entryDate: new Date().toISOString().split('T')[0],
+      entryDate: todayLocal(),
       sourceDocType: "customer_invoice",
       memo: `قيد تلقائي لمبيعات الكاشير - فاتورة ${invoiceNumber}`,
       debitTotal: debitSum,

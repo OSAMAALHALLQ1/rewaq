@@ -8,6 +8,7 @@ import { requireAuth, requireSensitiveActionCapability } from "@/lib/auth/requir
 import { logAuditEvent } from "@/lib/audit/log";
 import { postBalancedJournal } from "@/lib/accounting/posting";
 import { numberValue } from "@/server/queries/_shared/utils";
+import { requireOrganizationModule } from "@/server/billing/entitlements";
 import type { ActionState } from "./auth";
 
 function ok(message: string): ActionState {
@@ -23,22 +24,11 @@ async function resolveScope() {
   const admin = createAdminClientWithContext("treasury.ts/resolveScope");
 
   if (auth.organizationId) {
+    await requireOrganizationModule(admin, auth.organizationId, "accounting", { write: true });
     return { admin, organizationId: auth.organizationId, userId: auth.id, auth };
   }
 
-  const { data: membership } = await (admin as any)
-    .from("organization_memberships")
-    .select("organization_id")
-    .eq("user_id", auth.id)
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
-
-  if (membership?.organization_id) {
-    return { admin, organizationId: membership.organization_id, userId: auth.id, auth };
-  }
-
-  throw new Error("لم يتم العثور على مؤسسة مرتبطة بحسابك.");
+  throw new Error("لم يتم تحديد مؤسسة نشطة للجلسة. اختر المؤسسة صراحةً ثم أعد المحاولة.");
 }
 
 // ----------------------------------------------------------------------------

@@ -28,6 +28,7 @@ export function SupplierInvoicesClient({ invoices }: { invoices: Invoice[] }) {
   const [paymentMethod, setPaymentMethod] = React.useState("cash");
   const [paymentDate, setPaymentDate] = React.useState(localToday());
   const [reference, setReference] = React.useState("");
+  const [paymentIdempotencyKey, setPaymentIdempotencyKey] = React.useState("");
   const [formError, setFormError] = React.useState<string | null>(null);
   const [formSuccess, setFormSuccess] = React.useState<string | null>(null);
   const [isPending, startTransition] = React.useTransition();
@@ -38,6 +39,7 @@ export function SupplierInvoicesClient({ invoices }: { invoices: Invoice[] }) {
     setPaymentMethod("cash");
     setPaymentDate(localToday());
     setReference("");
+    setPaymentIdempotencyKey(`supplier-payment:${crypto.randomUUID()}`);
     setFormError(null);
     setFormSuccess(null);
   };
@@ -53,6 +55,7 @@ export function SupplierInvoicesClient({ invoices }: { invoices: Invoice[] }) {
     formData.append("paymentMethod", paymentMethod);
     formData.append("paymentDate", paymentDate);
     formData.append("reference", reference.trim());
+    formData.append("idempotencyKey", paymentIdempotencyKey);
 
     startTransition(async () => {
       try {

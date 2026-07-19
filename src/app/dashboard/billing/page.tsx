@@ -1,48 +1,81 @@
-import { CreditCard } from "lucide-react";
+import Link from "next/link";
+import { ArrowLeftRight } from "lucide-react";
+import { PlanCard } from "@/components/billing/plan-card";
+import { PlanComparison } from "@/components/billing/plan-comparison";
+import { SubscriptionOverview } from "@/components/billing/subscription-overview";
 import { PageHeader } from "@/components/page-header";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { REWAQ_PLAN_LIST } from "@/lib/billing/plans";
+import {
+  getOrganizationEntitlements,
+  type OrganizationEntitlements,
+} from "@/server/billing/entitlements";
+import { withAdminScope } from "@/server/queries/_shared/utils";
 
-export default function BillingPage() {
+async function loadSubscription(): Promise<OrganizationEntitlements | null> {
+  try {
+    return await withAdminScope<OrganizationEntitlements | null>(
+      null,
+      (admin, scope) => getOrganizationEntitlements(admin, scope.organizationId),
+    );
+  } catch (error) {
+    console.error("[dashboard/billing]", error instanceof Error ? error.message : error);
+    return null;
+  }
+}
+
+export default async function BillingPage() {
+  const subscription = await loadSubscription();
+
   return (
     <>
       <PageHeader
         title="الفوترة والاشتراك"
-        description="صفحة تمهيدية جاهزة لربط مزود دفع محلي لاحقًا."
-        actions={<Button variant="outline">تحديث البطاقة</Button>}
+        description="راجع حالة اشتراك مؤسستك وحدود الباقة وقارن خيارات رواق المعتمدة."
+        actions={
+          <Button variant="outline" asChild>
+            <Link href="/pricing">
+              <ArrowLeftRight className="h-4 w-4" aria-hidden="true" />
+              صفحة الأسعار
+            </Link>
+          </Button>
+        }
       />
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CreditCard className="h-5 w-5 text-primary" />
-              الاشتراك الحالي
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between rounded-lg border p-4">
-              <div>
-                <p className="font-semibold">النمو</p>
-                <p className="text-sm text-muted-foreground">حتى 5 فروع مع التسويق والوصفات.</p>
-              </div>
-              <Badge tone="warning">تجريبي</Badge>
-            </div>
-            <p className="text-sm leading-7 text-muted-foreground">
-              لاحقًا: فوترة متقدمة، فواتير مطبوعة، ربط تلقائي مع مزود الدفع، وإدارة حدود الاستخدام.
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>الفاتورة القادمة</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-black">₪249</p>
-            <p className="mt-2 text-sm text-muted-foreground">بعد انتهاء الفترة التجريبية.</p>
-          </CardContent>
-        </Card>
-      </div>
+
+      <SubscriptionOverview subscription={subscription} />
+
+      <section className="mt-8" aria-labelledby="billing-plans-title">
+        <div className="mb-5">
+          <h2 id="billing-plans-title" className="text-2xl font-extrabold text-foreground">
+            باقات رواق
+          </h2>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">
+            يظهر طلب تغيير الباقة للباقات غير المفعّلة على مؤسستك.
+          </p>
+        </div>
+        <div className="grid items-stretch gap-5 lg:grid-cols-3">
+          {REWAQ_PLAN_LIST.map((plan) => {
+            const current = subscription?.planCode === plan.code;
+            return (
+              <PlanCard
+                key={plan.code}
+                plan={plan}
+                current={current}
+                action={
+                  current
+                    ? undefined
+                    : { href: "/request-demo", label: "طلب تغيير الباقة" }
+                }
+              />
+            );
+          })}
+        </div>
+      </section>
+
+      <PlanComparison
+        className="mt-10 pb-2"
+        description="الوحدات المتاحة لكل باقة كما هي معتمدة في كتالوج رواق."
+      />
     </>
   );
 }

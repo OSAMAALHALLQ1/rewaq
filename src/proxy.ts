@@ -3,6 +3,7 @@ import { updateSession } from "@/lib/supabase/proxy";
 import { createServerClient } from "@supabase/ssr";
 import type { Database } from "@/types/database";
 import { getSupabaseEnv, hasSupabaseEnv } from "@/lib/supabase/env";
+import { DEMO_TRIAL_COOKIE, isDemoTrialTokenValid } from "@/lib/auth/demo-trial";
 import { jwtVerify } from "jose";
 
 const PROTECTED_PATHS = ["/dashboard"];
@@ -21,6 +22,10 @@ function getApprovalStatus(user: { app_metadata?: Record<string, unknown>; user_
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // Overwrite unconditionally so a client-supplied value can never spoof the
+  // pathname that server components use for plan/module enforcement.
+  request.headers.set("x-rewaq-pathname", pathname);
 
   // Custom Admin Route Protection
   if (pathname.startsWith("/admin") && !pathname.startsWith("/admin-login")) {
@@ -69,6 +74,31 @@ export async function proxy(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  // End expired 8-hour demo trials: a demo session without a valid signed
+  // trial ticket is signed out and returned to the login page.
+  const demoEmail = process.env.RAWAQ_DEMO_EMAIL?.trim().toLowerCase();
+  if (
+    user &&
+    demoEmail &&
+    user.email?.toLowerCase() === demoEmail &&
+    PROTECTED_PATHS.some((path) => pathname.startsWith(path))
+  ) {
+    const trialValid = await isDemoTrialTokenValid(request.cookies.get(DEMO_TRIAL_COOKIE)?.value);
+    if (!trialValid) {
+      await supabase.auth.signOut();
+      const url = request.nextUrl.clone();
+      url.pathname = "/login";
+      url.search = "";
+      url.searchParams.set("trial", "expired");
+      const expiredResponse = NextResponse.redirect(url);
+      response.cookies.getAll().forEach((cookie) => {
+        expiredResponse.cookies.set(cookie.name, cookie.value, cookie);
+      });
+      expiredResponse.cookies.delete(DEMO_TRIAL_COOKIE);
+      return expiredResponse;
+    }
+  }
 
   const approvalStatus = user ? getApprovalStatus(user) : undefined;
   const isPendingApproval = Boolean(approvalStatus && approvalStatus !== "approved");

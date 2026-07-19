@@ -35,11 +35,10 @@ export async function POST(request: Request) {
 
       const response = NextResponse.json({
         success: true,
-        token: normalizedKey,
         organizationId: "00000000-0000-4000-8000-000000000001",
         branchId: "00000000-0000-4000-8000-000000000101",
-        role: "cashier",
-        allowedModules: ["pos", "inventory", "recipes", "waste"],
+        role: "manager",
+        allowedModules: ["pos", "inventory", "recipes", "waste", "waiter", "kitchen", "expo"],
         deviceName: "جهاز كاشير تجريبي",
       });
 
@@ -96,7 +95,6 @@ export async function POST(request: Request) {
     // 4. Return successful metadata to the client
     const response = NextResponse.json({
       success: true,
-      token: normalizedKey, // The raw key acts as a client-side session token
       organizationId: keyData.organization_id,
       branchId: keyData.branch_id,
       role: keyData.role,
