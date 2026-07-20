@@ -8,7 +8,7 @@ import type { ActionState } from "@/server/actions/auth";
 type ActionFormProps = {
   action: (prevState: ActionState, formData: FormData) => Promise<ActionState>;
   children: React.ReactNode;
-  submitLabel: string;
+  submitLabel?: string;
   className?: string;
 };
 
@@ -25,9 +25,9 @@ export function ActionForm({ action, children, submitLabel, className }: ActionF
           {state.message}
         </Badge>
       ) : null}
-      <div className="mt-4">
+      {submitLabel ? <div className="mt-4">
         <FormSubmit>{submitLabel}</FormSubmit>
-      </div>
+      </div> : null}
     </form>
   );
 }

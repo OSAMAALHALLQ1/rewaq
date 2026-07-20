@@ -204,7 +204,6 @@ export default function WaiterPage() {
           priority,
           notes: orderNotes || null,
           allergens: allergens.split(",").map((value) => value.trim()).filter(Boolean),
-          currency: "JOD",
           items: cart.map((line) => ({
             clientLineId: line.clientLineId,
             stationId: line.stationId,

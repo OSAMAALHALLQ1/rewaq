@@ -8,8 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   employeeCodeLoginAction,
-  ownerPasswordLoginAction,
 } from "@/server/actions/access";
+import { loginAction } from "@/server/actions/auth";
 
 export default async function LoginPage({
   searchParams,
@@ -21,7 +21,7 @@ export default async function LoginPage({
   return (
     <AuthCard
       title="تسجيل الدخول"
-      description="لا حاجة لإدخال البريد الإلكتروني: المالك يدخل بكلمة المرور، والموظف بكوده فقط."
+      description="مالك كل مؤسسة يدخل ببريده وكلمة مروره، والموظف بكود دعوته فقط."
       footer={
         <>
           ليس لديك حساب؟{" "}
@@ -49,7 +49,17 @@ export default async function LoginPage({
         </TabsList>
 
         <TabsContent value="owner">
-          <ActionForm action={ownerPasswordLoginAction} submitLabel="دخول المالك" className="space-y-4">
+          <ActionForm action={loginAction} submitLabel="دخول المالك" className="space-y-4">
+            <div className="grid gap-2">
+              <Label htmlFor="owner-email">البريد الإلكتروني</Label>
+              <Input
+                id="owner-email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+              />
+            </div>
             <div className="grid gap-2">
               <Label htmlFor="owner-password">كلمة مرور المالك</Label>
               <Input
@@ -61,7 +71,7 @@ export default async function LoginPage({
               />
             </div>
             <p className="rounded-2xl border border-border bg-muted p-3 text-sm leading-6 text-muted-foreground">
-              حساب المالك محدد مسبقًا على الخادم، لذلك تكفي كلمة المرور وحدها للدخول.
+              تدخل إلى مؤسستك المرتبطة بحسابك فقط؛ لا توجد بيانات مالك مشتركة أو محددة في متغيرات الخادم.
             </p>
           </ActionForm>
         </TabsContent>

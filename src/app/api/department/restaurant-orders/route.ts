@@ -26,9 +26,11 @@ const submitOrderSchema = z.object({
   priority: z.enum(["normal", "rush"]).default("normal"),
   notes: z.string().trim().max(1000).optional().nullable(),
   allergens: z.array(z.string().trim().min(1).max(80)).max(20).default([]),
-  currency: z.string().trim().toUpperCase().regex(/^[A-Z]{3}$/).default("JOD"),
   items: z.array(orderItemSchema).min(1).max(250),
 });
+
+// رواق يعمل بالشيكل في مسار النادل؛ الجهاز لا يرسل العملة ولا يختارها.
+const RESTAURANT_ORDER_CURRENCY = "ILS";
 
 async function authenticateWaiter(request: Request) {
   const auth = await authenticateDepartmentDevice(request, "waiter");
@@ -159,7 +161,7 @@ export async function POST(request: Request) {
       p_priority: input.priority,
       p_notes: input.notes || null,
       p_allergens: input.allergens,
-      p_currency: input.currency,
+      p_currency: RESTAURANT_ORDER_CURRENCY,
       p_order_discount: 0,
       p_service_fee: 0,
       p_delivery_fee: 0,

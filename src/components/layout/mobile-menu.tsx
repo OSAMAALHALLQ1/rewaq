@@ -12,36 +12,38 @@ import {
   type NavItem,
 } from "@/components/layout/nav-config";
 import { cn } from "@/lib/utils";
+import { moduleForPath, planHasModule } from "@/lib/billing/plans";
 import type { Role } from "@/types/domain";
 
 type MobileMenuProps = {
   mode?: "app" | "admin";
   role?: Role;
+  planCode?: string;
   onClose?: () => void;
   onChatOpen?: () => void;
 };
 
-function canView(item: NavItem, role?: Role) {
-  if (!item.roles || item.roles.length === 0) return true;
-  if (!role) return true;
-  return item.roles.includes(role);
+function canView(item: NavItem, role?: Role, planCode?: string) {
+  if (item.roles && item.roles.length > 0 && role && !item.roles.includes(role)) return false;
+  const routeModule = moduleForPath(item.href);
+  return !routeModule || !planCode || planHasModule(planCode, routeModule);
 }
 
-function buildGroups(mode: "app" | "admin", role?: Role): NavGroup[] {
+function buildGroups(mode: "app" | "admin", role?: Role, planCode?: string): NavGroup[] {
   if (mode === "admin") {
     return [{ title: "المنصة", icon: Layers, items: adminNav }];
   }
   return appNav
     .map((group) => ({
       ...group,
-      items: group.items.filter((item) => canView(item, role)),
+      items: group.items.filter((item) => canView(item, role, planCode)),
     }))
     .filter((group) => group.items.length > 0);
 }
 
-export function MobileMenu({ mode = "app", role, onClose, onChatOpen }: MobileMenuProps) {
+export function MobileMenu({ mode = "app", role, planCode, onClose, onChatOpen }: MobileMenuProps) {
   const pathname = usePathname();
-  const groups = React.useMemo(() => buildGroups(mode, role), [mode, role]);
+  const groups = React.useMemo(() => buildGroups(mode, role, planCode), [mode, role, planCode]);
 
   const [openGroups, setOpenGroups] = React.useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {};
@@ -101,7 +103,7 @@ export function MobileMenu({ mode = "app", role, onClose, onChatOpen }: MobileMe
       {mode === "app" && (
         <div className="border-b border-border px-4 py-4">
           <div className="grid grid-cols-2 gap-3">
-            {quickLinks.map((item) => {
+            {quickLinks.filter((item) => canView(item, role, planCode)).map((item) => {
               const Icon = item.icon;
               return (
                 <Link

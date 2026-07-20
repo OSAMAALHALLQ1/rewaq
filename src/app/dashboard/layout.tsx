@@ -27,6 +27,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       session={session}
       branches={context.branches}
       notifications={notifications}
+      planCode={planSelection.planCode}
     >
       {children}
     </ResponsivePageShell>

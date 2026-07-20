@@ -19,6 +19,7 @@ import { SiteHeader } from "@/components/public/site-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { REWAQ_PLAN_LIST } from "@/lib/billing/plans";
 
 const problems = [
   "هدر يومي لا يظهر في الحسابات إلا متأخرًا",
@@ -33,26 +34,26 @@ const features = [
   { title: "المشتريات والموردين", description: "طلبات شراء، فواتير، وسجل أسعار الموردين.", icon: ShoppingCart },
   { title: "تقارير الربحية", description: "تكلفة الطعام، الهدر، المقارنات، وقيمة المخزون.", icon: BarChart3 },
   { title: "إدارة الفروع", description: "صلاحيات وبيانات منفصلة لكل فرع.", icon: Building2 },
-  { title: "نشر العروض", description: "منشور واحد إلى القنوات الاجتماعية عبر Node-RED.", icon: Megaphone },
+  { title: "التسويق والمحتوى", description: "إدارة المحتوى والعروض من مساحة عمل واحدة.", icon: Megaphone },
 ];
 
 const businessProfiles = [
-  ["مطعم صغير", "تشغيل سريع مثل Aronium مع مخزون مبسط وتنبيهات واضحة."],
-  ["كافيه حديث", "لوحة Foodics-style: كاشير سريع، QR Menu، مخزون، وعروض يومية."],
+  ["مطعم صغير", "تشغيل سريع مع كاشير ومبيعات وورديات وتقارير واضحة."],
+  ["كافيه حديث", "كاشير سريع، منيو إلكتروني، مخزون، وعروض يومية."],
   ["مطعم متوسط", "تشغيل + محاسبة: مبيعات، مشتريات، موردين، وتكلفة طبق."],
   ["عدة فروع", "صلاحيات، تقارير فرعية، توزيع مخزون، وطبقة محاسبة أقوى."],
 ];
 
 const recommendationRows = [
-  ["مطعم صغير", "Aronium-like", "أقل تعقيدًا، بيع سريع ومخزون أساسي"],
-  ["كافيه حديث", "Foodics-like", "QR Menu، شاشة مطبخ، دليفري، وتقارير سهلة"],
-  ["مطعم متوسط", "Foodics + محاسبة", "تشغيل يومي مع متابعة مشتريات وربحية"],
-  ["مطعم كبير", "نظام مخصص + محاسبة", "فروع، موردين، رواتب، تقارير مالية"],
+  ["مطعم صغير", "باقة المطعم الصغير", "بيع سريع ومخزون أساسي وتقارير تشغيل"],
+  ["كافيه حديث", "باقة المطعم المتوسط", "منيو إلكتروني، شاشة مطبخ، وطاولات"],
+  ["مطعم متوسط", "باقة المطعم المتوسط", "تشغيل يومي مع متابعة مشتريات وربحية"],
+  ["مطعم كبير", "باقة المطعم الكبير", "فروع، موردون، محاسبة وتقارير متقدمة"],
 ];
 
 const faqs = [
   ["هل رواق مناسب لمطعم صغير؟", "نعم. يبدأ بفرع واحد ثم يتوسع للفروع والمطابخ السحابية."],
-  ["هل التكاملات الاجتماعية حقيقية؟", "نعم، يمكن توجيه النشر إلى Node-RED webhook مفتوح المصدر ثم ربط القنوات من Node-RED."],
+  ["هل يمكن إدارة المحتوى الاجتماعي؟", "نعم، من مركز التسويق. تفعيل النشر لكل قناة يتطلب ربط حسابها وصلاحياتها الخاصة."],
   ["هل البيانات معزولة بين العملاء؟", "نعم. بنية قاعدة البيانات تعتمد معرف المؤسسة وسياسات عزل لكل الجداول الأساسية."],
 ];
 
@@ -220,10 +221,10 @@ export default function LandingPage() {
         <section className="bg-muted py-16">
           <div className="mx-auto max-w-7xl px-4 lg:px-6">
             <div className="mb-8 max-w-3xl">
-              <Badge tone="default">مقارنة عملية لغزة</Badge>
-              <h2 className="mt-4 text-4xl font-black tracking-tight">رواق يأخذ أفضل فكرة من كل نظام، ثم يبسطها.</h2>
+              <Badge tone="default">اختر ما يناسب حجم مطعمك</Badge>
+              <h2 className="mt-4 text-4xl font-black tracking-tight">نظام واحد يتوسع مع التشغيل اليومي.</h2>
               <p className="mt-3 leading-8 text-muted-foreground">
-                الهدف ليس تقليد Foodics أو الأصيل أو Aronium، بل جعل اختيار الداشبورد مناسبًا لحجم العمل ومستوى المحاسبة.
+                تبدأ بما تحتاجه اليوم، ثم تضيف التشغيل والمحاسبة والتوسع عندما يكبر العمل.
               </p>
             </div>
             <div className="overflow-hidden rounded-[2rem] border border-border bg-white shadow-soft">
@@ -258,17 +259,13 @@ export default function LandingPage() {
               </Link>
             </div>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {[
-                ["Starter", "₪129", "فرع واحد ومخزون وتقارير أساسية"],
-                ["Growth", "₪249", "حتى 5 فروع، وصفات، وتسويق"],
-                ["Scale", "₪499", "صلاحيات وأتمتة وتوسع متقدم"],
-              ].map(([name, price, desc]) => (
-                <Card key={name} variant={name === "Growth" ? "dark" : name === "Scale" ? "light" : "default"}>
+              {REWAQ_PLAN_LIST.map((plan) => (
+                <Card key={plan.code} variant={plan.recommended ? "dark" : plan.code === "scale" ? "light" : "default"}>
                   <CardContent className="p-6">
-                    <h3 className="text-xl font-extrabold">{name}</h3>
-                    <p className="mt-4 text-4xl font-black tabular-nums">{price}</p>
-                    <p className={name === "Growth" ? "mt-3 text-sm leading-7 text-white/70" : "mt-3 text-sm leading-7 text-muted-foreground"}>{desc}</p>
-                    <Button className="mt-6 w-full" variant={name === "Growth" ? "light" : "default"} asChild>
+                    <h3 className="text-xl font-extrabold">{plan.name}</h3>
+                    <p className="mt-4 text-4xl font-black tabular-nums">${plan.monthlyPriceUsd}</p>
+                    <p className={plan.recommended ? "mt-3 text-sm leading-7 text-white/70" : "mt-3 text-sm leading-7 text-muted-foreground"}>{plan.description}</p>
+                    <Button className="mt-6 w-full" variant={plan.recommended ? "light" : "default"} asChild>
                       <Link href="/register">اختيار الباقة</Link>
                     </Button>
                   </CardContent>
@@ -296,7 +293,7 @@ export default function LandingPage() {
           <div className="rounded-[1.5rem] bg-secondary px-6 py-10 text-white shadow-lift md:px-10">
             <h2 className="text-4xl font-black tracking-tight">جاهز ترى تكلفة الطبق قبل نهاية اليوم؟</h2>
             <p className="mt-3 max-w-2xl leading-8 text-white/75">
-              شغّل نسخة MVP محليًا، طبّق migrations على Supabase، وابدأ بتجربة مطعم إيوان.
+              ابدأ بباقة تناسب حجم مطعمك، ثم فعّل البيع والمخزون والتشغيل من مساحة واحدة.
             </p>
             <Button className="mt-6 bg-white text-primary hover:bg-slate-100" asChild>
               <Link href="/dashboard">فتح لوحة التجربة</Link>

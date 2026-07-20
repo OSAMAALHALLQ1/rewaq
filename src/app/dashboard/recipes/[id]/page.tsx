@@ -1,8 +1,7 @@
 import { notFound } from "next/navigation";
-import { ChefHat, Megaphone } from "lucide-react";
+import { ChefHat } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatCurrency, formatPercent } from "@/lib/utils";
@@ -14,22 +13,21 @@ export default async function RecipeDetailsPage({ params }: { params: Promise<{ 
   if (!data) notFound();
 
   const { recipe, menuItems } = data;
-  const firstMenuItem = menuItems[0];
-  const foodCost = firstMenuItem?.foodCostPercent ?? 0;
+  const foodCosts = menuItems.map((item) => item.foodCostPercent);
+  const minFoodCost = foodCosts.length > 0 ? Math.min(...foodCosts) : null;
+  const maxFoodCost = foodCosts.length > 0 ? Math.max(...foodCosts) : null;
+  const foodCostLabel =
+    minFoodCost === null || maxFoodCost === null
+      ? "-"
+      : minFoodCost === maxFoodCost
+        ? formatPercent(minFoodCost)
+        : `${formatPercent(minFoodCost)} – ${formatPercent(maxFoodCost)}`;
 
   return (
     <>
       <PageHeader
         title={recipe.name}
         description="حساب تكلفة الوصفة من مواد المخزون، مع تكلفة كل مكون والحصة الواحدة."
-        actions={
-          firstMenuItem ? (
-            <Button>
-              <Megaphone className="h-4 w-4" />
-              حوّل هذا الطبق إلى منشور
-            </Button>
-          ) : null
-        }
       />
       <div className="grid gap-4 lg:grid-cols-4">
         <Card>
@@ -47,14 +45,14 @@ export default async function RecipeDetailsPage({ params }: { params: Promise<{ 
         <Card>
           <CardContent className="p-5">
             <p className="text-sm text-muted-foreground">تكلفة الطعام</p>
-            <p className="mt-2 text-2xl font-bold">{firstMenuItem ? formatPercent(foodCost) : "-"}</p>
+            <p className="mt-2 text-2xl font-bold">{foodCostLabel}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-5">
-            <p className="text-sm text-muted-foreground">الحالة</p>
-            <Badge className="mt-3" tone={foodCost > 35 ? "danger" : "success"}>
-              {foodCost > 35 ? "أعلى من 35%" : "ضمن الهدف"}
+            <p className="text-sm text-muted-foreground">ارتباطات القائمة</p>
+            <Badge className="mt-3" tone={menuItems.length > 0 ? "success" : "muted"}>
+              {menuItems.length > 0 ? `${menuItems.length} طبق مرتبط` : "لا يوجد طبق مرتبط"}
             </Badge>
           </CardContent>
         </Card>
@@ -99,32 +97,19 @@ export default async function RecipeDetailsPage({ params }: { params: Promise<{ 
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div>
-                <div className="mb-2 flex justify-between text-sm">
-                  <span>تكلفة الوصفة</span>
-                  <span>{formatCurrency(recipe.costPerServing)}</span>
-                </div>
-                <div className="h-3 rounded-full bg-slate-100">
-                  <div className="h-3 rounded-full bg-accent" style={{ width: `${Math.min(foodCost, 100)}%` }} />
-                </div>
-              </div>
-              {firstMenuItem ? (
-                <>
-                  <div className="rounded-lg border p-4">
-                    <p className="text-sm text-muted-foreground">سعر البيع</p>
-                    <p className="text-2xl font-bold">{formatCurrency(firstMenuItem.sellingPrice)}</p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="rounded-lg border p-4">
-                      <p className="text-sm text-muted-foreground">الربح الإجمالي</p>
-                      <p className="font-bold">{formatCurrency(firstMenuItem.grossProfit)}</p>
+              {menuItems.length > 0 ? (
+                <div className="space-y-2">
+                  {menuItems.map((item) => (
+                    <div key={item.id} className="rounded-lg border p-3 text-sm">
+                      <div className="flex justify-between gap-3 font-bold"><span>{item.name}</span><span>{formatCurrency(item.sellingPrice)}</span></div>
+                      <div className="mt-2 grid grid-cols-3 gap-2 text-xs text-muted-foreground">
+                        <span>التكلفة: {formatPercent(item.foodCostPercent)}</span>
+                        <span>الربح: {formatCurrency(item.grossProfit)}</span>
+                        <span>الهامش: {formatPercent(item.profitMarginPercent)}</span>
+                      </div>
                     </div>
-                    <div className="rounded-lg border p-4">
-                      <p className="text-sm text-muted-foreground">الهامش</p>
-                      <p className="font-bold">{formatPercent(firstMenuItem.profitMarginPercent)}</p>
-                    </div>
-                  </div>
-                </>
+                  ))}
+                </div>
               ) : (
                 <p className="text-sm text-muted-foreground">لا يوجد طبق قائمة مرتبط بهذه الوصفة بعد.</p>
               )}

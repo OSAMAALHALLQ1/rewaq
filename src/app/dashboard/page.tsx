@@ -20,12 +20,11 @@ import {
   Warehouse,
 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
-import { DashboardToolbar, SmartAlerts } from "@/components/dashboard/dashboard-controls";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CategoryPieChart, FinanceAreaChart, FinanceBarChart } from "@/components/dashboard/charts";
+import { CategoryPieChart, FinanceBarChart } from "@/components/dashboard/charts";
 import { getAccountingDashboardData } from "@/server/queries/accounting-erp";
 import { cn } from "@/lib/utils";
 
@@ -100,16 +99,6 @@ export default async function DashboardPage() {
 
   const liquidity = data.cashBalance + data.bankBalance;
 
-  const revTrend = [0.14, 0.17, 0.15, 0.2, 0.16, 0.18].map((f) => Math.round(data.monthSales * f));
-  const expTrend = [0.16, 0.18, 0.15, 0.19, 0.15, 0.17].map((f) =>
-    Math.round((data.monthExpenses + data.monthCogs) * f),
-  );
-  const trendData = ["أ1", "أ2", "أ3", "أ4", "أ5", "أ6"].map((label, i) => ({
-    label,
-    revenue: revTrend[i],
-    expenses: expTrend[i],
-  }));
-
   const comparisonData = [
     { label: "المبيعات", value: data.monthSales },
     { label: "تكلفة البضاعة", value: data.monthCogs },
@@ -143,9 +132,6 @@ export default async function DashboardPage() {
           </>
         }
       />
-
-      <SmartAlerts />
-      <DashboardToolbar />
 
       <section className="mb-6">
         <SectionHeading title="وصول سريع" />
@@ -193,16 +179,8 @@ export default async function DashboardPage() {
         </div>
       </section>
 
-      <SectionHeading title="التحليلات والاتجاهات" />
+      <SectionHeading title="توزيع الأصول ومقارنة الشهر" />
       <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>اتجاه الإيرادات والمصروفات</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <FinanceAreaChart data={trendData} />
-          </CardContent>
-        </Card>
         <Card variant="light">
           <CardHeader>
             <CardTitle>توزيع الأصول</CardTitle>

@@ -11,12 +11,14 @@ import {
   type NavItem,
 } from "@/components/layout/nav-config";
 import { cn } from "@/lib/utils";
+import { moduleForPath, planHasModule } from "@/lib/billing/plans";
 import type { Role } from "@/types/domain";
 
 type AppSidebarProps = {
   activePath?: string;
   mode?: "app" | "admin";
   role?: Role;
+  planCode?: string;
   onNavigate?: () => void;
   onChatOpen?: () => void;
 };
@@ -24,20 +26,20 @@ type AppSidebarProps = {
 const STORAGE_GROUPS = "rewaq.sidebar.openGroups";
 const STORAGE_COLLAPSE = "rewaq.sidebar.collapsed";
 
-function canView(item: NavItem, role?: Role) {
-  if (!item.roles || item.roles.length === 0) return true;
-  if (!role) return true;
-  return item.roles.includes(role);
+function canView(item: NavItem, role?: Role, planCode?: string) {
+  if (item.roles && item.roles.length > 0 && role && !item.roles.includes(role)) return false;
+  const routeModule = moduleForPath(item.href);
+  return !routeModule || !planCode || planHasModule(planCode, routeModule);
 }
 
-function buildGroups(mode: "app" | "admin", role?: Role): NavGroup[] {
+function buildGroups(mode: "app" | "admin", role?: Role, planCode?: string): NavGroup[] {
   if (mode === "admin") {
     return [{ title: "المنصة", icon: Layers, items: adminNav }];
   }
   return appNav
     .map((group) => ({
       ...group,
-      items: group.items.filter((item) => canView(item, role)),
+      items: group.items.filter((item) => canView(item, role, planCode)),
     }))
     .filter((group) => group.items.length > 0);
 }
@@ -46,12 +48,13 @@ export function AppSidebar({
   activePath = "",
   mode = "app",
   role,
+  planCode,
   onNavigate,
   onChatOpen,
 }: AppSidebarProps) {
   const pathname = usePathname();
   const currentPath = activePath || pathname;
-  const groups = React.useMemo(() => buildGroups(mode, role), [mode, role]);
+  const groups = React.useMemo(() => buildGroups(mode, role, planCode), [mode, role, planCode]);
 
   const [collapsed, setCollapsed] = React.useState(false);
   const [flyout, setFlyout] = React.useState<{

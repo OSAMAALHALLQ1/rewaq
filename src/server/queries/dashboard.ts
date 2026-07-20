@@ -39,12 +39,18 @@ async function loadDashboardData(admin: AdminClient, organizationId: string) {
     purchaseOrderRows,
     wasteRows,
     notificationRows,
+    categoryRows,
+    supplierInvoiceRows,
+    customerInvoiceRows,
   ] = await Promise.all([
     admin.from("inventory_items").select("*").eq("organization_id", organizationId),
     admin.from("branch_stock").select("item_id, quantity").eq("organization_id", organizationId),
     admin.from("purchase_orders").select("*").eq("organization_id", organizationId).in("status", ["draft", "sent"]),
     admin.from("waste_logs").select("*").eq("organization_id", organizationId).gte("created_at", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()),
     admin.from("notifications").select("*").eq("organization_id", organizationId).order("created_at", { ascending: false }).limit(10),
+    admin.from("inventory_categories").select("id,name").eq("organization_id", organizationId),
+    admin.from("invoices").select("issued_at,total").eq("organization_id", organizationId).gte("issued_at", new Date(Date.now() - 28 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)),
+    admin.from("customer_invoices").select("issued_at,total,status").eq("organization_id", organizationId).gte("issued_at", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)),
   ]);
 
   if (inventoryItems.error) throw new Error(inventoryItems.error.message);
@@ -52,6 +58,9 @@ async function loadDashboardData(admin: AdminClient, organizationId: string) {
   if (purchaseOrderRows.error) throw new Error(purchaseOrderRows.error.message);
   if (wasteRows.error) throw new Error(wasteRows.error.message);
   if (notificationRows.error) throw new Error(notificationRows.error.message);
+  if (categoryRows.error) throw new Error(categoryRows.error.message);
+  if (supplierInvoiceRows.error) throw new Error(supplierInvoiceRows.error.message);
+  if (customerInvoiceRows.error) throw new Error(customerInvoiceRows.error.message);
 
   // Calculate metrics
   const quantityByItem = quantitiesByItem(
@@ -62,11 +71,22 @@ async function loadDashboardData(admin: AdminClient, organizationId: string) {
   );
 
   const openPurchaseOrders = purchaseOrderRows.data?.length ?? 0;
-  // Calculate food cost from recipes
-  const recipes = await admin.from("recipes").select("*").eq("organization_id", organizationId);
+  // Cost is calculated from real recipes; it is not a fixed dashboard target.
+  const recipes = await admin.from("recipes").select("id,total_cost").eq("organization_id", organizationId);
   if (recipes.error) throw new Error(recipes.error.message);
-  const totalRecipeCost = (recipes.data ?? []).reduce((sum: number, recipe: any) => sum + numberValue(recipe.total_cost), 0);
-  const avgFoodCost = recipes.data?.length ? (totalRecipeCost / recipes.data.length) : 0;
+  const recipeCostById = new Map((recipes.data ?? []).map((recipe: any) => [recipe.id, numberValue(recipe.total_cost)]));
+  const menuItems = await admin.from("menu_items").select("recipe_id,selling_price").eq("organization_id", organizationId).eq("status", "active");
+  if (menuItems.error) throw new Error(menuItems.error.message);
+  const foodCostValues = (menuItems.data ?? [])
+    .map((item: any) => {
+      const price = numberValue(item.selling_price);
+      const cost = recipeCostById.get(item.recipe_id) ?? 0;
+      return price > 0 ? cost / price * 100 : null;
+    })
+    .filter((value: number | null): value is number => value !== null);
+  const avgFoodCost = foodCostValues.length
+    ? foodCostValues.reduce((sum: number, value: number) => sum + value, 0) / foodCostValues.length
+    : 0;
 
   // Calculate waste
   const totalWaste = (wasteRows.data ?? []).reduce((sum: number, waste: any) => sum + numberValue(waste.total_cost), 0);
@@ -82,25 +102,27 @@ async function loadDashboardData(admin: AdminClient, organizationId: string) {
     createdAt: notif.created_at,
   }));
 
-  // Build inventory by category (placeholder - real implementation would aggregate)
-  const inventoryByCategory = [
-    { label: "بروتين", value: 15400 },
-    { label: "نشويات", value: 8200 },
-    { label: "زيوت", value: 5100 },
-    { label: "صوصات", value: 2700 },
-    { label: "تغليف", value: 4100 },
-  ];
+  const categoryNames = new Map((categoryRows.data ?? []).map((category: any) => [category.id, category.name]));
+  const inventoryByCategory = Array.from((inventoryItems.data ?? []).reduce((totals: Map<string, number>, item: any) => {
+    const label = categoryNames.get(item.category_id) ?? "غير مصنف";
+    totals.set(label, (totals.get(label) ?? 0) + numberValue(item.average_cost) * (quantityByItem.get(item.id) ?? 0));
+    return totals;
+  }, new Map<string, number>())).map(([label, value]) => ({ label, value: Math.round(value * 100) / 100 }));
 
-  // Build purchase cost trend (placeholder)
-  const purchaseCost30Days = [
-    { label: "الأسبوع 1", value: 1200 },
-    { label: "الأسبوع 2", value: 2100 },
-    { label: "الأسبوع 3", value: 1800 },
-    { label: "الأسبوع 4", value: 3200 },
-  ];
+  const weekTotals = [0, 0, 0, 0];
+  const now = Date.now();
+  (supplierInvoiceRows.data ?? []).forEach((invoice: any) => {
+    const age = now - new Date(invoice.issued_at).getTime();
+    const week = Math.floor(age / (7 * 24 * 60 * 60 * 1000));
+    if (week >= 0 && week < 4) weekTotals[3 - week] += numberValue(invoice.total);
+  });
+  const purchaseCost30Days = weekTotals.map((value, index) => ({ label: `الأسبوع ${index + 1}`, value: Math.round(value * 100) / 100 }));
+  const salesEstimate = (customerInvoiceRows.data ?? [])
+    .filter((invoice: any) => invoice.status !== "void")
+    .reduce((sum: number, invoice: any) => sum + numberValue(invoice.total), 0);
 
   return {
-    salesEstimate: 18450, // Would come from actual sales data
+    salesEstimate,
     inventoryValue: (inventoryItems.data ?? []).reduce(
       (sum: number, item: any) => sum + numberValue(item.average_cost) * (quantityByItem.get(item.id) ?? 0),
       0,
@@ -108,20 +130,12 @@ async function loadDashboardData(admin: AdminClient, organizationId: string) {
     lowStockCount: lowStockItems.length,
     openPurchaseOrders,
     foodCostPercent: Math.round(avgFoodCost * 10) / 10,
-    highCostRecipes: [], // Would filter from actual recipes
+    highCostRecipes: [],
     alerts,
     inventoryByCategory,
     purchaseCost30Days,
-    foodCostTrend: [
-      { label: "الأسبوع 1", value: 31 },
-      { label: "الأسبوع 2", value: 28 },
-      { label: "الأسبوع 3", value: 29.5 },
-      { label: "الأسبوع 4", value: 29.8 },
-    ],
-    wasteByBranch: [
-      { label: "الفرع 1", value: Math.round(totalWaste * 0.6) },
-      { label: "الفرع 2", value: Math.round(totalWaste * 0.4) },
-    ],
+    foodCostTrend: [],
+    wasteByBranch: totalWaste > 0 ? [{ label: "إجمالي الهدر (30 يوماً)", value: Math.round(totalWaste * 100) / 100 }] : [],
   };
 }
 

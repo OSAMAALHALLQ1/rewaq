@@ -1,4 +1,4 @@
-import { PackageCheck, Plus, ShoppingCart } from "lucide-react";
+import { PackageCheck, Plus, Save, Send, ShoppingCart } from "lucide-react";
 import { ActionForm } from "@/components/action-form";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
@@ -101,8 +101,7 @@ export default async function PurchaseOrdersPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ActionForm action={savePurchaseOrderAction} submitLabel="إنشاء وإرسال الأمر" className="space-y-4">
-              <input type="hidden" name="status" value="sent" />
+            <ActionForm action={savePurchaseOrderAction} className="space-y-4">
               <input type="hidden" name="idempotencyKey" value={`purchase-order:${crypto.randomUUID()}`} />
               <div className="grid gap-2">
                 <Label htmlFor="supplierId">المورد</Label>
@@ -146,6 +145,14 @@ export default async function PurchaseOrdersPage() {
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <PackageCheck className="h-4 w-4" />
                 الاستلام لاحقاً هو الذي يزيد المخزون ويرحّل قيد GRNI.
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <button type="submit" name="status" value="draft" className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-border bg-background px-4 text-sm font-bold transition hover:bg-muted">
+                  <Save className="h-4 w-4" /> حفظ كمسودة
+                </button>
+                <button type="submit" name="status" value="sent" className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground transition hover:bg-primary/90">
+                  <Send className="h-4 w-4" /> اعتماد وإرسال الأمر
+                </button>
               </div>
             </ActionForm>
           </CardContent>

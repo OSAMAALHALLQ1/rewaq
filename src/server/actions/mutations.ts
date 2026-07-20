@@ -85,6 +85,24 @@ const wasteLogSchema = z.object({
   notes: z.string().optional(),
 });
 
+const recipeVersionSchema = z.object({
+  activationKey: z.string().uuid("رمز اعتماد الوصفة غير صالح"),
+  name: z.string().trim().min(2, "اسم الوصفة مطلوب"),
+  category: z.string().trim().min(1, "تصنيف الوصفة مطلوب"),
+  servings: z.coerce.number().positive("عدد الحصص يجب أن يكون أكبر من صفر"),
+  preparation: z.string().trim().max(4000).optional(),
+  targetFoodCostPercent: z.coerce.number().positive().max(99.99),
+  laborCostPerBatch: z.coerce.number().min(0),
+  overheadCostPerBatch: z.coerce.number().min(0),
+  ingredientsJson: z.string().min(2, "أضف مكوناً واحداً على الأقل"),
+});
+
+const recipeVersionIngredientSchema = z.object({
+  itemId: z.string().uuid(),
+  quantity: z.coerce.number().positive(),
+  yieldPercent: z.coerce.number().positive().max(100).default(100),
+});
+
 const stockCountSchema = z.object({
   branchId: z.string().uuid("اختر الفرع"),
   notes: z.string().optional(),
@@ -1035,6 +1053,79 @@ export async function receivePurchaseOrderFormAction(formData: FormData): Promis
   await receivePurchaseOrderAction({ ok: false, message: "" }, formData);
 }
 
+/**
+ * Creates the recipe and its first active, immutable costed version in one RPC.
+ * The live recipe_ingredients projection is produced by the database only after
+ * the version snapshot has been retained for auditability.
+ */
+export async function activateRecipeVersionAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
+  const parsed = recipeVersionSchema.safeParse({
+    activationKey: formData.get("activationKey"),
+    name: formData.get("name"),
+    category: formData.get("category"),
+    servings: formData.get("servings"),
+    preparation: formData.get("preparation") || "",
+    targetFoodCostPercent: formData.get("targetFoodCostPercent"),
+    laborCostPerBatch: formData.get("laborCostPerBatch"),
+    overheadCostPerBatch: formData.get("overheadCostPerBatch"),
+    ingredientsJson: formData.get("ingredientsJson"),
+  });
+  if (!parsed.success) return invalid(parsed.error.issues[0]?.message ?? "بيانات إصدار الوصفة غير صحيحة.");
+
+  let rawIngredients: unknown;
+  try {
+    rawIngredients = JSON.parse(parsed.data.ingredientsJson);
+  } catch {
+    return invalid("مكونات الوصفة غير صالحة. أضف المواد من النموذج ثم أعد المحاولة.");
+  }
+  const ingredients = z.array(recipeVersionIngredientSchema).min(1).max(200).safeParse(rawIngredients);
+  if (!ingredients.success) return invalid("تحقق من المادة والكمية ونسبة التصافي في كل سطر.");
+  if (new Set(ingredients.data.map((ingredient) => ingredient.itemId)).size !== ingredients.data.length) {
+    return invalid("لا تكرر المادة نفسها؛ اجمع الكمية في سطر واحد.");
+  }
+
+  if (!hasSupabaseAdminEnv()) {
+    return invalid("مفتاح Supabase الإداري غير موجود. لا يمكن اعتماد إصدار الوصفة.");
+  }
+
+  try {
+    const { admin, organizationId, userId, auth } = await resolveMutationScope("recipes");
+    // Version activation is a costing approval; the database RPC also restricts
+    // the actor to the accounting approval roles.
+    requireSensitiveActionCapability(auth, "accounting_write");
+    const { data, error } = await (admin as any).rpc("activate_recipe_version_atomic", {
+      p_organization_id: organizationId,
+      p_recipe_id: null,
+      p_name: parsed.data.name,
+      p_category: parsed.data.category,
+      p_servings: parsed.data.servings,
+      p_preparation: parsed.data.preparation || null,
+      p_target_food_cost_percent: parsed.data.targetFoodCostPercent,
+      p_labor_cost_per_batch: parsed.data.laborCostPerBatch,
+      p_overhead_cost_per_batch: parsed.data.overheadCostPerBatch,
+      p_ingredients: ingredients.data.map((ingredient) => ({
+        item_id: ingredient.itemId,
+        quantity: ingredient.quantity,
+        yield_percent: ingredient.yieldPercent,
+      })),
+      // The client keeps this key for a retry, so a lost response cannot create
+      // a second immutable version for the same approval.
+      p_activation_key: parsed.data.activationKey,
+      p_actor_user_id: userId,
+    });
+    if (error) return invalid(error.message);
+    if (!(data as { success?: boolean } | null)?.success) return invalid("تعذر اعتماد إصدار الوصفة.");
+  } catch (error) {
+    return invalid(error instanceof Error ? error.message : "تعذر اعتماد إصدار الوصفة.");
+  }
+
+  revalidatePath("/dashboard/recipes");
+  revalidatePath("/dashboard/menu-items");
+  revalidatePath("/dashboard/food-cost");
+  revalidatePath("/dashboard/cost-accounting");
+  return ok("تم حفظ الوصفة واعتماد إصدار تكلفتها الحالي.");
+}
+
 export async function saveRecipeAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
   const parsed = recipeSchema.safeParse({
     name: formData.get("name"),
@@ -1461,6 +1552,8 @@ export async function saveStockCountAction(_prevState: ActionState, formData: Fo
 
   const itemIds = formData.getAll("itemId").map(String);
   const countedQuantities = formData.getAll("countedQuantity").map((value) => Number(value));
+  const countedAt = String(formData.get("countedAt") || todayLocal());
+  const idempotencyKey = String(formData.get("idempotencyKey") || "");
 
   if (!itemIds.length) {
     return invalid("لا توجد مواد لاعتماد الجرد.");
@@ -1469,6 +1562,12 @@ export async function saveStockCountAction(_prevState: ActionState, formData: Fo
   if (countedQuantities.some((quantity) => !Number.isFinite(quantity) || quantity < 0)) {
     return invalid("كميات الجرد يجب أن تكون أرقامًا صحيحة أو عشرية غير سالبة.");
   }
+  if (itemIds.length !== countedQuantities.length || itemIds.some((itemId) => !z.string().uuid().safeParse(itemId).success)) {
+    return invalid("تطابق مواد الجرد وكمياتها غير صالح.");
+  }
+  if (new Set(itemIds).size !== itemIds.length) return invalid("لا تكرر المادة نفسها في الجرد.");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(countedAt)) return invalid("تاريخ الجرد غير صالح.");
+  if (idempotencyKey.length < 8) return invalid("مفتاح منع التكرار غير صالح.");
 
   if (!hasSupabaseAdminEnv()) {
     return invalid("مفتاح Supabase الإداري غير موجود. لا يمكن حفظ الجرد في قاعدة البيانات.");
@@ -1480,6 +1579,27 @@ export async function saveStockCountAction(_prevState: ActionState, formData: Fo
     const branch = await getScopedBranch(admin, organizationId, parsed.data.branchId);
     if (!branch?.id) return invalid("الفرع المختار غير موجود في المؤسسة الحالية.");
 
+    const { data: atomicResult, error: atomicError } = await (admin as any).rpc("post_stock_count_atomic", {
+      p_organization_id: organizationId,
+      p_branch_id: parsed.data.branchId,
+      p_counted_at: countedAt,
+      p_lines: itemIds.map((itemId, index) => ({ item_id: itemId, counted_quantity: countedQuantities[index] })),
+      p_notes: parsed.data.notes || null,
+      p_idempotency_key: idempotencyKey,
+      p_created_by: userId,
+    });
+    if (atomicError) return invalid(atomicError.message);
+    const atomicResponse = atomicResult as { success?: boolean; duplicate?: boolean } | null;
+    if (!atomicResponse?.success) return invalid("تعذر اعتماد الجرد بشكل ذري.");
+    revalidatePath("/dashboard/stock-counts");
+    revalidatePath("/dashboard/inventory");
+    revalidatePath("/dashboard/stock-movements");
+    revalidatePath("/dashboard/reports");
+    revalidatePath("/dashboard/accounting/ledger");
+    return ok(atomicResponse.duplicate ? "تم اعتماد هذا الجرد مسبقاً (تم تجاهل التكرار)." : "تم اعتماد الجرد وتحديث المخزون والقيد المحاسبي في عملية واحدة.");
+
+    /* Legacy non-atomic implementation retained only in git history. The RPC
+       above is the sole approved posting path for stock counts.
     const { data: stockCount, error: countError } = await admin
       .from("stock_counts")
       .insert({
@@ -1616,6 +1736,7 @@ export async function saveStockCountAction(_prevState: ActionState, formData: Fo
         }
       }
     }
+    */
   } catch (error) {
     return invalid(error instanceof Error ? error.message : "تعذر حفظ الجرد في Supabase.");
   }

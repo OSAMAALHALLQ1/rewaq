@@ -129,42 +129,6 @@ export function FoodCostLineChart({ data }: { data: ReportPoint[] }) {
   );
 }
 
-export function FinanceAreaChart({
-  data,
-}: {
-  data: Array<{ label: string; revenue: number; expenses: number }>;
-}) {
-  return (
-    <ChartFrame>
-      <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={data}>
-          <defs>
-            <linearGradient id="revenue" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="var(--chart-2)" stopOpacity={0.3} />
-              <stop offset="95%" stopColor="var(--chart-2)" stopOpacity={0} />
-            </linearGradient>
-            <linearGradient id="expenses" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="var(--chart-5)" stopOpacity={0.32} />
-              <stop offset="95%" stopColor="var(--chart-5)" stopOpacity={0} />
-            </linearGradient>
-          </defs>
-          <CartesianGrid stroke={gridColor} strokeDasharray="3 3" vertical={false} />
-          <XAxis dataKey="label" tickLine={false} axisLine={false} tick={axisStyle} />
-          <YAxis tickLine={false} axisLine={false} width={48} tick={axisStyle} />
-          <Tooltip
-            content={<ChartTooltip formatter={(value, name) => [
-              `${Number(value).toLocaleString("ar-EG")} ₪`,
-              name === "revenue" ? "الإيرادات" : "المصروفات",
-            ]} />}
-          />
-          <Area type="monotone" dataKey="revenue" stroke="var(--chart-2)" fill="url(#revenue)" strokeWidth={3} />
-          <Area type="monotone" dataKey="expenses" stroke="var(--chart-5)" fill="url(#expenses)" strokeWidth={3} />
-        </AreaChart>
-      </ResponsiveContainer>
-    </ChartFrame>
-  );
-}
-
 export function FinanceBarChart({ data }: { data: ReportPoint[] }) {
   return (
     <ChartFrame>

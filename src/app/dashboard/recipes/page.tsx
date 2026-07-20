@@ -1,20 +1,16 @@
 import Link from "next/link";
 import { ChefHat, Plus } from "lucide-react";
-import { ActionForm } from "@/components/action-form";
+import { RecipeVersionEditor } from "@/components/recipes/recipe-version-editor";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Textarea } from "@/components/ui/textarea";
 import { formatCurrency } from "@/lib/utils";
-import { saveRecipeAction } from "@/server/actions/mutations";
 import { getRecipesData } from "@/server/queries/app";
 
 export default async function RecipesPage() {
-  const { recipes } = await getRecipesData();
+  const { recipes, inventoryItems } = await getRecipesData();
 
   return (
     <>
@@ -22,7 +18,7 @@ export default async function RecipesPage() {
         title="الوصفات"
         description="احسب تكلفة كل وصفة من مواد المخزون مع تحذيرات عند تجاوز نسبة تكلفة الطعام المستهدفة."
       />
-      <div className="grid gap-4 xl:grid-cols-[1fr_360px]">
+      <div className="grid gap-4 xl:grid-cols-[1fr_520px]">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -72,27 +68,13 @@ export default async function RecipesPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ActionForm action={saveRecipeAction} submitLabel="حفظ الوصفة" className="space-y-4">
-              <div className="grid gap-2">
-                <Label htmlFor="name">اسم الوصفة</Label>
-                <Input id="name" name="name" placeholder="مثال: برجر دجاج" required />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="category">التصنيف</Label>
-                <Input id="category" name="category" placeholder="وجبات" required />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="servings">عدد الحصص</Label>
-                <Input id="servings" name="servings" type="number" defaultValue="1" min="1" required />
-              </div>
-              <div className="rounded-lg border bg-slate-50 p-3 text-sm leading-6 text-muted-foreground">
-                جدول recipe_ingredients في قاعدة البيانات يحفظ المكونات والكميات ووحدات الاستخدام.
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="preparation">طريقة التحضير</Label>
-                <Textarea id="preparation" name="preparation" />
-              </div>
-            </ActionForm>
+            <RecipeVersionEditor
+              inventoryItems={inventoryItems.map((item) => ({
+                id: item.id,
+                name: item.name,
+                averageCost: item.averageCost,
+              }))}
+            />
           </CardContent>
         </Card>
       </div>

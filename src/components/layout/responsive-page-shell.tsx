@@ -16,6 +16,7 @@ type ResponsivePageShellProps = {
   session: AppSession;
   branches: Branch[];
   notifications: Notification[];
+  planCode?: string;
   mode?: "app" | "admin";
 };
 
@@ -38,6 +39,7 @@ export function ResponsivePageShell({
   session,
   branches,
   notifications,
+  planCode,
   mode = "app",
 }: ResponsivePageShellProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -60,6 +62,7 @@ export function ResponsivePageShell({
         <MobileMenu 
           mode={mode} 
           role={session.role}
+          planCode={planCode}
           onClose={() => setMobileMenuOpen(false)} 
         />
       )}
@@ -72,6 +75,7 @@ export function ResponsivePageShell({
           <AppSidebar
             mode={mode}
             role={session.role}
+            planCode={planCode}
           />
         </div>
 
@@ -93,7 +97,7 @@ export function ResponsivePageShell({
       </div>
 
       {/* Mobile Bottom Navigation (visible below md) */}
-      <MobileBottomNav />
+      <MobileBottomNav planCode={planCode} />
     </>
   );
 }

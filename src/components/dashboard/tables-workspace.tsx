@@ -25,6 +25,7 @@ import type { RestaurantTable, RestaurantTableStatus } from "@/types/domain";
 type TablesWorkspaceProps = {
   initialTables: RestaurantTable[];
   branches: Array<{ id: string; name: string }>;
+  initialLoadError?: string | null;
 };
 
 const statusLabels: Record<RestaurantTableStatus, string> = {
@@ -51,7 +52,7 @@ const tableColors = (status: RestaurantTableStatus, isSelected: boolean) => {
   return `${base} ${isSelected ? "ring-2 ring-primary border-primary" : ""}`;
 };
 
-export default function TablesWorkspaceClient({ initialTables, branches }: TablesWorkspaceProps) {
+export default function TablesWorkspaceClient({ initialTables, branches, initialLoadError = null }: TablesWorkspaceProps) {
   // Data from a newly migrated or partially populated tenant may contain
   // incomplete rows. Do not let one malformed row take down the whole floor
   // plan while the user is trying to manage the remaining tables.
@@ -227,6 +228,18 @@ export default function TablesWorkspaceClient({ initialTables, branches }: Table
         description="التحكم الفوري بطاولات الخدمة، توزيع الجرسونات والضيوف، تفاصيل الحساب المفتوح، وتمرير الطلبات لنقاط البيع للدفع."
         actions={<div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => setCreateTableModal(true)}><Plus className="h-4 w-4" />إضافة طاولة</Button><Button asChild><Link href="/d/pos"><CircleDollarSign className="h-4 w-4" />شاشة بيع الكاشير</Link></Button></div>}
       />
+
+      {initialLoadError ? (
+        <Card className="mb-4 border-destructive/30 bg-destructive/5">
+          <CardContent className="flex items-start gap-3 p-4 text-sm text-destructive">
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+            <div>
+              <p className="font-bold">تعذر عرض خريطة الطاولات</p>
+              <p className="mt-1 text-destructive/80">{initialLoadError}</p>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card className="mb-4">
         <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
