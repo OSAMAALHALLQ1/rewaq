@@ -5,7 +5,7 @@ import { CheckCircle2, Clock3, Menu, Printer, RefreshCw } from "lucide-react";
 
 const statusItems = [
   { label: "النظام يعمل طبيعيًا", icon: CheckCircle2, className: "text-emerald-600" },
-  { label: "12 جهاز POS متصل", icon: RefreshCw, className: "text-[#068FFF]" },
+  { label: "12 جهاز POS متصل", icon: RefreshCw, className: "text-[#1363DF]" },
   { label: "1 طابعة تحتاج مراجعة", icon: Printer, className: "text-amber-600" },
   { label: "آخر مزامنة: قبل 34ث", icon: Clock3, className: "text-slate-500" },
 ];
@@ -18,7 +18,7 @@ export function SystemStatusMenu() {
       <button
         type="button"
         onClick={() => setOpen((current) => !current)}
-        className="grid h-10 w-10 place-items-center rounded-xl text-[#4E4FEB] transition hover:bg-[#F1F6F9] hover:text-[#068FFF]"
+        className="grid h-10 w-10 place-items-center rounded-xl text-[#1363DF] transition hover:bg-[#F1F6F9] hover:text-[#1363DF]"
         aria-label="حالة النظام"
         aria-expanded={open}
       >

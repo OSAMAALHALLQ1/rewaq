@@ -162,7 +162,7 @@ export function AppSidebar({
     >
       {/* صفّ العلامة التجارية */}
       <div className="flex items-center gap-3 px-4 py-4">
-        <span className="relative grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[linear-gradient(135deg,#068FFF,#4E4FEB)] text-lg font-black text-white shadow-sm">
+        <span className="relative grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[linear-gradient(135deg,#1363DF,#1363DF)] text-lg font-black text-white shadow-sm">
           ر
           <span className="absolute -bottom-0.5 -end-0.5 h-3 w-3 rounded-full bg-[var(--success)] ring-2 ring-[var(--sidebar-bg)]" />
         </span>
@@ -176,7 +176,7 @@ export function AppSidebar({
           <button
             type="button"
             onClick={toggleCollapse}
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-[#4E4FEB] transition-colors hover:bg-[var(--sidebar-hover)] hover:text-[#068FFF]"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-[#1363DF] transition-colors hover:bg-[var(--sidebar-hover)] hover:text-[#1363DF]"
             aria-label="تصغير القائمة"
           >
             <PanelLeftClose className="h-4 w-4" />
@@ -191,7 +191,7 @@ export function AppSidebar({
           <button
             type="button"
             onClick={toggleCollapse}
-            className="mx-auto my-2 grid h-11 w-11 place-items-center rounded-xl bg-[#E1E8FF] text-[#068FFF] shadow-sm transition hover:bg-[#D7E2FF]"
+            className="mx-auto my-2 grid h-11 w-11 place-items-center rounded-xl bg-[#E1E8FF] text-[#1363DF] shadow-sm transition hover:bg-[#D7E2FF]"
             aria-label="توسيع القائمة"
             title="توسيع القائمة"
           >
@@ -213,7 +213,7 @@ export function AppSidebar({
                   onMouseLeave={closeFlyoutSoon}
                   onFocus={(event) => openFlyout(group.title, event.currentTarget)}
                   onClick={(event) => openFlyout(group.title, event.currentTarget)}
-                  className="grid h-10 w-full place-items-center rounded-2xl text-[#4E4FEB] transition hover:bg-[var(--sidebar-hover)] hover:text-[#068FFF]"
+                  className="grid h-10 w-full place-items-center rounded-2xl text-[#1363DF] transition hover:bg-[var(--sidebar-hover)] hover:text-[#1363DF]"
                   aria-label={group.title}
                   aria-expanded={flyout?.title === group.title}
                 >
@@ -226,7 +226,7 @@ export function AppSidebar({
                   className="flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-xs font-extrabold text-[#000000] transition hover:bg-[var(--sidebar-hover)] hover:text-[#000000]"
                   aria-expanded={open}
                 >
-                  <GroupIcon className="h-4 w-4 shrink-0 text-[#4E4FEB]" />
+                  <GroupIcon className="h-4 w-4 shrink-0 text-[#1363DF]" />
                   <span className="flex-1 text-start">{group.title}</span>
                   <ChevronDown
                     className={cn("h-4 w-4 transition-transform duration-200", open && "rotate-180")}
@@ -268,8 +268,8 @@ export function AppSidebar({
                         >
                           <Icon
                             className={cn(
-                              "h-4 w-4 shrink-0 text-[#4E4FEB]",
-                              active && "text-[#068FFF]",
+                              "h-4 w-4 shrink-0 text-[#1363DF]",
+                              active && "text-[#1363DF]",
                             )}
                           />
                           {!collapsed && <span className="flex-1 truncate">{item.title}</span>}
@@ -308,7 +308,7 @@ export function AppSidebar({
             style={flyout.side === "left" ? { top: flyout.top, left: flyout.offset } : { top: flyout.top, right: flyout.offset }}
           >
             <div className="flex items-center gap-2 px-2 py-2 text-xs font-extrabold text-[#000000]">
-              <GroupIcon className="h-4 w-4 text-[#4E4FEB]" />
+              <GroupIcon className="h-4 w-4 text-[#1363DF]" />
               {group.title}
             </div>
             <div className="space-y-1">

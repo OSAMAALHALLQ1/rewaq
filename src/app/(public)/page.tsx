@@ -65,25 +65,25 @@ export default function LandingPage() {
           <div className="overflow-hidden rounded-[2rem] border border-[#D7E3EA] bg-[#F1F6F9]">
             <div className="grid items-center gap-10 px-6 py-12 sm:px-10 lg:min-h-[620px] lg:grid-cols-[0.9fr_1.1fr] lg:px-14">
               <div>
-                <Badge tone="default" className="w-fit border-[#C9D7FF] bg-[#E7EEFF] text-[#4E4FEB]">
+                <Badge tone="default" className="w-fit border-[#C9D7FF] bg-[#E7EEFF] text-[#1363DF]">
                   منصة عربية لإدارة المطاعم والكافيهات
                 </Badge>
                 <h1 className="mt-5 max-w-2xl text-5xl font-black leading-[1.12] tracking-tight text-[#000000] sm:text-6xl">
                   إدارة مطعمك،
-                  <span className="block text-[#068FFF]">بوضوح وسرعة.</span>
+                  <span className="block text-[#1363DF]">بوضوح وسرعة.</span>
                 </h1>
                 <p className="mt-5 max-w-xl text-lg leading-9 text-[#000000]/70">
                   رواق يجمع البيع والمخزون والمشتريات وتكلفة الأطباق في تجربة واحدة واضحة لفريق المطعم.
                 </p>
 
                 <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                  <Button size="lg" asChild className="w-full bg-[#068FFF] hover:bg-[#4E4FEB] sm:w-auto">
+                  <Button size="lg" asChild className="w-full bg-[#1363DF] hover:bg-[#1363DF] sm:w-auto">
                     <Link href="/dashboard" className="flex items-center justify-center gap-2">
                       ابدأ التجربة
                       <ArrowLeft className="h-4 w-4" />
                     </Link>
                   </Button>
-                  <Button size="lg" variant="outline" asChild className="w-full border-[#4E4FEB]/30 bg-transparent text-[#000000] hover:bg-[#E5EFF7] sm:w-auto">
+                  <Button size="lg" variant="outline" asChild className="w-full border-[#1363DF]/30 bg-transparent text-[#000000] hover:bg-[#E5EFF7] sm:w-auto">
                     <Link href="/request-demo">احجز عرضًا تجريبيًا</Link>
                   </Button>
                 </div>
@@ -95,7 +95,7 @@ export default function LandingPage() {
                     ["قرار أوضح", "تكلفة وربحية مباشرة", BarChart3],
                   ] as const).map(([title, description, Icon]) => (
                     <div key={title} className="flex gap-3">
-                      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#E1E8FF] text-[#4E4FEB]">
+                      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#E1E8FF] text-[#1363DF]">
                         <Icon className="h-5 w-5" />
                       </span>
                       <div>
