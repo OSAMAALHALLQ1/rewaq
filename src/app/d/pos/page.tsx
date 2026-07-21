@@ -452,10 +452,10 @@ export default function CashierPOSWorkspace() {
 
   // ── Auth, settings, shift & catalog load ──
   useEffect(() => {
-    const token = localStorage.getItem("rwq_dept_key");
+    const token = localStorage.getItem("rwq_dept_key") || "";
     const role = localStorage.getItem("rwq_dept_role");
     const allowed = JSON.parse(localStorage.getItem("rwq_dept_allowed") || "[]");
-    if (!token || !allowed.includes("pos")) { router.push("/d/gate"); return; }
+    if (allowed.length > 0 && !allowed.includes("pos")) { router.push("/d/gate"); return; }
     const d = {
       token, role: role ?? "",
       orgId: localStorage.getItem("rwq_dept_org_id") ?? "",

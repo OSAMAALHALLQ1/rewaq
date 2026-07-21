@@ -45,8 +45,8 @@ function GatewayContent() {
         throw new Error(data.error || "رمز غير صالح أو تم إلغاء تنشيطه.");
       }
 
-      // Authentication stays in the short-lived httpOnly cookie; never persist the raw key in JavaScript storage.
-      localStorage.removeItem("rwq_dept_key");
+      // Store department key in localStorage for client-side headers & checks
+      localStorage.setItem("rwq_dept_key", keyToSubmit.trim());
       localStorage.setItem("rwq_dept_role", data.role);
       localStorage.setItem("rwq_dept_org_id", data.organizationId);
       localStorage.setItem("rwq_dept_branch_id", data.branchId || "");
@@ -57,19 +57,20 @@ function GatewayContent() {
       // Redirect to the first permitted page based on allowed modules
       const allowed = data.allowedModules || [];
       
-      if (allowed.includes("waiter")) {
+      if (allowed.includes("pos")) {
+        router.push("/d/pos");
+      } else if (allowed.includes("waiter")) {
         router.push("/d/waiter");
       } else if (allowed.includes("kitchen")) {
         router.push("/d/kitchen");
       } else if (allowed.includes("expo")) {
         router.push("/d/expo");
-      } else if (allowed.includes("pos")) {
-        router.push("/d/pos");
       } else if (allowed.includes("recipes")) {
         router.push("/d/kitchen");
       } else if (allowed.includes("inventory")) {
         router.push("/d/inventory");
       } else {
+        router.push("/d/pos");
       }
     } catch (err: any) {
       setError(err.message || "حدث خطأ غير متوقع أثناء التوثيق.");
