@@ -1,0 +1,6 @@
+.claude/
+.agents/
+test-results/
+tmp/
+tmp_*
+TODOS.md
