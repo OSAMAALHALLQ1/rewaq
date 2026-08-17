@@ -19,10 +19,7 @@ export * from "./index";
 
 // Re-export all missing functions from their respective modules
 export {
-  getBillPaymentsData,
-  getAmwaliData,
   getTablesData,
-  getFinancialCalendarData,
   getOperationsData,
   getReportsData,
   getCatalogData,

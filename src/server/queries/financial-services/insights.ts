@@ -121,7 +121,7 @@ async function loadLedgerSlice(admin: AdminClient, scope: AppScope, filter: Insi
   const lines = ((lineResult.data ?? []) as LineRow[]).filter((line) => {
     if (!effectiveBranchId) return true;
     const entry = entryMap.get(line.journal_entry_id);
-    return line.branch_id === effectiveBranchId || entry?.branch_id === effectiveBranchId;
+    return (line.branch_id ?? entry?.branch_id) === effectiveBranchId;
   });
   const usedEntryIds = new Set(lines.map((line) => line.journal_entry_id));
 

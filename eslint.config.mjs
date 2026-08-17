@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Local agent worktrees contain independent repository copies and must not
+    // be linted as part of the active checkout.
+    ".claude/worktrees/**",
     // Reference/example files:
     "docs/**",
   ]),

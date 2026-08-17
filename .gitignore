@@ -35,6 +35,7 @@ build.log
 build2.log
 .expo/
 supabase/.temp/
+supabase/.branches/
 
 # env files (can opt-in for committing if needed)
 .env*

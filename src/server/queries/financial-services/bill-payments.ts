@@ -28,17 +28,33 @@ export async function getSupplierBillPaymentsData(): Promise<SupplierBillPayment
   if (isDemoMode()) return demoData;
 
   return withAdminScope(demoData, async (admin, scope) => {
+    let invoiceQuery = admin
+      .from("invoices")
+      .select("*")
+      .eq("organization_id", scope.organizationId)
+      .neq("status", "draft")
+      .neq("status", "void")
+      .order("due_date", { ascending: true })
+      .limit(150);
+    let branchQuery = admin.from("branches").select("*").eq("organization_id", scope.organizationId);
+    let paymentQuery = admin
+      .from("supplier_payments")
+      .select("*")
+      .eq("organization_id", scope.organizationId)
+      .order("payment_date", { ascending: false })
+      .limit(20);
+
+    if (scope.branchId) {
+      invoiceQuery = invoiceQuery.eq("branch_id", scope.branchId);
+      branchQuery = branchQuery.eq("id", scope.branchId);
+      paymentQuery = paymentQuery.eq("branch_id", scope.branchId);
+    }
+
     const [invoiceRows, supplierRows, branchRows, paymentRows] = await Promise.all([
-      query(
-        admin.from("invoices").select("*").eq("organization_id", scope.organizationId).neq("status", "void").order("due_date", { ascending: true }).limit(150),
-        "supplier invoices for payment",
-      ),
+      query(invoiceQuery, "supplier invoices for payment"),
       query(admin.from("suppliers").select("*").eq("organization_id", scope.organizationId), "suppliers for payment"),
-      query(admin.from("branches").select("*").eq("organization_id", scope.organizationId), "branches for payment"),
-      query(
-        admin.from("supplier_payments").select("*").eq("organization_id", scope.organizationId).order("payment_date", { ascending: false }).limit(20),
-        "supplier payment history",
-      ),
+      query(branchQuery, "branches for payment"),
+      query(paymentQuery, "supplier payment history"),
     ]);
 
     const supplierMap = indexBy(supplierRows, (row) => row.id);
