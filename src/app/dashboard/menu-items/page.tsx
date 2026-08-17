@@ -1,9 +1,8 @@
 import Link from "next/link";
-import { Megaphone, Plus, Utensils } from "lucide-react";
+import { Plus, Utensils } from "lucide-react";
 import { ActionForm } from "@/components/action-form";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,7 +43,6 @@ export default async function MenuItemsPage() {
                   <TableHead>تكلفة الوصفة</TableHead>
                   <TableHead>تكلفة الطعام</TableHead>
                   <TableHead>الربح</TableHead>
-                  <TableHead>إجراء</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -64,14 +62,6 @@ export default async function MenuItemsPage() {
                       </Badge>
                     </TableCell>
                     <TableCell>{formatCurrency(item.grossProfit)}</TableCell>
-                    <TableCell>
-                      <Button size="sm" variant="outline" asChild>
-                        <Link href={`/dashboard/marketing/create?menuItem=${item.id}`}>
-                          <Megaphone className="h-4 w-4" />
-                          منشور
-                        </Link>
-                      </Button>
-                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -108,9 +98,9 @@ export default async function MenuItemsPage() {
                 <Input id="sellingPrice" name="sellingPrice" type="number" step="0.01" required />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="branchId">الفرع</Label>
+                <Label htmlFor="branchId">القسم</Label>
                 <Select id="branchId" name="branchId">
-                  <option value="">كل الفروع</option>
+                  <option value="">كل الأقسام</option>
                   {branches.map((branch) => (
                     <option key={branch.id} value={branch.id}>
                       {branch.name}

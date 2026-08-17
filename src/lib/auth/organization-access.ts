@@ -138,7 +138,7 @@ export async function validateBranchAccess(branchId: string): Promise<Authorizat
     return { authorized: true, access };
   }
 
-  return { authorized: false, reason: "ليس لديك صلاحية على هذا الفرع" };
+  return { authorized: false, reason: "ليس لديك صلاحية على هذا القسم" };
 }
 
 // ============================================================================

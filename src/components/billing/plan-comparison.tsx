@@ -1,8 +1,10 @@
 import { Check, Minus } from "lucide-react";
 import {
   MODULE_LABELS,
+  REWAQ_BILLING_CURRENCY,
   REWAQ_MODULES,
   REWAQ_PLAN_LIST,
+  type RewaqPlanDefinition,
 } from "@/lib/billing/plans";
 import { cn } from "@/lib/utils";
 
@@ -10,10 +12,12 @@ export function PlanComparison({
   className,
   title = "مقارنة الوحدات",
   description = "تعرف على الوحدات المشمولة في كل باقة قبل اتخاذ القرار.",
+  plans = REWAQ_PLAN_LIST,
 }: {
   className?: string;
   title?: string;
   description?: string;
+  plans?: readonly RewaqPlanDefinition[];
 }) {
   return (
     <section className={cn("space-y-5", className)} aria-labelledby="plan-comparison-title">
@@ -31,7 +35,7 @@ export function PlanComparison({
               <th scope="col" className="w-[34%] px-5 py-4 font-extrabold text-foreground">
                 الوحدة
               </th>
-              {REWAQ_PLAN_LIST.map((plan) => (
+              {plans.map((plan) => (
                 <th
                   key={plan.code}
                   scope="col"
@@ -42,7 +46,7 @@ export function PlanComparison({
                 >
                   <span className="block font-extrabold text-foreground">{plan.shortName}</span>
                   <span className="mt-0.5 block text-xs font-semibold text-muted-foreground" dir="ltr">
-                    {plan.monthlyPriceUsd} USD
+                    {plan.monthlyPriceUsd} {REWAQ_BILLING_CURRENCY}
                   </span>
                 </th>
               ))}
@@ -60,7 +64,7 @@ export function PlanComparison({
                 <th scope="row" className="px-5 py-3.5 font-bold text-foreground">
                   {MODULE_LABELS[module]}
                 </th>
-                {REWAQ_PLAN_LIST.map((plan) => {
+                {plans.map((plan) => {
                   const included = plan.modules.includes(module);
                   return (
                     <td

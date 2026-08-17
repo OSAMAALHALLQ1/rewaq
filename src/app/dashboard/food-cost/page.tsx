@@ -24,7 +24,7 @@ export default async function FoodCostPage() {
               ربحية الأطباق
             </CardTitle>
             <Select className="max-w-64" defaultValue="all">
-              <option value="all">كل الفروع</option>
+              <option value="all">كل الأقسام</option>
               {branches.map((branch) => (
                 <option key={branch.id} value={branch.id}>
                   {branch.name}

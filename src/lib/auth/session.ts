@@ -47,8 +47,8 @@ export async function getCurrentSession(): Promise<AppSession> {
     redirect("/login");
   }
 
-  // Fetch membership and organization details from DB. Some deployed RLS setups
-  // can block the membership read, so keep the approved auth metadata as a fallback.
+  // Membership is authoritative. Auth metadata may be stale and must never be
+  // used to manufacture an organization scope when the tenant row is missing.
   const { data: membership } = await (supabase as any)
     .from("organization_memberships")
     .select("organization_id, role, branch_id, organizations(name)")
@@ -70,11 +70,7 @@ export async function getCurrentSession(): Promise<AppSession> {
     redirect("/pending-approval");
   }
 
-  const metadataOrganizationId =
-    typeof user.app_metadata?.organization_id === "string" ? user.app_metadata.organization_id : "";
-  const organizationId = membership?.organization_id ?? metadataOrganizationId;
-
-  if (!organizationId) {
+  if (!membership?.organization_id || !membership.role) {
     redirect("/pending-approval");
   }
 
@@ -86,19 +82,17 @@ export async function getCurrentSession(): Promise<AppSession> {
         .single()
     : { data: null };
 
-  const metadataRole = typeof user.app_metadata?.role === "string" ? user.app_metadata.role : undefined;
-
   return {
     user: {
       id: user.id,
       email: user.email ?? "",
       name: user.user_metadata?.name ?? user.email ?? "مستخدم",
     },
-    organizationId,
+    organizationId: membership.organization_id,
     organizationName: org?.name ?? "",
     branchId: membership?.branch_id ?? undefined,
     branchName: undefined,
-    role: ((membership?.role ?? metadataRole) as Role) ?? "staff",
+    role: membership.role as Role,
   };
 }
 

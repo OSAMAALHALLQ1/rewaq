@@ -14,7 +14,7 @@ import { ReportsFilter } from "@/components/reports-filter";
 const reportOptions = [
   ["daily_movements", "تقرير الصادر والوارد اليومي"],
   ["damaged", "تقرير التالف"],
-  ["burns", "تقرير المحاريق"],
+  ["burns", "تقرير أخطاء التحضير"],
   ["department_supply", "تقرير طلبيات الأقسام"],
   ["price_changes", "تقرير تذبذب الأسعار"],
   ["expiry", "تقرير المواد القريبة من انتهاء الصلاحية"],
@@ -61,13 +61,13 @@ export default async function ReportsPage({ searchParams }: { searchParams: Sear
   const outgoing = movements.filter((movement) => movement.quantity < 0).length;
 
   const damagedLogs = wasteLogs.filter((log) => log.reason === "تلف" || log.reason === "سبب آخر");
-  const burnsLogs = wasteLogs.filter((log) => log.reason === "محاريق");
+  const burnsLogs = wasteLogs.filter((log) => log.reason === "محاريق" || log.reason === "خطأ تحضير");
 
   return (
     <>
       <PageHeader
         title="تقارير المخزن"
-        description="تقارير المخزن المطلوبة: التالف، المحاريق، الصادر والوارد، طلبيات الأقسام، انتهاء الصلاحية، وتذبذب الأسعار."
+        description="تقارير المخزن المطلوبة: الهدر والتالف، أخطاء التحضير، الصادر والوارد، طلبيات الأقسام، انتهاء الصلاحية، وتذبذب الأسعار."
         actions={
           <Button variant="outline">
             <Download className="h-4 w-4" />
@@ -93,7 +93,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Sear
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <MetricCard label="التالف" value={formatNumber(damagedLogs.length)} description="سجلات تلف" icon={PackageMinus} tone="danger" />
-        <MetricCard label="المحاريق" value={formatNumber(burnsLogs.length)} description="سجلات محاريق" icon={Flame} tone="warning" />
+        <MetricCard label="أخطاء التحضير" value={formatNumber(burnsLogs.length)} description="سجلات أخطاء التحضير" icon={Flame} tone="warning" />
         <MetricCard label="الصادر والوارد" value={`${formatNumber(incoming)} / ${formatNumber(outgoing)}`} description="وارد / صادر" icon={Truck} tone="success" />
         <MetricCard label="طلبيات الأقسام" value={formatNumber(purchaseOrders.length)} description="طلبات مفتوحة وسابقة" icon={ClipboardCheck} />
         <MetricCard label="انتهاء الصلاحية" value={formatNumber(expiryAlerts.length)} description="مواد قريبة" icon={AlertTriangle} tone="warning" />
@@ -195,7 +195,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Sear
         {activeReport === "burns" && (
           <Card>
             <CardHeader>
-              <CardTitle>تقرير المحاريق</CardTitle>
+              <CardTitle>تقرير أخطاء التحضير</CardTitle>
             </CardHeader>
             <CardContent>
               <Table>
@@ -222,7 +222,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Sear
                       </TableRow>
                     ))
                   ) : (
-                    <EmptyTableRow colSpan={6} message="لا توجد سجلات محاريق لهذا النطاق." />
+                    <EmptyTableRow colSpan={6} message="لا توجد سجلات أخطاء تحضير لهذا النطاق." />
                   )}
                 </TableBody>
               </Table>

@@ -14,7 +14,7 @@ export default function RequestDemoPage() {
         <div className="rounded-2xl bg-secondary p-8 text-white shadow-lift">
           <h1 className="text-4xl font-black tracking-tight text-accent">احجز عرضًا تجريبيًا</h1>
           <p className="mt-4 text-lg leading-9 text-white/75">
-            أخبرنا عن عدد الفروع وحجم العمليات، وسنريك كيف تبدو إدارة المخزون والتكلفة والتسويق داخل
+            أخبرنا عن عدد الأقسام وحجم العمليات، وسنريك كيف تبدو إدارة المخزون والتكلفة والتسويق داخل
             رواق.
           </p>
           <div className="mt-8 rounded-3xl border border-white/10 bg-white/10 p-5">
@@ -51,7 +51,7 @@ export default function RequestDemoPage() {
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="message">ملاحظات</Label>
-                <Textarea id="message" name="message" placeholder="عدد الفروع، نظام POS المستخدم، أو أهم مشكلة حاليًا" />
+                <Textarea id="message" name="message" placeholder="عدد الأقسام، نظام POS المستخدم، أو أهم مشكلة حاليًا" />
               </div>
             </ActionForm>
           </CardContent>

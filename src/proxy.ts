@@ -4,7 +4,7 @@ import { createServerClient } from "@supabase/ssr";
 import type { Database } from "@/types/database";
 import { getSupabaseEnv, hasSupabaseEnv } from "@/lib/supabase/env";
 import { DEMO_TRIAL_COOKIE, isDemoTrialTokenValid } from "@/lib/auth/demo-trial";
-import { jwtVerify } from "jose";
+import { verifyAdminSessionToken } from "@/lib/auth/admin-token";
 
 const PROTECTED_PATHS = ["/dashboard"];
 const AUTH_PATHS = ["/login", "/register", "/forgot-password"];
@@ -36,14 +36,10 @@ export async function proxy(request: NextRequest) {
     }
 
     try {
-      const secretKey = process.env.INTERNAL_ADMIN_SECRET;
-      if (!secretKey) {
-        throw new Error("No secret key configured");
+      const adminSession = await verifyAdminSessionToken(sessionCookie);
+      if (!adminSession) {
+        throw new Error("Invalid admin session claims");
       }
-      
-      const key = new TextEncoder().encode(secretKey);
-      await jwtVerify(sessionCookie, key, { algorithms: ["HS256"] });
-      // Valid admin token
     } catch {
       return NextResponse.redirect(new URL("/admin-login", request.url));
     }

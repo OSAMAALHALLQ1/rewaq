@@ -6,14 +6,24 @@ import { PlanComparison } from "@/components/billing/plan-comparison";
 import { SiteHeader } from "@/components/public/site-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { REWAQ_MODULES, REWAQ_PLAN_LIST } from "@/lib/billing/plans";
+import {
+  REWAQ_BILLING_CURRENCY,
+  REWAQ_PLANS,
+} from "@/lib/billing/plans";
+import { getCurrentPlanCatalog } from "@/server/billing/plan-catalog";
 
 export const metadata: Metadata = {
   title: "باقات رواق وأسعار الاشتراك",
   description: "باقات شهرية واضحة لتشغيل المطاعم وإدارة المخزون والمحاسبة من رواق.",
 };
 
-export default function PricingPage() {
+export default async function PricingPage() {
+  const plans = await getCurrentPlanCatalog();
+  const startingPlan = plans.reduce((lowest, plan) =>
+    plan.monthlyPriceUsd < lowest.monthlyPriceUsd ? plan : lowest,
+  );
+  const completePlan = plans.find((plan) => plan.code === "scale") ?? REWAQ_PLANS.scale;
+
   return (
     <div className="min-h-screen bg-background">
       <SiteHeader />
@@ -34,14 +44,16 @@ export default function PricingPage() {
                 <WalletCards className="h-5 w-5 text-primary" aria-hidden="true" />
                 <div className="text-right">
                   <dt className="text-xs text-muted-foreground">الباقات</dt>
-                  <dd className="font-extrabold">{REWAQ_PLAN_LIST.length} خيارات واضحة</dd>
+                  <dd className="font-extrabold">{plans.length} خيارات واضحة</dd>
                 </div>
               </div>
               <div className="flex items-center justify-center gap-3 px-4 py-4">
                 <Layers3 className="h-5 w-5 text-emerald-600" aria-hidden="true" />
                 <div className="text-right">
                   <dt className="text-xs text-muted-foreground">الباقة المتكاملة</dt>
-                  <dd className="font-extrabold">جميع الوحدات وعددها {REWAQ_MODULES.length}</dd>
+                  <dd className="font-extrabold">
+                    جميع الوحدات وعددها {completePlan.modules.length}
+                  </dd>
                 </div>
               </div>
               <div className="flex items-center justify-center gap-3 px-4 py-4">
@@ -49,7 +61,7 @@ export default function PricingPage() {
                 <div className="text-right">
                   <dt className="text-xs text-muted-foreground">سعر البداية</dt>
                   <dd className="font-extrabold" dir="ltr">
-                    150 USD / month
+                    {startingPlan.monthlyPriceUsd} {REWAQ_BILLING_CURRENCY} / month
                   </dd>
                 </div>
               </div>
@@ -70,7 +82,7 @@ export default function PricingPage() {
             </p>
           </div>
           <div className="grid items-stretch gap-5 lg:grid-cols-3">
-            {REWAQ_PLAN_LIST.map((plan) => (
+            {plans.map((plan) => (
               <PlanCard
                 key={plan.code}
                 plan={plan}
@@ -80,14 +92,14 @@ export default function PricingPage() {
           </div>
         </section>
 
-        <PlanComparison className="mx-auto max-w-7xl px-4 pb-16 lg:px-6" />
+        <PlanComparison plans={plans} className="mx-auto max-w-7xl px-4 pb-16 lg:px-6" />
 
         <section className="border-t border-border bg-secondary text-secondary-foreground">
           <div className="mx-auto flex max-w-7xl flex-col gap-5 px-4 py-10 sm:flex-row sm:items-center sm:justify-between lg:px-6">
             <div>
               <h2 className="text-2xl font-extrabold">تحتاج مساعدة في اختيار الباقة؟</h2>
               <p className="mt-1 text-sm leading-6 text-secondary-foreground/70">
-                شاركنا عدد الفروع والأجهزة ودورة العمل المطلوبة لنرشح لك البداية الأنسب.
+                شاركنا عدد الأقسام والأجهزة ودورة العمل المطلوبة لنرشح لك البداية الأنسب.
               </p>
             </div>
             <Button variant="light" asChild>

@@ -10,7 +10,10 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import type { RewaqPlanDefinition } from "@/lib/billing/plans";
+import {
+  REWAQ_BILLING_CURRENCY,
+  type RewaqPlanDefinition,
+} from "@/lib/billing/plans";
 import { cn } from "@/lib/utils";
 
 type PlanCardAction =
@@ -38,7 +41,7 @@ export function PlanCard({
   const isComplete = plan.code === "scale";
   const mutedText = isComplete ? "text-secondary-foreground/70" : "text-muted-foreground";
   const limits = [
-    { label: "الفروع", value: formatLimit(plan.limits.maxBranches), icon: Building2 },
+    { label: "الأقسام", value: formatLimit(plan.limits.maxBranches), icon: Building2 },
     { label: "المستخدمون", value: formatLimit(plan.limits.maxUsers), icon: UsersRound },
     { label: "الأجهزة", value: formatLimit(plan.limits.maxDevices), icon: MonitorSmartphone },
   ];
@@ -91,7 +94,9 @@ export function PlanCard({
             <span className="text-4xl font-black tabular-nums sm:text-5xl">
               {plan.monthlyPriceUsd}
             </span>
-            <span className={cn("pb-1 text-sm font-bold", mutedText)}>USD</span>
+            <span className={cn("pb-1 text-sm font-bold", mutedText)}>
+              {REWAQ_BILLING_CURRENCY}
+            </span>
           </div>
           <p className={cn("mt-1 text-xs", mutedText)}>اشتراك شهري</p>
         </div>

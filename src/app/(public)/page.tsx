@@ -5,7 +5,6 @@ import {
   Building2,
   ChefHat,
   Coffee,
-  Megaphone,
   PackageSearch,
   ReceiptText,
   ShoppingCart,
@@ -29,30 +28,30 @@ const problems = [
 ];
 
 const features = [
-  { title: "إدارة المخزون", description: "حركات مخزون دقيقة، حدود دنيا، وجرد حسب الفرع.", icon: PackageSearch },
+  { title: "إدارة المخزون", description: "حركات مخزون دقيقة، حدود دنيا، وجرد حسب القسم.", icon: PackageSearch },
   { title: "تكلفة الوصفات", description: "حساب مباشر لتكلفة المكونات والربحية.", icon: ChefHat },
   { title: "المشتريات والموردين", description: "طلبات شراء، فواتير، وسجل أسعار الموردين.", icon: ShoppingCart },
   { title: "تقارير الربحية", description: "تكلفة الطعام، الهدر، المقارنات، وقيمة المخزون.", icon: BarChart3 },
-  { title: "إدارة الفروع", description: "صلاحيات وبيانات منفصلة لكل فرع.", icon: Building2 },
-  { title: "التسويق والمحتوى", description: "إدارة المحتوى والعروض من مساحة عمل واحدة.", icon: Megaphone },
+  { title: "إدارة الأقسام", description: "صلاحيات وبيانات منفصلة لكل قسم.", icon: Building2 },
+  { title: "الحسابات اليومية", description: "قيود مترابطة من البيع والشراء حتى التقارير المالية.", icon: ReceiptText },
 ];
 
 const businessProfiles = [
   ["مطعم صغير", "تشغيل سريع مع كاشير ومبيعات وورديات وتقارير واضحة."],
   ["كافيه حديث", "كاشير سريع، منيو إلكتروني، مخزون، وعروض يومية."],
   ["مطعم متوسط", "تشغيل + محاسبة: مبيعات، مشتريات، موردين، وتكلفة طبق."],
-  ["عدة فروع", "صلاحيات، تقارير فرعية، توزيع مخزون، وطبقة محاسبة أقوى."],
+  ["عدة أقسام", "صلاحيات، تقارير فرعية، توزيع مخزون، وطبقة محاسبة أقوى."],
 ];
 
 const recommendationRows = [
   ["مطعم صغير", "باقة المطعم الصغير", "بيع سريع ومخزون أساسي وتقارير تشغيل"],
   ["كافيه حديث", "باقة المطعم المتوسط", "منيو إلكتروني، شاشة مطبخ، وطاولات"],
   ["مطعم متوسط", "باقة المطعم المتوسط", "تشغيل يومي مع متابعة مشتريات وربحية"],
-  ["مطعم كبير", "باقة المطعم الكبير", "فروع، موردون، محاسبة وتقارير متقدمة"],
+  ["مطعم كبير", "باقة المطعم الكبير", "أقسام، موردون، محاسبة وتقارير متقدمة"],
 ];
 
 const faqs = [
-  ["هل رواق مناسب لمطعم صغير؟", "نعم. يبدأ بفرع واحد ثم يتوسع للفروع والمطابخ السحابية."],
+  ["هل رواق مناسب لمطعم صغير؟", "نعم. يبدأ بقسم واحد ثم يتوسع للأقسام والمطابخ السحابية."],
   ["هل يمكن إدارة المحتوى الاجتماعي؟", "نعم، من مركز التسويق. تفعيل النشر لكل قناة يتطلب ربط حسابها وصلاحياتها الخاصة."],
   ["هل البيانات معزولة بين العملاء؟", "نعم. بنية قاعدة البيانات تعتمد معرف المؤسسة وسياسات عزل لكل الجداول الأساسية."],
 ];
@@ -134,7 +133,7 @@ export default function LandingPage() {
             <h2 className="mt-4 max-w-xl text-4xl font-black leading-tight tracking-tight">أجب عن 5 أسئلة، ورواق يرتب لك الداشبورد.</h2>
             <p className="mt-4 max-w-2xl leading-8 text-muted-foreground">
               ليس كل صاحب عمل يحتاج نفس الشاشة. الكافيه يريد سرعة كاشير وعروض، والمطعم المتوسط يحتاج تكلفة وموردين،
-              وصاحب الفروع يحتاج صلاحيات وتوزيع عمل.
+              وصاحب الأقسام يحتاج صلاحيات وتوزيع عمل.
             </p>
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
               {businessProfiles.map(([title, body], index) => (
@@ -185,7 +184,7 @@ export default function LandingPage() {
                 <h2 className="mt-4 text-4xl font-black tracking-tight">كيف يعمل؟</h2>
               </div>
               <div className="grid gap-3 md:grid-cols-4">
-                {["اربط الفروع والمستخدمين", "أدخل المواد والموردين", "احسب الوصفات والقائمة", "انشر العروض وتابع التقارير"].map(
+                {["اربط الأقسام والمستخدمين", "أدخل المواد والموردين", "احسب الوصفات والقائمة", "انشر العروض وتابع التقارير"].map(
                   (step, index) => (
                     <div key={step} className="rounded-3xl border border-white/10 bg-white/5 p-5">
                       <span className="text-4xl font-black text-accent">{index + 1}</span>
@@ -252,7 +251,7 @@ export default function LandingPage() {
             <div className="mb-8 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <h2 className="text-3xl font-black tracking-tight">باقات واضحة للنمو</h2>
-                <p className="mt-2 text-sm text-muted-foreground">ابدأ صغيرًا وتوسع عندما تصبح الفروع أكثر.</p>
+                <p className="mt-2 text-sm text-muted-foreground">ابدأ صغيرًا وتوسع عندما تصبح الأقسام أكثر.</p>
               </div>
               <Link href="/pricing" className="rounded-full bg-primary-light px-4 py-2 text-sm font-extrabold text-primary">
                 تفاصيل الأسعار

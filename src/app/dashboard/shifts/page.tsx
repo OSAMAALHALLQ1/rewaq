@@ -71,7 +71,7 @@ export default async function ShiftsPage() {
               <p className="font-bold">{new Date(shift.openedAt).toLocaleString("ar")}</p>
             </div>
             <div className="rounded-lg bg-slate-50 p-4">
-              <p className="text-sm text-muted-foreground">الفرع</p>
+              <p className="text-sm text-muted-foreground">القسم</p>
               <p className="font-bold">{shift.branchName}</p>
             </div>
             <div className="flex items-center justify-between rounded-lg border p-4">

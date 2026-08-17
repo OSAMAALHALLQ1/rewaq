@@ -1,13 +1,8 @@
 import { z } from "zod";
-import { SOCIAL_PLATFORM_IDS } from "@/lib/social/platforms";
 
 export const authSchema = z.object({
   email: z.email("أدخل بريدًا صحيحًا"),
   password: z.string().min(8, "كلمة المرور يجب أن تكون 8 أحرف على الأقل"),
-});
-
-export const ownerPasswordLoginSchema = z.object({
-  password: z.string().min(8, "تحقق من كلمة المرور"),
 });
 
 export const employeeInviteLoginSchema = z.object({
@@ -63,7 +58,7 @@ export const inventoryItemSchema = z.object({
 
 export const purchaseOrderSchema = z.object({
   supplierId: z.string().min(1, "اختر المورد"),
-  branchId: z.string().min(1, "اختر الفرع"),
+  branchId: z.string().min(1, "اختر القسم"),
   itemId: z.string().uuid("اختر الصنف"),
   quantity: z.coerce.number().positive("الكمية يجب أن تكون أكبر من صفر"),
   unitPrice: z.coerce.number().nonnegative("سعر الوحدة يجب ألا يكون سالباً"),
@@ -102,14 +97,6 @@ export const menuItemSchema = z.object({
   sellingPrice: z.coerce.number().positive(),
   branchId: z.string().optional(),
   status: z.enum(["active", "inactive"]),
-});
-
-export const socialPostSchema = z.object({
-  title: z.string().min(2, "عنوان داخلي مطلوب"),
-  body: z.string().min(5, "نص المنشور مطلوب"),
-  platforms: z.array(z.enum(SOCIAL_PLATFORM_IDS)).min(1, "اختر منصة واحدة على الأقل"),
-  publishMode: z.enum(["now", "schedule", "draft"]),
-  scheduledAt: z.string().optional(),
 });
 
 export const demoRequestSchema = z.object({

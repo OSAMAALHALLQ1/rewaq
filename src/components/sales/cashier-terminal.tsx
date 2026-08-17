@@ -473,7 +473,7 @@ export function CashierTerminal({
                 {shift.cashierName} · شاشة واحدة للبيع: ابحث، أضف، عدل الكمية، ادفع. أي شيء ثانوي خلف زر واضح.
               </p>
             </div>
-            <Select value={selectedBranchId} onChange={(event) => setSelectedBranchId(event.target.value)} aria-label="اختيار الفرع">
+            <Select value={selectedBranchId} onChange={(event) => setSelectedBranchId(event.target.value)} aria-label="اختيار القسم">
               {branches.map((branch) => (
                 <option key={branch.id} value={branch.id}>{branch.name}</option>
               ))}

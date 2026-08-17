@@ -1,14 +1,12 @@
 import { z } from "zod";
-
-export const ownerPasswordLoginSchema = z.object({
-  password: z.string().min(8, "كلمة المرور يجب أن تكون 8 أحرف على الأقل"),
-});
+import { normalizeEmployeeCode } from "@/lib/auth/employee-code";
 
 export const employeeCodeLoginSchema = z.object({
   inviteCode: z
     .string()
     .trim()
     .min(6, "أدخل كود الموظف")
-    .max(32, "كود الموظف غير صالح")
-    .transform((value) => value.toUpperCase()),
+    .max(64, "كود الموظف غير صالح")
+    .transform(normalizeEmployeeCode)
+    .refine((value) => /^[A-Z0-9_-]+$/.test(value), "كود الموظف غير صالح"),
 });

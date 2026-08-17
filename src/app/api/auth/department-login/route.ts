@@ -1,18 +1,14 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import { createHash } from "crypto";
 import { canUseDemoFallback, hasSupabaseAdminEnv } from "@/lib/supabase/env";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { departmentRoleAllowsModule } from "@/lib/department/auth";
 
-function getSupabaseAdmin() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  );
-}
+const INVALID_DEPARTMENT_CODE = "رمز الوصول غير صالح أو غير مفعل.";
 
 export async function POST(request: Request) {
   try {
-    const { apiKey } = await request.json();
+    const { apiKey } = await request.json().catch(() => ({ apiKey: null }));
     const normalizedKey = typeof apiKey === "string" ? apiKey.trim().toUpperCase() : "";
 
     if (!normalizedKey || normalizedKey.length !== 10) {
@@ -57,8 +53,8 @@ export async function POST(request: Request) {
     const keyHash = createHash("sha256").update(normalizedKey).digest("hex");
 
     // 2. Query the department key in Supabase
-    const supabaseAdmin = getSupabaseAdmin();
-    const { data: keyData, error: keyError } = await (supabaseAdmin as any)
+    const supabaseAdmin = createAdminClient();
+    const { data: keyData, error: keyError } = await supabaseAdmin
       .from("department_api_keys")
       .select(`
         id,
@@ -72,25 +68,61 @@ export async function POST(request: Request) {
       .eq("key_hash", keyHash)
       .single();
 
-    if (keyError || !keyData) {
+    if (keyError || !keyData || !keyData.is_active) {
       return NextResponse.json(
-        { success: false, error: "رمز الوصول هذا غير موجود بقاعدة البيانات." },
+        { success: false, error: INVALID_DEPARTMENT_CODE },
         { status: 401 }
       );
     }
 
-    if (!keyData.is_active) {
+    const allowedModules = Array.isArray(keyData.allowed_modules)
+      ? keyData.allowed_modules.map(String)
+      : [];
+    if (
+      allowedModules.length === 0 ||
+      allowedModules.some(
+        (module: string) => !departmentRoleAllowsModule(String(keyData.role), module),
+      )
+    ) {
       return NextResponse.json(
-        { success: false, error: "تم إلغاء تنشيط هذا الجهاز من قبل مدير المطعم." },
+        { success: false, error: "صلاحيات هذا الجهاز غير متناسقة. راجع مالك المؤسسة." },
         { status: 403 }
       );
     }
 
-    // 3. Update last used timestamp
-    await (supabaseAdmin as any)
-      .from("department_api_keys")
-      .update({ last_used_at: new Date().toISOString() })
-      .eq("id", keyData.id);
+    // 3. Update last used timestamp and require an audit record before issuing
+    // the cookie. A device login must never become an untracked privileged action.
+    const [{ error: usageError }, { error: auditError }] = await Promise.all([
+      supabaseAdmin
+        .from("department_api_keys")
+        .update({ last_used_at: new Date().toISOString() })
+        .eq("id", keyData.id),
+      supabaseAdmin.from("audit_logs").insert({
+        organization_id: keyData.organization_id,
+        branch_id: keyData.branch_id,
+        user_id: null,
+        action: "department_device_login",
+        entity_type: "department_api_key",
+        entity_id: keyData.id,
+        old_data: null,
+        new_data: {
+          role: keyData.role,
+          allowed_modules: allowedModules,
+          device_name: keyData.device_name,
+        },
+      }),
+    ]);
+
+    if (usageError || auditError) {
+      console.error(
+        "[department-login-audit]",
+        usageError?.message ?? auditError?.message,
+      );
+      return NextResponse.json(
+        { success: false, error: "تعذر توثيق جلسة الجهاز بأمان." },
+        { status: 503 },
+      );
+    }
 
     // 4. Return successful metadata to the client
     const response = NextResponse.json({
@@ -98,7 +130,7 @@ export async function POST(request: Request) {
       organizationId: keyData.organization_id,
       branchId: keyData.branch_id,
       role: keyData.role,
-      allowedModules: keyData.allowed_modules,
+      allowedModules,
       deviceName: keyData.device_name,
     });
 
@@ -111,8 +143,11 @@ export async function POST(request: Request) {
     });
 
     return response;
-  } catch (err: any) {
-    console.error("Department login error:", err);
+  } catch (error: unknown) {
+    console.error(
+      "Department login error:",
+      error instanceof Error ? error.message : error,
+    );
     return NextResponse.json(
       { success: false, error: "فشل التحقق من الكود بسبب مشكلة داخلية في الخادم." },
       { status: 500 }

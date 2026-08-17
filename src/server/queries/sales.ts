@@ -103,7 +103,7 @@ async function loadSalesBundle(admin: AdminClient, organizationId: string) {
   const shift: SalesShift = shiftRow
     ? {
         id: shiftRow.id,
-        branchName: context.branches.find((branch) => branch.id === shiftRow.branch_id)?.name ?? "الفرع",
+        branchName: context.branches.find((branch) => branch.id === shiftRow.branch_id)?.name ?? "القسم",
         cashierName: shiftRow.cashier_name ?? "كاشير",
         openedAt: shiftRow.opened_at,
         openingCash: numberValue(shiftRow.opening_cash),
@@ -119,7 +119,7 @@ async function loadSalesBundle(admin: AdminClient, organizationId: string) {
       }
     : {
         id: "shift-1",
-        branchName: context.branches[0]?.name ?? "الفرع",
+        branchName: context.branches[0]?.name ?? "القسم",
         openedAt: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
         cashierName: "أحمد",
         openingCash: 500,
@@ -269,7 +269,7 @@ async function loadInventoryBundle(admin: AdminClient, organizationId: string) {
     })),
     branchStock: stockRows.map((row) => ({
       branchId: row.branch_id,
-      branchName: branchMap.get(row.branch_id)?.name ?? "فرع غير معروف",
+      branchName: branchMap.get(row.branch_id)?.name ?? "قسم غير معروف",
       itemId: row.item_id,
       quantity: numberValue(row.quantity),
       reservedQuantity: numberValue(row.reserved_quantity),

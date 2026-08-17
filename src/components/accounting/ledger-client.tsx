@@ -294,7 +294,7 @@ export function LedgerClient({ data }: { data: GeneralLedgerData }) {
                           {line.memo || "-"}
                           {(line.branchName || line.costCenterName) && (
                             <p className="text-[10px] text-slate-400 mt-0.5">
-                              {line.branchName && <span>فرع: {line.branchName}</span>}
+                              {line.branchName && <span>قسم: {line.branchName}</span>}
                               {line.branchName && line.costCenterName && " · "}
                               {line.costCenterName && <span>مركز تكلفة: {line.costCenterName}</span>}
                             </p>

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { isLowStock, quantitiesByItem } from "@/lib/inventory/ledger";
 
 describe("رصيد المخزون", () => {
-  it("يجمع كمية المادة عبر الفروع", () => {
+  it("يجمع كمية المادة عبر الأقسام", () => {
     const quantities = quantitiesByItem([
       { itemId: "meat", quantity: 4 },
       { itemId: "meat", quantity: 6 },

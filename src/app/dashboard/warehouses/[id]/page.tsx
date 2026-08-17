@@ -151,7 +151,7 @@ export default async function WarehouseDetailsPage({ params }: { params: Promise
                 <div className="rounded-lg border bg-slate-50 p-3"><p className="text-xs text-muted-foreground">الحالة</p><p className="mt-1 font-bold">{wh.status === "active" ? "نشط" : "متوقف"}</p></div>
               </div>
               <div className="rounded-lg border bg-slate-50 p-3">
-                <p className="text-xs text-muted-foreground">الصلاحيات والفروع المرتبطة</p>
+                <p className="text-xs text-muted-foreground">الصلاحيات والأقسام المرتبطة</p>
                 <p className="mt-1">جميع المستخدمين المعتمدين يمكنهم استعراض هذا المستودع. يمكنك لاحقاً ربط المستخدمين والأدوار من إعدادات النظام.</p>
               </div>
             </CardContent>

@@ -18,7 +18,14 @@ import { createDemoTrialToken, DEMO_TRIAL_COOKIE, DEMO_TRIAL_HOURS } from "@/lib
 import { logAuditEvent } from "@/lib/audit/log";
 import { demoOrganization } from "@/lib/demo-data";
 import { isDemoUserEmail } from "@/lib/auth/demo";
+import {
+  employeeCodeHint,
+  generateEmployeeCode,
+  hashEmployeeCode,
+} from "@/lib/auth/employee-code";
+import { roleHomePath } from "@/lib/auth/route-access";
 import type { Json } from "@/types/database";
+import type { Role } from "@/types/domain";
 
 export type ActionState = {
   ok: boolean;
@@ -32,8 +39,8 @@ export type ActionState = {
  * the demo organization, the session is rejected so it can never reach real data.
  */
 export async function startDemoSessionAction(): Promise<ActionState> {
-  if (!hasSupabaseEnv()) {
-    return { ok: false, message: "Supabase غير مهيأ. لا يمكن بدء جلسة تجريبية." };
+  if (!hasSupabaseEnv() || !hasSupabaseAdminEnv()) {
+    return { ok: false, message: "Supabase الإداري غير مهيأ للتحقق الآمن من المؤسسة التجريبية." };
   }
 
   const demoEmail = process.env.RAWAQ_DEMO_EMAIL;
@@ -53,37 +60,39 @@ export async function startDemoSessionAction(): Promise<ActionState> {
     return { ok: false, message: error?.message ?? "تعذر بدء الجلسة التجريبية." };
   }
 
-  // Enforce isolation: the demo account must belong to the demo organization only.
-  if (hasSupabaseAdminEnv()) {
-    const admin = createAdminClient();
-    const { data: membership } = await (admin as any)
-      .from("organization_memberships")
-      .select("organization_id")
-      .eq("user_id", data.user.id)
-      .limit(1)
-      .maybeSingle();
+  // Enforce isolation: the demo account must belong to exactly one membership,
+  // and that membership must be the isolated demo organization.
+  const admin = createAdminClient();
+  const { data: memberships, error: membershipError } = await (admin as any)
+    .from("organization_memberships")
+    .select("organization_id")
+    .eq("user_id", data.user.id);
 
-    if (membership?.organization_id !== demoOrganization.id) {
-      await supabase.auth.signOut();
-      return { ok: false, message: "الحساب التجريبي غير مرتبط بالمؤسسة التجريبية." };
-    }
+  if (
+    membershipError ||
+    !Array.isArray(memberships) ||
+    memberships.length !== 1 ||
+    memberships[0]?.organization_id !== demoOrganization.id
+  ) {
+    await supabase.auth.signOut();
+    return { ok: false, message: "الحساب التجريبي غير معزول داخل المؤسسة التجريبية." };
   }
 
   // Stamp the 8-hour trial ticket; the proxy ends the demo session once it
-  // expires. Without INTERNAL_ADMIN_SECRET the ticket cannot be signed and the
-  // window is unenforced.
+  // expires. Without a strong INTERNAL_ADMIN_SECRET, fail closed.
   const trialToken = await createDemoTrialToken();
-  if (trialToken) {
-    (await cookies()).set(DEMO_TRIAL_COOKIE, trialToken, {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      maxAge: DEMO_TRIAL_HOURS * 60 * 60,
-      path: "/",
-    });
-  } else {
-    console.warn("[demo-trial] INTERNAL_ADMIN_SECRET غير مضبوط؛ لن تُفرض مدة 8 ساعات للتجربة.");
+  if (!trialToken) {
+    await supabase.auth.signOut();
+    return { ok: false, message: "تعذر إنشاء تذكرة تجربة آمنة على الخادم." };
   }
+
+  (await cookies()).set(DEMO_TRIAL_COOKIE, trialToken, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    maxAge: DEMO_TRIAL_HOURS * 60 * 60,
+    path: "/",
+  });
 
   redirect("/dashboard");
 }
@@ -128,7 +137,7 @@ export async function loginAction(_prevState: ActionState, formData: FormData): 
   const supabase = await createClient();
   const { data: signInData, error } = await supabase.auth.signInWithPassword(parsed.data);
   if (error) {
-    return { ok: false, message: error.message };
+    return { ok: false, message: "تعذر تسجيل الدخول. تحقق من البيانات وحاول مرة أخرى." };
   }
 
   if (!signInData.user) {
@@ -186,7 +195,22 @@ export async function loginAction(_prevState: ActionState, formData: FormData): 
     }
   }
 
-  redirect("/dashboard");
+  const membershipClient = hasSupabaseAdminEnv() ? createAdminClient() : supabase;
+  const { data: membership, error: membershipError } = await (membershipClient as any)
+    .from("organization_memberships")
+    .select("organization_id,role")
+    .eq("user_id", signInData.user.id)
+    .maybeSingle();
+
+  if (membershipError || !membership?.organization_id || !membership.role) {
+    await supabase.auth.signOut();
+    return {
+      ok: false,
+      message: "لم يتم ربط الحساب بمؤسسة وصلاحية صالحتين بعد.",
+    };
+  }
+
+  redirect(roleHomePath(membership.role as Role));
 }
 
 /**
@@ -327,18 +351,46 @@ export async function inviteTeamMemberAction(_prevState: ActionState, formData: 
     return { ok: false, message: "لم يتم ربطك بمؤسسة. تواصل مع الدعم." };
   }
 
-  const inviteCode = Math.random().toString(36).slice(2, 10).toUpperCase();
+  const inviteCode = generateEmployeeCode();
+  const inviteCodeHash = hashEmployeeCode(inviteCode);
 
   if (hasSupabaseEnv()) {
     const supabase = await createClient();
+    const { data: existingInvite, error: existingInviteError } = await supabase
+      .from("team_invites")
+      .select("status,revoked_at")
+      .eq("organization_id", user.organizationId)
+      .eq("email", parsed.data.email.toLowerCase())
+      .maybeSingle();
+
+    if (existingInviteError) {
+      return { ok: false, message: existingInviteError.message };
+    }
+
+    if (existingInvite?.status === "accepted" && !existingInvite.revoked_at) {
+      return {
+        ok: true,
+        message:
+          "هذا الموظف مرتبط بالفعل، وكوده الدائم ما زال فعالًا. ألغِ الكود صراحةً فقط عند الحاجة إلى إيقاف وصوله.",
+      };
+    }
+
     const { error } = await supabase.from("team_invites").upsert(
       {
         organization_id: user.organizationId, // Use user's organization, not hardcoded
-        email: parsed.data.email,
+        email: parsed.data.email.toLowerCase(),
         role: parsed.data.role,
         branch_id: parsed.data.branchId || null,
-        invite_code: inviteCode,
+        invite_code: inviteCodeHash,
         status: "pending",
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        accepted_at: null,
+        accepted_user_id: null,
+        revoked_at: null,
+        failed_login_attempts: 0,
+        locked_until: null,
+        last_failed_login_at: null,
+        created_by: user.id,
       },
       { onConflict: "organization_id,email" },
     );
@@ -359,7 +411,8 @@ export async function inviteTeamMemberAction(_prevState: ActionState, formData: 
     newData: {
       email: parsed.data.email,
       role: parsed.data.role,
-      inviteCode,
+      codeHint: employeeCodeHint(inviteCode),
+      codeFingerprint: inviteCodeHash,
     },
   });
 
@@ -449,7 +502,7 @@ export async function approveAccountRequestAction(_prevState: ActionState, formD
 
       await admin.from("branches").insert({
         organization_id: organizationId,
-        name: "الفرع الرئيسي",
+        name: "القسم الرئيسي",
         manager_name: request.owner_name,
         status: "active",
         created_by: authUser.id,

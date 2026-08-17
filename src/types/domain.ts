@@ -114,11 +114,17 @@ export type PurchaseOrderStatus =
   | "cancelled";
 
 export type PurchaseOrderItem = {
+  id?: string;
   itemId: string;
   itemName: string;
   quantity: number;
   expectedUnitPrice: number;
+  discountAmount?: number;
+  taxRate?: number;
+  taxAmount?: number;
+  lineTotal?: number;
   receivedQuantity: number;
+  rejectedQuantity?: number;
 };
 
 export type PurchaseOrder = {
@@ -129,10 +135,23 @@ export type PurchaseOrder = {
   branchId: string;
   branchName: string;
   status: PurchaseOrderStatus;
+  approvalStatus?: "not_submitted" | "pending" | "approved";
   orderDate: string;
   expectedDate?: string;
+  destinationWarehouse?: "general" | "kitchen";
+  destinationLocation?: string;
+  paymentTerms?: string;
+  subtotal?: number;
+  discountTotal?: number;
+  taxTotal?: number;
+  shippingTotal?: number;
   total: number;
   notes?: string;
+  attachmentMetadata?: Array<{ name: string; url?: string }>;
+  submittedAt?: string;
+  submittedBy?: string;
+  approvedAt?: string;
+  approvedBy?: string;
   items: PurchaseOrderItem[];
 };
 
@@ -407,63 +426,25 @@ export type WasteLog = {
 export type Transfer = {
   id: string;
   organizationId: string;
+  transferNumber?: string;
   fromBranchName: string;
   toBranchName: string;
-  status: "draft" | "sent" | "received" | "cancelled";
+  status: "draft" | "pending_approval" | "approved" | "in_transit" | "received" | "variance_review" | "closed" | "cancelled";
   createdAt: string;
   totalItems: number;
-};
-
-export type SocialPlatform =
-  | "facebook"
-  | "instagram"
-  | "whatsapp"
-  | "telegram"
-  | "tiktok"
-  | "x"
-  | "google_business"
-  | "linkedin"
-  | "youtube_shorts"
-  | "pinterest";
-
-export type SocialAccount = {
-  id: string;
-  organizationId: string;
-  platform: SocialPlatform;
-  accountName: string;
-  status: "connected" | "expired" | "disabled" | "local_agent";
-  lastPublishedAt?: string;
-};
-
-export type SocialPostTarget = {
-  id?: string;
-  platform: SocialPlatform;
-  socialAccountId?: string;
-  accountName: string;
-  status: "pending" | "ready" | "prepared" | "publishing" | "published" | "failed";
-  error?: string;
-};
-
-export type SocialPost = {
-  id: string;
-  organizationId: string;
-  title: string;
-  body: string;
-  status: "draft" | "ready" | "prepared" | "scheduled" | "publishing" | "published" | "failed";
-  scheduledAt?: string;
-  recurrenceInterval?: "none" | "daily" | "weekly";
-  assetUrl?: string;
-  imageLocalPath?: string;
-  targets: SocialPostTarget[];
-  createdAt: string;
-};
-
-export type SocialTemplate = {
-  id: string;
-  organizationId: string;
-  name: string;
-  body: string;
-  category: string;
+  notes?: string;
+  items?: Array<{
+    id: string;
+    itemId: string;
+    itemName: string;
+    requestedQuantity: number;
+    sentQuantity: number;
+    receivedQuantity: number;
+    varianceQuantity: number;
+    varianceReason?: string;
+    batchNumber?: string;
+    expiryDate?: string;
+  }>;
 };
 
 export type Notification = {

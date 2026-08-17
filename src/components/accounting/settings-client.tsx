@@ -217,8 +217,8 @@ export function SettingsClient({ initialSettings }: { initialSettings: Accountin
             <CustomSwitch
               checked={enableBranches}
               onChange={setEnableBranches}
-              label="تفعيل المحاسبة متعددة الفروع"
-              description="توزيع وربط أسطر القيود ومراكز التكلفة للفروع المختلفة للمؤسسة."
+              label="تفعيل المحاسبة متعددة الأقسام"
+              description="توزيع وربط أسطر القيود ومراكز التكلفة للأقسام المختلفة للمؤسسة."
             />
             <CustomSwitch
               checked={enableCostCenters}

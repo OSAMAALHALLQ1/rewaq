@@ -42,7 +42,7 @@ export default async function ProductionPage() {
                 <TableRow>
                   <TableHead>الأمر</TableHead>
                   <TableHead>الوصفة</TableHead>
-                  <TableHead>فرع الإنتاج</TableHead>
+                  <TableHead>قسم الإنتاج</TableHead>
                   <TableHead>الكمية</TableHead>
                   <TableHead>تكلفة المواد</TableHead>
                   <TableHead>الحالة</TableHead>
@@ -109,7 +109,7 @@ export default async function ProductionPage() {
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="branchId">فرع/مستودع الإنتاج</Label>
+                <Label htmlFor="branchId">قسم/مستودع الإنتاج</Label>
                 <Select id="branchId" name="branchId" required>
                   <option value="">اختر مكان الإنتاج</option>
                   {branches.map((branch) => (

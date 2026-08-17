@@ -115,19 +115,15 @@ export async function requireAuth(): Promise<AuthenticatedUser> {
     throw new ForbiddenError("حسابك بانتظار موافقة الإدارة قبل فتح النظام.");
   }
 
-  const metadataOrganizationId =
-    typeof user.app_metadata?.organization_id === "string" ? user.app_metadata.organization_id : "";
-  const organizationId = membership?.organization_id ?? metadataOrganizationId;
-
-  if (!organizationId) {
+  if (!membership?.organization_id || !membership.role) {
     throw new ForbiddenError("لم يتم ربط حسابك بمؤسسة بعد. انتظر موافقة الإدارة.");
   }
 
   return {
     id: user.id,
     email: user.email ?? "",
-    role: (membership?.role as Role) ?? ((typeof user.app_metadata?.role === "string" ? user.app_metadata.role : "staff") as Role),
-    organizationId,
+    role: membership.role as Role,
+    organizationId: membership.organization_id,
     branchId: membership?.branch_id ?? undefined,
   };
 }
@@ -182,11 +178,11 @@ export function requireBranchCapability(user: CapabilitySubject, targetBranchId:
   }
 
   if (!targetBranchId) {
-    throw new ForbiddenError("هذه العملية تحتاج فرعًا محددًا ضمن صلاحياتك.");
+    throw new ForbiddenError("هذه العملية تحتاج قسمًا محددًا ضمن صلاحياتك.");
   }
 
   if (!user.branchId || user.branchId !== targetBranchId) {
-    throw new ForbiddenError("لا تملك الصلاحية لإجراء عمليات خارج فرعك المخصص.");
+    throw new ForbiddenError("لا تملك الصلاحية لإجراء عمليات خارج قسمك المخصص.");
   }
 }
 

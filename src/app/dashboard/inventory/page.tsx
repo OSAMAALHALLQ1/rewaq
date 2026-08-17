@@ -237,7 +237,7 @@ export default async function InventoryPage({
                   ))}
                 </Select>
                 <Select name="branch" className="w-32 sm:w-48" defaultValue={branchId}>
-                  <option value="">كل الفروع</option>
+                  <option value="">كل الأقسام</option>
                   {branches.map((branch) => (
                     <option key={branch.id} value={branch.id}>
                       {branch.name}

@@ -60,7 +60,7 @@ export async function createRestaurantTable(
     const branch = demoRestaurantTables.find((table) => table.branchId === branchId);
     const table = {
       id: crypto.randomUUID(), organizationId: branch?.organizationId ?? "org-demo", branchId,
-      branchName: branch?.branchName ?? "الفرع", number: normalizedNumber, zone: zone.trim() || "الصالة",
+      branchName: branch?.branchName ?? "القسم", number: normalizedNumber, zone: zone.trim() || "الصالة",
       seats: normalizedSeats, status: "available" as const, currentTotal: 0, orderItems: [],
     };
     demoRestaurantTables.push(table);
@@ -75,7 +75,7 @@ export async function createRestaurantTable(
       .eq("id", branchId)
       .eq("organization_id", scope.organizationId)
       .maybeSingle();
-    if (branchError || !branch) return { success: false, error: "الفرع المحدد غير متاح للمؤسسة الحالية" };
+    if (branchError || !branch) return { success: false, error: "القسم المحدد غير متاح للمؤسسة الحالية" };
 
     const { data: row, error } = await admin
       .from("restaurant_tables")

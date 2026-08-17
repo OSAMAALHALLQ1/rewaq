@@ -122,7 +122,7 @@ export async function POST(request: Request) {
 
   const branchId = await resolveBranchId(auth);
   if (!branchId) {
-    return NextResponse.json({ success: false, error: "لا يوجد فرع مربوط بجهاز الكاشير." }, { status: 400 });
+    return NextResponse.json({ success: false, error: "لا يوجد قسم مربوط بجهاز الكاشير." }, { status: 400 });
   }
 
   const capability = requireDepartmentDeviceCapability(auth, "pos_write", branchId);
@@ -215,7 +215,7 @@ export async function POST(request: Request) {
             id: `movement-demo-${Date.now()}-${Math.random()}`,
             organizationId: auth.device.organizationId,
             branchId,
-            branchName: "فرع شارع عبد القادر الحسيني",
+            branchName: "قسم شارع عبد القادر الحسيني",
             itemId: ingredient.itemId,
             itemName: ingredient.itemName,
             movementType: "sale_usage",
@@ -244,7 +244,7 @@ export async function POST(request: Request) {
       id: `cinv-demo-${Date.now()}`,
       organizationId: auth.device.organizationId,
       branchId,
-      branchName: "فرع شارع عبد القادر الحسيني",
+      branchName: "قسم شارع عبد القادر الحسيني",
       invoiceNumber,
       customerName: parsed.data.customerName?.trim() || "عميل سفري سريع",
       status: "paid",

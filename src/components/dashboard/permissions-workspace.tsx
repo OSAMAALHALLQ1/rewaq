@@ -86,7 +86,7 @@ const initialRoles: RoleTemplate[] = [
   {
     id: "organization_owner",
     name: "مالك المؤسسة",
-    description: "أعلى سلطة وصلاحيات مطلقة داخل المطعم. رؤية الفروع، الأرباح، التكاليف، وإغلاق الفترات.",
+    description: "أعلى سلطة وصلاحيات مطلقة داخل المطعم. رؤية الأقسام، الأرباح، التكاليف، وإغلاق الفترات.",
     risk: "high",
     usersCount: 1,
     isSystem: true,
@@ -110,7 +110,7 @@ const initialRoles: RoleTemplate[] = [
   {
     id: "regional_manager",
     name: "مدير منطقة",
-    description: "إدارة ومراقبة أداء فروع محددة. مقارنة الفروع، واعتماد المصاريف والمخزون ضمن نطاقه.",
+    description: "إدارة ومراقبة أداء أقسام محددة. مقارنة الأقسام، واعتماد المصاريف والمخزون ضمن نطاقه.",
     risk: "high",
     usersCount: 2,
     isSystem: true,
@@ -128,8 +128,8 @@ const initialRoles: RoleTemplate[] = [
   },
   {
     id: "branch_manager",
-    name: "مدير الفرع",
-    description: "إشراف كامل على فرع واحد. المبيعات، الورديات، الطاولات، الجرد، واعتماد التالف والخصم المحدود.",
+    name: "مدير القسم",
+    description: "إشراف كامل على قسم واحد. المبيعات، الورديات، الطاولات، الجرد، واعتماد التالف والخصم المحدود.",
     risk: "medium",
     usersCount: 4,
     isSystem: true,
@@ -239,14 +239,14 @@ const initialRoles: RoleTemplate[] = [
 ];
 
 const initialUsers: UserRow[] = [
-  { id: "u1", name: "أحمد المبحوح", email: "ahmed.m@rewaq.saas", role: "branch_manager", scopes: ["فرع الرمال"], status: "active", mfa: true, devices: ["جهاز كاشير فرع الرمال Main"] },
-  { id: "u2", name: "سعيد النخالة", email: "saeed.n@rewaq.saas", role: "cashier", scopes: ["فرع الرمال", "وردية صباحية"], status: "active", mfa: false, devices: ["تابلت صالة الرمال A"] },
+  { id: "u1", name: "أحمد المبحوح", email: "ahmed.m@rewaq.saas", role: "branch_manager", scopes: ["قسم الرمال"], status: "active", mfa: true, devices: ["جهاز كاشير قسم الرمال Main"] },
+  { id: "u2", name: "سعيد النخالة", email: "saeed.n@rewaq.saas", role: "cashier", scopes: ["قسم الرمال", "وردية صباحية"], status: "active", mfa: false, devices: ["تابلت صالة الرمال A"] },
   { id: "u3", name: "محمود الشرفا", email: "m.shurafa@rewaq.saas", role: "accountant", scopes: ["كل المؤسسة"], status: "active", mfa: true, devices: ["متصفح الإدارة كروم"] },
   { id: "u4", name: "رشا البرغوثي", email: "rasha.b@rewaq.saas", role: "organization_owner", scopes: ["كل المؤسسة"], status: "active", mfa: true, devices: ["موبايل الإدارة آيفون"] }
 ];
 
 const initialAudits: AuditRow[] = [
-  { id: "a1", user: "رشا البرغوثي", action: "تعديل صلاحية", target: "أحمد المبحوح (مدير فرع)", timestamp: "2026-07-10T14:22:15Z", details: "تعديل الحد المالي للمرتجعات إلى 500 شيكل وتوسيع نطاق صلاحية المخازن.", ip: "192.168.1.45" },
+  { id: "a1", user: "رشا البرغوثي", action: "تعديل صلاحية", target: "أحمد المبحوح (مدير قسم)", timestamp: "2026-07-10T14:22:15Z", details: "تعديل الحد المالي للمرتجعات إلى 500 شيكل وتوسيع نطاق صلاحية المخازن.", ip: "192.168.1.45" },
   { id: "a2", user: "أحمد المبحوح", action: "طلب اعتماد خصم", target: "فاتورة #INV-4929", timestamp: "2026-07-10T14:40:10Z", details: "تجاوز حد الخصم المباشر (خصم 20%)، تم تحويل الطلب للموافقة.", ip: "192.168.2.11" },
   { id: "a3", user: "رشا البرغوثي", action: "اعتماد عملية دفع", target: "المورد شركة النخبة", timestamp: "2026-07-10T15:10:05Z", details: "اعتماد دفعة مالية بقيمة 8,500 شيكل لمستلزمات المطبخ.", ip: "192.168.1.45" }
 ];
@@ -325,7 +325,7 @@ const modulesList = [
       { key: "purchasing.requisition.approve", label: "اعتماد طلبات الشراء وتصديرها" },
       { key: "purchasing.order.create", label: "إنشاء أمر شراء رسمي (PO) للمورد" },
       { key: "purchasing.order.approve", label: "اعتماد أمر الشراء وتوقيعه إلكترونيًا" },
-      { key: "purchasing.receipt.create", label: "تسجيل إيصال استلام البضائع بالفرع" },
+      { key: "purchasing.receipt.create", label: "تسجيل إيصال استلام البضائع بالقسم" },
       { key: "purchasing.invoice.create", label: "تسجيل فاتورة المورد المالية ومطابقتها" },
       { key: "purchasing.invoice.post", label: "ترحيل فاتورة المورد للحسابات الدائنة" },
       { key: "supplier.payment.create", label: "إنشاء طلب سند صرف للمورد" },
@@ -354,7 +354,7 @@ const modulesList = [
       { key: "users.invite", label: "دعوة وتوظيف مستخدمين جدد للنظام" },
       { key: "users.roles.assign", label: "تعديل وإسناد أدوار وصلاحيات للموظفين" },
       { key: "roles.create", label: "إنشاء وتخصيص أدوار وصلاحيات جديدة" },
-      { key: "branches.manage", label: "إدارة الفروع وربطها بالمواقع الجغرافية" },
+      { key: "branches.manage", label: "إدارة الأقسام وربطها بالمواقع الجغرافية" },
       { key: "warehouses.manage", label: "إدارة المستودعات والتخزين المركزي" },
       { key: "audit_logs.view", label: "الاطلاع على سجل التدقيق الأمني والعمليات الحساسة" }
     ]
@@ -383,7 +383,7 @@ export default function PermissionsWorkspaceClient() {
     email: "",
     role: "cashier",
     scope: "branch",
-    branch: "فرع الرمال",
+    branch: "قسم الرمال",
     startAt: "",
     endAt: "",
     mfa: false
@@ -570,7 +570,7 @@ export default function PermissionsWorkspaceClient() {
       email: "",
       role: "cashier",
       scope: "branch",
-      branch: "فرع الرمال",
+      branch: "قسم الرمال",
       startAt: "",
       endAt: "",
       mfa: false
@@ -619,9 +619,9 @@ export default function PermissionsWorkspaceClient() {
 
   const getScopeLabel = (scope: string) => {
     switch (scope) {
-      case "all": return "كل المؤسسة والفروع";
+      case "all": return "كل المؤسسة والأقسام";
       case "region": return "علامات ومناطق محددة";
-      case "branch": return "فروع مسندة فقط";
+      case "branch": return "أقسام مسندة فقط";
       case "shift": return "الوردية الحالية فقط";
       case "personal": return "السجلات الشخصية فقط";
       default: return "محدود";
@@ -806,9 +806,9 @@ export default function PermissionsWorkspaceClient() {
                       onChange={(e) => setEditingRole({ ...editingRole, scope: e.target.value })}
                       className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold"
                     >
-                      <option value="all">كل المؤسسة وكافة الفروع والمستودعات</option>
+                      <option value="all">كل المؤسسة وكافة الأقسام والمستودعات</option>
                       <option value="region">علامات تجارية ومناطق جغرافية محددة</option>
-                      <option value="branch">الفروع والمستودعات المسندة للموظف فقط</option>
+                      <option value="branch">الأقسام والمستودعات المسندة للموظف فقط</option>
                       <option value="shift">وردية العمل الشخصية فقط (مبيعات/نقود)</option>
                       <option value="personal">السجلات الشخصية والطلبات المسندة فقط</option>
                     </select>
@@ -1043,7 +1043,7 @@ export default function PermissionsWorkspaceClient() {
                     onChange={() => handleToggleSensitive("netProfit")}
                     className="h-4 w-4 rounded text-primary accent-primary"
                   />
-                  <span>عرض صافي أرباح الفروع والمؤسسة</span>
+                  <span>عرض صافي أرباح الأقسام والمؤسسة</span>
                 </label>
                 <label className="flex items-center gap-2.5 text-xs text-slate-700 cursor-pointer">
                   <input
@@ -1105,7 +1105,7 @@ export default function PermissionsWorkspaceClient() {
                   >
                     <option value="none">لا يوجد (منع تلقائي لتجاوز الحد)</option>
                     <option value="shift_supervisor">مشرف الوردية المناوب</option>
-                    <option value="branch_manager">مدير الفرع الموثق</option>
+                    <option value="branch_manager">مدير القسم الموثق</option>
                     <option value="regional_manager">مدير المنطقة الجغرافية</option>
                     <option value="finance_manager">مدير المالية العام</option>
                     <option value="organization_owner">مالك المؤسسة مباشرة</option>
@@ -1187,7 +1187,7 @@ export default function PermissionsWorkspaceClient() {
                     <th className="p-4 font-bold">اسم الموظف</th>
                     <th className="p-4 font-bold">البريد الإلكتروني</th>
                     <th className="p-4 font-bold">الدور الأساسي</th>
-                    <th className="p-4 font-bold">الفروع والمنطقة</th>
+                    <th className="p-4 font-bold">الأقسام والمنطقة</th>
                     <th className="p-4 font-bold">المصادقة الثنائية MFA</th>
                     <th className="p-4 font-bold">حالة الحساب</th>
                     <th className="p-4 font-bold">الأجهزة المسموحة</th>
@@ -1342,17 +1342,17 @@ export default function PermissionsWorkspaceClient() {
                     </select>
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="invite-branch" className="text-xs font-bold text-slate-700">الفرع المتاح للدخول</Label>
+                    <Label htmlFor="invite-branch" className="text-xs font-bold text-slate-700">القسم المتاح للدخول</Label>
                     <select
                       id="invite-branch"
                       value={newInvite.branch}
                       onChange={(e) => setNewInvite({ ...newInvite, branch: e.target.value })}
                       className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold"
                     >
-                      <option value="فرع الرمال">فرع الرمال الرئيسي</option>
-                      <option value="فرع الجلاء">فرع الجلاء</option>
-                      <option value="فرع النصر">فرع النصر</option>
-                      <option value="كل الفروع">كل الفروع (مسؤول)</option>
+                      <option value="قسم الرمال">قسم الرمال الرئيسي</option>
+                      <option value="قسم الجلاء">قسم الجلاء</option>
+                      <option value="قسم النصر">قسم النصر</option>
+                      <option value="كل الأقسام">كل الأقسام (مسؤول)</option>
                     </select>
                   </div>
                 </div>

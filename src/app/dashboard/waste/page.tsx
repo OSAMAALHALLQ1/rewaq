@@ -14,25 +14,25 @@ import { getOperationsData } from "@/server/queries/app";
 
 export default async function WastePage() {
   const { wasteLogs, branches, items } = await getOperationsData();
-  const filteredLogs = wasteLogs.filter((log) => log.reason === "تلف" || log.reason === "محاريق" || log.reason === "سبب آخر");
+  const filteredLogs = wasteLogs;
 
   return (
     <>
       <PageHeader
-        title="التالف والمحاريق"
-        description="تسجيل التالف والمحاريق ينقص المخزون ويظهر في تقارير المخزن."
+        title="الهدر والتالف"
+        description="تسجيل الهدر والتالف حسب السبب والمسؤولية، مع أثر مخزني ومحاسبي قابل للتدقيق."
       />
       <div className="grid gap-4 xl:grid-cols-[1fr_360px]">
         <Card>
           <CardHeader>
-            <CardTitle>سجل التالف والمحاريق</CardTitle>
+            <CardTitle>سجل الهدر والتالف</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>التاريخ</TableHead>
-                  <TableHead>الفرع</TableHead>
+                  <TableHead>القسم</TableHead>
                   <TableHead>المادة</TableHead>
                   <TableHead>النوع</TableHead>
                   <TableHead>الكمية</TableHead>
@@ -46,7 +46,7 @@ export default async function WastePage() {
                     <TableCell>{log.branchName}</TableCell>
                     <TableCell className="font-medium">{log.itemName}</TableCell>
                     <TableCell>
-                      <Badge tone="warning">{log.reason}</Badge>
+                      <Badge tone="warning">{log.reason === "محاريق" ? "خطأ تحضير" : log.reason}</Badge>
                     </TableCell>
                     <TableCell>{log.quantity}</TableCell>
                     <TableCell>{formatCurrency(log.cost)}</TableCell>
@@ -61,7 +61,7 @@ export default async function WastePage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <PackageMinus className="h-5 w-5 text-primary" />
-              تسجيل تالف / محاريق
+              تسجيل هدر أو تالف
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -89,7 +89,7 @@ export default async function WastePage() {
               <div className="grid gap-2">
                 <Label htmlFor="reason">النوع</Label>
                 <Select id="reason" name="reason" required>
-                  {["تلف", "محاريق"].map((reason) => (
+                  {["تلف", "انتهاء صلاحية", "خطأ تحضير", "كسر/انسكاب", "منظفات", "إرجاع", "سبب آخر"].map((reason) => (
                     <option key={reason} value={reason}>{reason}</option>
                   ))}
                 </Select>

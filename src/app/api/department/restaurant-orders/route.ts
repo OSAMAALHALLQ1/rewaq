@@ -44,7 +44,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
   }
   if (!auth.device.branchId) {
-    return NextResponse.json({ success: false, error: "جهاز النادل غير مربوط بفرع." }, { status: 403 });
+    return NextResponse.json({ success: false, error: "جهاز النادل غير مربوط بقسم." }, { status: 403 });
   }
   if (canUseDemoFallback()) {
     return NextResponse.json({ success: true, orders: [] });
@@ -102,7 +102,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
   }
   if (!auth.device.branchId) {
-    return NextResponse.json({ success: false, error: "جهاز النادل غير مربوط بفرع." }, { status: 403 });
+    return NextResponse.json({ success: false, error: "جهاز النادل غير مربوط بقسم." }, { status: 403 });
   }
 
   const parsed = submitOrderSchema.safeParse(await request.json().catch(() => ({})));

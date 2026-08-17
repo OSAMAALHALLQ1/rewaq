@@ -189,7 +189,7 @@ export function JournalBrowserClient({ data }: { data: JournalBrowserData }) {
                         <TableRow className="bg-slate-50/60 font-bold border-t">
                           <TableCell colSpan={3} className="py-2.5 px-5 text-slate-700">
                             الإجمالي
-                            {entry.branchName && <span className="text-[10px] text-slate-400 font-normal ms-3">فرع: {entry.branchName}</span>}
+                            {entry.branchName && <span className="text-[10px] text-slate-400 font-normal ms-3">قسم: {entry.branchName}</span>}
                             {entry.reversalOfEntryId && <span className="text-[10px] text-rose-500 font-normal ms-3">قيد عكسي لقيد سابق</span>}
                           </TableCell>
                           <TableCell className="text-left py-2.5 px-5 font-mono text-teal-700 font-black">{formatCurrency(entry.debitTotal)}</TableCell>

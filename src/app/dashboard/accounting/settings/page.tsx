@@ -18,7 +18,7 @@ export default async function SettingsPage() {
     <>
       <PageHeader
         title="إعدادات المحاسبة العامة والتحكم"
-        description="إدارة إعدادات العملة، الضرائب، الترحيل المزدوج، وصلاحيات الفروع ومراكز التكلفة وقواعد البيع بالسالب."
+        description="إدارة إعدادات العملة، الضرائب، الترحيل المزدوج، وصلاحيات الأقسام ومراكز التكلفة وقواعد البيع بالسالب."
       />
       <div className="mt-4">
         <SettingsClient initialSettings={initialSettings} />

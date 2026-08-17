@@ -66,7 +66,7 @@ const moduleLabels: Record<string, { title: string; desc: string; icon: string }
   inventory: { title: "المخزون والجرد", desc: "مراقبة مستويات المواد وكميات المخازن", icon: "📉" },
   recipes: { title: "الوصفات والتكاليف", desc: "مكونات وجبات الطعام وتكاليف المكونات", icon: "🍳" },
   purchasing: { title: "طلبات الشراء والموردين", desc: "إصدار فواتير شراء ومتابعة الشحنات الموردة", icon: "📦" },
-  waste: { title: "الهدر والتالف", desc: "تسجيل كميات الهدر والمحاريق فورياً", icon: "🗑️" },
+  waste: { title: "الهدر والتالف", desc: "تسجيل كميات الهدر والتالف بمسار معتمد", icon: "🗑️" },
   pos: { title: "شاشة الكاشير والبيع السريع", desc: "واجهة البيع السريع ونقاط البيع للأقسام", icon: "💻" },
   reports: { title: "التقارير المالية", desc: "رؤية المؤشرات وتذبذبات أسعار المواد", icon: "📊" },
   waiter: { title: "شاشة النادل", desc: "فتح الطاولات وإرسال الطلب إلى المطبخ", icon: "🧑‍🍳" },
@@ -142,7 +142,7 @@ export function DevicesClient({ orgId, branches, currentRole, currentName, initi
           device_name: d.device_name,
           role: d.role,
           branch_id: d.branch_id,
-          branch_name: d.branch_name || "فرع غير محدد",
+          branch_name: d.branch_name || "قسم غير محدد",
           allowed_modules: d.allowed_modules,
           is_active: d.is_active,
           created_at: d.created_at,
@@ -485,7 +485,7 @@ export function DevicesClient({ orgId, branches, currentRole, currentName, initi
                         </div>
                         <span className="text-[10px] text-muted-foreground flex items-center gap-1">
                           <Landmark className="h-3 w-3 text-slate-400" />
-                          {device.branch_name || "كل الفروع"}
+                          {device.branch_name || "كل الأقسام"}
                         </span>
                       </div>
                       
@@ -586,7 +586,7 @@ export function DevicesClient({ orgId, branches, currentRole, currentName, initi
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="grid gap-2">
-                      <Label htmlFor="branch" className="text-xs font-black text-slate-800">الفرع التابع له:</Label>
+                      <Label htmlFor="branch" className="text-xs font-black text-slate-800">القسم التابع له:</Label>
                       <select 
                         id="branch" 
                         value={selectedBranch} 
@@ -866,7 +866,7 @@ export function DevicesClient({ orgId, branches, currentRole, currentName, initi
                       </select>
                     </div>
                     <div className="grid gap-2">
-                      <Label className="text-xs font-black text-slate-800">الفرع</Label>
+                      <Label className="text-xs font-black text-slate-800">القسم</Label>
                       <select
                         value={staffForm.branchId}
                         onChange={(e) => setStaffForm((p) => ({ ...p, branchId: e.target.value }))}

@@ -9,7 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatCurrency, formatNumber, formatPercent } from "@/lib/utils";
-import { getFinancialCalendarData } from "@/server/queries/app";
+import { todayLocal } from "@/lib/accounting/posting";
+import { getFinancialCalendarInsights } from "@/server/queries/financial-services/insights";
 import type { FinancialCalendarDay } from "@/types/domain";
 
 export const dynamic = "force-dynamic";
@@ -22,19 +23,15 @@ type Props = {
 
 export default async function FinancialCalendarPage({ searchParams }: Props) {
   const params = await searchParams;
-  let days: import("@/types/domain").FinancialCalendarDay[] = [];
-  let branches: Array<{ id: string; name: string }> = [];
-  try {
-    const data = await getFinancialCalendarData();
-    days = data.days;
-    branches = data.branches;
-  } catch (error) {
-    console.error("[financial-calendar page]", error);
-  }
-  const latestMonth = days.reduce((latest, day) => (day.date.slice(0, 7) > latest ? day.date.slice(0, 7) : latest), "");
-  const selectedMonth = /^\d{4}-\d{2}$/.test(params.month ?? "") ? String(params.month) : latestMonth || new Date().toISOString().slice(0, 7);
+  const selectedMonth = /^\d{4}-\d{2}$/.test(params.month ?? "") ? String(params.month) : todayLocal().slice(0, 7);
   const selectedBranchId = params.branchId && params.branchId !== "all" ? params.branchId : undefined;
-  const filteredDays = days.filter((day) => day.date.startsWith(selectedMonth) && (!selectedBranchId || day.branchId === selectedBranchId));
+  const monthEnd = new Date(Number(selectedMonth.slice(0, 4)), Number(selectedMonth.slice(5, 7)), 0).getDate();
+  const { days, branches } = await getFinancialCalendarInsights({
+    from: `${selectedMonth}-01`,
+    to: `${selectedMonth}-${String(monthEnd).padStart(2, "0")}`,
+    branchId: selectedBranchId,
+  });
+  const filteredDays = days;
   const hasData = filteredDays.length > 0;
 
   const selectedDay = filteredDays.find((day) => day.date === params.day) ?? filteredDays[0] ?? null;
@@ -43,7 +40,7 @@ export default async function FinancialCalendarPage({ searchParams }: Props) {
   const monthProfit = monthSales - monthExpenses;
   const bestDay = hasData ? filteredDays.reduce((best, day) => (day.netProfit > best.netProfit ? day : best), filteredDays[0]) : null;
   const lossDays = filteredDays.filter((day) => day.netProfit < 0).length;
-  const daysInMonth = new Date(Number(selectedMonth.slice(0, 4)), Number(selectedMonth.slice(5, 7)), 0).getDate();
+  const daysInMonth = monthEnd;
   const leadingDays = (new Date(`${selectedMonth}-01T12:00:00`).getDay() + 1) % 7;
   const monthLabel = new Intl.DateTimeFormat("ar-PS", { month: "long", year: "numeric" }).format(new Date(`${selectedMonth}-01T12:00:00`));
 
@@ -51,7 +48,7 @@ export default async function FinancialCalendarPage({ searchParams }: Props) {
     <>
       <PageHeader
         title="التقويم المالي"
-        description="تقويم شهري يوضح مبيعات كل يوم، مصاريفه، وصافي الربح بلمحة واحدة."
+        description="تقويم شهري مشتق من القيود المحاسبية المرحلة فقط، مع تفاصيل فواتير البيع الفعلية."
       />
 
       <Card className="mb-4">
@@ -62,9 +59,9 @@ export default async function FinancialCalendarPage({ searchParams }: Props) {
             <Input className="max-w-44" name="month" type="month" defaultValue={selectedMonth} />
           </label>
           <label className="grid gap-1 text-xs font-semibold text-muted-foreground">
-            الفرع
+            القسم
           <Select className="max-w-64" name="branchId" defaultValue={selectedBranchId ?? "all"}>
-            <option value="all">كل الفروع</option>
+            <option value="all">كل الأقسام</option>
             {branches.map((branch) => (
               <option key={branch.id} value={branch.id}>
                 {branch.name}
@@ -79,7 +76,7 @@ export default async function FinancialCalendarPage({ searchParams }: Props) {
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="مبيعات الشهر" value={formatCurrency(monthSales)} description="إجمالي الإيرادات" icon={TrendingUp} />
-        <MetricCard label="مصاريف الشهر" value={formatCurrency(monthExpenses)} description="أجور ومواد ومرافق" icon={TrendingDown} tone="warning" />
+        <MetricCard label="تكلفة ومصاريف الشهر" value={formatCurrency(monthExpenses)} description="تكلفة مبيعات ومصروفات مرحلة" icon={TrendingDown} tone="warning" />
         <MetricCard
           label="صافي الربح"
           value={formatCurrency(monthProfit)}
@@ -136,9 +133,9 @@ export default async function FinancialCalendarPage({ searchParams }: Props) {
         </CardHeader>
         <CardContent className="grid gap-4 lg:grid-cols-[1fr_360px]">
           <div className="rounded-lg border bg-slate-50 p-4">
-            <p className="text-lg font-black">صافي الربح = إجمالي المبيعات - إجمالي المصاريف</p>
+            <p className="text-lg font-black">صافي الربح = الإيرادات - تكلفة المبيعات - المصروفات</p>
             <p className="mt-2 text-sm text-muted-foreground">
-              المصاريف تشمل أجور العمال، المواد الخام، الكهرباء والماء، الإيجار، التوصيل، وأي مصروف تشغيلي آخر. الرقم الموجب يعني أن اليوم رابح، والرقم السالب يعني أن المصاريف أعلى من المبيعات.
+              جميع الأرقام من قيود يومية حالتها «مرحل». المسودات والقيود الملغاة وإقفال نهاية السنة لا تدخل في الحساب.
             </p>
           </div>
           <div className="rounded-lg border p-4">
@@ -213,7 +210,7 @@ function DayDetails({ day }: { day: FinancialCalendarDay }) {
             <span className="font-bold">{formatCurrency(day.cardSales)}</span>
           </div>
           <div className="mt-2 flex justify-between">
-            <span>الفرع</span>
+            <span>القسم</span>
             <span className="font-bold">{day.branchName}</span>
           </div>
         </div>

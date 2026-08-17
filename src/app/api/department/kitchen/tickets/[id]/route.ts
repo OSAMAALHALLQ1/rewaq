@@ -33,7 +33,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
   if (!auth.device.branchId) {
     return NextResponse.json(
-      { success: false, error: "لا يمكن تحديث تذكرة مطبخ بدون ربط الجهاز بفرع محدد." },
+      { success: false, error: "لا يمكن تحديث تذكرة مطبخ بدون ربط الجهاز بقسم محدد." },
       { status: 403 },
     );
   }

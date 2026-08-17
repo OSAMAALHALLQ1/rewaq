@@ -48,9 +48,9 @@ export default async function InvoicesPage() {
                 </Select>
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="branchId">القسم / الفرع المستلم</Label>
+                <Label htmlFor="branchId">القسم المستلم</Label>
                 <Select id="branchId" name="branchId" required>
-                  <option value="">اختر القسم / الفرع</option>
+                  <option value="">اختر القسم</option>
                   {branches.map((branch) => (
                     <option key={branch.id} value={branch.id}>{branch.name}</option>
                   ))}

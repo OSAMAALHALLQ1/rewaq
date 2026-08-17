@@ -1,119 +1,87 @@
-/**
- * Mobile Navigation Configuration
- * Defines the bottom navigation structure for mobile devices.
- */
-
+import type { LucideIcon } from "lucide-react";
 import {
+  ArrowLeftRight,
   BarChart3,
-  Barcode,
   Boxes,
   Building2,
+  Calculator,
+  ChefHat,
+  ClipboardCheck,
   Home,
   ListChecks,
   MonitorSmartphone,
   PackageMinus,
   ReceiptText,
-  RotateCcw,
   Settings,
   ShoppingCart,
   Store,
-  Truck,
   Users,
-  WalletCards,
+  Utensils,
+  Warehouse,
 } from "lucide-react";
+import type { Role } from "@/types/domain";
 
-export const mobileMainNav = [
-  {
-    title: "لوحة التحكم",
-    href: "/dashboard",
-    icon: Home,
-    label: "اللوحة",
-    description: "ملخص مالي ولحظي",
-  },
-  {
-    title: "الأصناف / المواد",
-    href: "/dashboard/items",
-    icon: Barcode,
-    label: "المواد",
-    description: "دفتر الأصناف",
-  },
-  {
-    title: "فواتير التوريد",
-    href: "/dashboard/invoices",
-    icon: ReceiptText,
-    label: "توريد",
-    description: "فواتير الموردين",
-  },
-  {
-    title: "أوامر الشراء",
-    href: "/dashboard/purchase-orders",
-    icon: ShoppingCart,
-    label: "شراء",
-    description: "طلبات الموردين",
-  },
-  {
-    title: "تقارير المخزن",
-    href: "/dashboard/reports",
-    icon: BarChart3,
-    label: "تقارير",
-    description: "الصادر والوارد",
-  },
-];
+export type MobileNavItem = {
+  title: string;
+  href: string;
+  icon: LucideIcon;
+  label: string;
+};
 
-export const mobileQuickActions = [
-  {
-    title: "فاتورة توريد",
-    description: "سجل فاتورة مورد مع الأصناف والكميات",
-    href: "/dashboard/invoices",
-    icon: ReceiptText,
-    className: "bg-primary-light text-primary border-primary-light",
-  },
-  {
-    title: "طلب شراء",
-    description: "جهز طلب شراء لمورد",
-    href: "/dashboard/purchase-orders",
-    icon: ShoppingCart,
-    className: "bg-orange-50 text-orange-700 border-orange-200",
-  },
-  {
-    title: "حركة مخزون",
-    description: "راجع الصادر والوارد",
-    href: "/dashboard/stock-movements",
-    icon: Boxes,
-    className: "bg-green-50 text-green-700 border-green-200",
-  },
-  {
-    title: "تالف أو محاريق",
-    description: "سجل التالف والمنظفات والمحاريق",
-    href: "/dashboard/waste",
-    icon: PackageMinus,
-    className: "bg-red-50 text-red-700 border-red-200",
-  },
-];
+const item = (
+  title: string,
+  label: string,
+  href: string,
+  icon: LucideIcon,
+): MobileNavItem => ({ title, label, href, icon });
 
-export const mobileAllItems = [
-  { title: "لوحة التحكم", href: "/dashboard", icon: Home },
-  { title: "شاشة الكاشير POS", href: "/d/pos", icon: MonitorSmartphone },
-  { title: "الورديات والصندوق", href: "/dashboard/shifts", icon: WalletCards },
-  { title: "فواتير العملاء", href: "/dashboard/customer-invoices", icon: ReceiptText },
-  { title: "العملاء والذمم", href: "/dashboard/customers", icon: Users },
-  { title: "الموردون", href: "/dashboard/suppliers", icon: Store },
-  { title: "فواتير التوريد", href: "/dashboard/invoices", icon: ReceiptText },
-  { title: "طلبيات الشراء", href: "/dashboard/purchase-orders", icon: ShoppingCart },
-  { title: "مخطط المخزن", href: "/dashboard/inventory", icon: Boxes },
-  { title: "الأصناف / المواد", href: "/dashboard/items", icon: Barcode },
-  { title: "حركات المخزن", href: "/dashboard/stock-movements", icon: Boxes },
-  { title: "الجرد", href: "/dashboard/stock-counts", icon: ListChecks },
-  { title: "التحويلات الداخلية", href: "/dashboard/transfers", icon: Truck },
-  { title: "التالف والمحاريق", href: "/dashboard/waste", icon: PackageMinus },
-  { title: "مرتجعات المبيعات", href: "/dashboard/sales-returns", icon: RotateCcw },
-  { title: "لوحة المحاسبة", href: "/dashboard/accounting", icon: BarChart3 },
-  { title: "دليل الحسابات", href: "/dashboard/accounting/accounts", icon: BarChart3 },
-  { title: "ميزان المراجعة", href: "/dashboard/accounting/trial-balance", icon: BarChart3 },
-  { title: "قائمة الأرباح والخسائر", href: "/dashboard/accounting/p-and-l", icon: BarChart3 },
-  { title: "المركز المالي", href: "/dashboard/accounting/balance-sheet", icon: BarChart3 },
-  { title: "تقارير المخزن", href: "/dashboard/reports", icon: BarChart3 },
-  { title: "الفروع", href: "/dashboard/branches", icon: Building2 },
-  { title: "الفوترة والاشتراك", href: "/dashboard/billing", icon: WalletCards },
-  { title: "الإعدادات العامة", href: "/dashboard/settings", icon: Settings },
-];
+const MANAGEMENT_NAV = [
+  item("لوحة الإدارة", "الإدارة", "/dashboard", Home),
+  item("التقارير والتحليلات", "التقارير", "/dashboard/reports", BarChart3),
+  item("الأقسام", "الأقسام", "/dashboard/branches", Building2),
+  item("المستخدمون والفريق", "الفريق", "/dashboard/settings/users", Users),
+  item("الإعدادات العامة", "الإعدادات", "/dashboard/settings", Settings),
+] as const;
+
+const ROLE_MOBILE_NAV: Readonly<Record<Role, readonly MobileNavItem[]>> = {
+  super_admin: MANAGEMENT_NAV,
+  organization_owner: MANAGEMENT_NAV,
+  branch_manager: [
+    item("لوحة التحكم", "اللوحة", "/dashboard", Home),
+    item("فواتير العملاء", "المبيعات", "/dashboard/customer-invoices", ReceiptText),
+    item("لوحة المخزون", "المخزون", "/dashboard/inventory/dashboard", Warehouse),
+    item("طلبيات الشراء", "المشتريات", "/dashboard/purchase-orders", ShoppingCart),
+    item("التقارير", "التقارير", "/dashboard/reports", BarChart3),
+  ],
+  cashier: [item("شاشة الكاشير POS", "الكاشير", "/d/pos", MonitorSmartphone)],
+  inventory_manager: [
+    item("لوحة المخزون", "المخزون", "/dashboard/inventory/dashboard", Warehouse),
+    item("حركات المخزن", "الحركات", "/dashboard/stock-movements", Boxes),
+    item("الجرد", "الجرد", "/dashboard/stock-counts", ListChecks),
+    item("التحويلات", "التحويلات", "/dashboard/transfers", ArrowLeftRight),
+    item("التالف والهدر", "الهدر", "/dashboard/waste", PackageMinus),
+  ],
+  purchasing_manager: [
+    item("طلبيات الشراء", "الطلبات", "/dashboard/purchase-orders", ClipboardCheck),
+    item("فواتير التوريد", "الفواتير", "/dashboard/invoices", ReceiptText),
+    item("الموردون", "الموردون", "/dashboard/suppliers", Store),
+  ],
+  chef: [
+    item("شاشة المطبخ", "المطبخ", "/d/kitchen", ChefHat),
+    item("التجميع والتسليم", "التسليم", "/d/expo", Utensils),
+  ],
+  marketing_manager: [
+    item("المنيو والموقع", "المنيو", "/dashboard/digital-presence", Store),
+  ],
+  accountant: [
+    item("لوحة المحاسبة", "المحاسبة", "/dashboard/accounting", Calculator),
+    item("فواتير التوريد", "الموردون", "/dashboard/invoices", ReceiptText),
+    item("فواتير العملاء", "العملاء", "/dashboard/customer-invoices", ReceiptText),
+    item("التقارير", "التقارير", "/dashboard/reports", BarChart3),
+  ],
+  staff: [item("شاشة النادل", "النادل", "/d/waiter", Utensils)],
+};
+
+export function mobileMainNavForRole(role: Role): readonly MobileNavItem[] {
+  return ROLE_MOBILE_NAV[role];
+}

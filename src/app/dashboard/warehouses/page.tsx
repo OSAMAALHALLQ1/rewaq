@@ -16,7 +16,7 @@ export default async function WarehousesPage() {
     <>
       <PageHeader
         title="دليل المستودعات"
-        description="إدارة المستودعات الرئيسية والفرعية وربطها بالفروع والمستخدمين."
+        description="إدارة المستودعات الرئيسية والفرعية وربطها بالأقسام والمستخدمين."
         actions={
           <Button>
             <Plus className="h-4 w-4" />

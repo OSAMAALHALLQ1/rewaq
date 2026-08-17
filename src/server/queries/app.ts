@@ -11,7 +11,6 @@
  * import { getPurchasingData } from "@/server/queries/purchasing";
  * import { getCustomerInvoicesData } from "@/server/queries/sales";
  * import { getRecipesData } from "@/server/queries/recipes";
- * import { getMarketingData } from "@/server/queries/marketing";
  * import { getAdminData } from "@/server/queries/admin";
  */
 

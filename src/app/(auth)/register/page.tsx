@@ -34,7 +34,7 @@ export default function RegisterPage() {
             <option value="restaurant">مطعم</option>
             <option value="cafe">كافيه</option>
             <option value="retail">متجر</option>
-            <option value="multi_branch">عدة فروع</option>
+            <option value="multi_branch">عدة أقسام</option>
             <option value="other">نشاط آخر</option>
           </select>
         </div>

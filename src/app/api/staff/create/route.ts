@@ -3,23 +3,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { canUseDemoFallback, hasSupabaseAdminEnv } from "@/lib/supabase/env";
 import { getOptionalSession } from "@/lib/auth/session";
 import { ForbiddenError, requireSensitiveActionCapability } from "@/lib/auth/require-auth";
+import { generateEmployeeCode } from "@/lib/auth/employee-code";
 
 const allowedRoles = new Set(["waiter", "cashier", "kitchen", "bar", "shisha", "manager"]);
-// Tekka-style role -> login code prefix.
-const ROLE_PREFIX: Record<string, string> = {
-  waiter: "W",
-  cashier: "C",
-  kitchen: "K",
-  bar: "B",
-  shisha: "S",
-  manager: "M",
-};
-
-function generateLoginCode(role: string): string {
-  const prefix = ROLE_PREFIX[role] ?? "E";
-  const digits = Math.floor(1000 + Math.random() * 9000);
-  return `${prefix}-${digits}`;
-}
 
 export async function POST(request: Request) {
   const session = await getOptionalSession();
@@ -53,10 +39,11 @@ export async function POST(request: Request) {
       );
     }
 
+    const loginCode = generateEmployeeCode();
     return NextResponse.json({
       success: true,
-      loginCode: generateLoginCode(role),
-      staffMember: { id: `staff-demo-${Date.now()}`, full_name: fullName, phone, role, login_code: generateLoginCode(role), is_active: true },
+      loginCode,
+      staffMember: { id: `staff-demo-${Date.now()}`, full_name: fullName, phone, role, login_code: loginCode, is_active: true },
     });
   }
 
@@ -75,12 +62,12 @@ export async function POST(request: Request) {
     }
 
     if (!branch) {
-      return NextResponse.json({ success: false, error: "الفرع المحدد غير تابع لهذه المؤسسة." }, { status: 403 });
+      return NextResponse.json({ success: false, error: "القسم المحدد غير تابع لهذه المؤسسة." }, { status: 403 });
     }
   }
 
   // Generate a unique login code per organization (retry on collision).
-  let loginCode = generateLoginCode(role);
+  let loginCode = generateEmployeeCode();
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const { data: existing } = await (admin as any)
       .from("staff_members")
@@ -90,7 +77,7 @@ export async function POST(request: Request) {
       .maybeSingle();
 
     if (!existing) break;
-    loginCode = generateLoginCode(role);
+    loginCode = generateEmployeeCode();
   }
 
   const { data, error } = await (admin as any)

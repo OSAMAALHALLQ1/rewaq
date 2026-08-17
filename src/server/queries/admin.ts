@@ -242,9 +242,9 @@ export async function getAdminData(): Promise<AdminBundle> {
         { id: "user-4", name: "أحمد الكاشير", email: "cashier@iwan.example", role: "cashier" },
       ],
       plans: [
-        { id: "starter", name: "البداية", price: "₪129", features: ["فرع واحد", "مخزون", "تقارير أساسية"] },
-        { id: "growth", name: "النمو", price: "₪249", features: ["حتى 5 فروع", "تسويق", "وصفات"] },
-        { id: "scale", name: "التوسع", price: "₪499", features: ["فروع غير محدودة", "أتمتة", "صلاحيات متقدمة"] },
+        { id: "starter", name: "البداية", price: "₪129", features: ["قسم واحد", "مخزون", "تقارير أساسية"] },
+        { id: "growth", name: "النمو", price: "₪249", features: ["حتى 5 أقسام", "تسويق", "وصفات"] },
+        { id: "scale", name: "التوسع", price: "₪499", features: ["أقسام غير محدودة", "أتمتة", "صلاحيات متقدمة"] },
       ],
       flags: [
         { key: "ربط_فيسبوك_الحقيقي", enabled: false, description: "تفعيل ربط فيسبوك الحقيقي" },
@@ -275,9 +275,9 @@ export async function getAdminData(): Promise<AdminBundle> {
         { id: "user-2", name: "سارة النجار", email: "sara@iwan.example", role: "branch_manager" },
       ],
       plans: [
-        { id: "starter", name: "البداية", price: "₪129", features: ["فرع واحد", "مخزون", "تقارير أساسية"] },
-        { id: "growth", name: "النمو", price: "₪249", features: ["حتى 5 فروع", "تسويق", "وصفات"] },
-        { id: "scale", name: "التوسع", price: "₪499", features: ["فروع غير محدودة", "أتمتة", "صلاحيات متقدمة"] },
+        { id: "starter", name: "البداية", price: "₪129", features: ["قسم واحد", "مخزون", "تقارير أساسية"] },
+        { id: "growth", name: "النمو", price: "₪249", features: ["حتى 5 أقسام", "تسويق", "وصفات"] },
+        { id: "scale", name: "التوسع", price: "₪499", features: ["أقسام غير محدودة", "أتمتة", "صلاحيات متقدمة"] },
       ],
       flags: [
         { key: "ربط_فيسبوك_الحقيقي", enabled: false, description: "تفعيل ربط فيسبوك الحقيقي" },
@@ -740,7 +740,7 @@ export async function getTablesData(): Promise<TablesBundle> {
           id: row.id,
           organizationId: row.organization_id,
           branchId: row.branch_id,
-          branchName: branchesMap.get(row.branch_id)?.name ?? "فرع غير معروف",
+          branchName: branchesMap.get(row.branch_id)?.name ?? "قسم غير معروف",
           number: Number(row.number ?? row.name ?? 0),
           zone: row.zone ?? "الصالة",
           seats: row.seats ?? row.capacity ?? 4,
@@ -827,7 +827,7 @@ export async function getFinancialCalendarData(): Promise<FinancialCalendarBundl
       days: calendarRows.map((row: any) => ({
         date: row.date,
         branchId: row.branch_id,
-        branchName: branchesMap.get(row.branch_id)?.name ?? "فرع غير معروف",
+        branchName: branchesMap.get(row.branch_id)?.name ?? "قسم غير معروف",
         salesTotal: numberValue(row.sales_total),
         expensesTotal: numberValue(row.expenses_total),
         netProfit: numberValue(row.net_profit),
@@ -874,15 +874,17 @@ export async function getOperationsData(): Promise<OperationsBundle> {
       items: demoInventoryItems,
     },
     async (admin, scope) => {
-      const [wasteRows, transferRows, branchRows, itemRows] = await Promise.all([
+      const [wasteRows, transferRows, transferItemRows, branchRows, itemRows] = await Promise.all([
         admin.from("waste_logs").select("*").eq("organization_id", scope.organizationId).order("created_at", { ascending: false }).limit(100),
         admin.from("transfers").select("*").eq("organization_id", scope.organizationId).order("created_at", { ascending: false }).limit(100),
+        admin.from("transfer_items").select("*").eq("organization_id", scope.organizationId).order("created_at"),
         admin.from("branches").select("*").eq("organization_id", scope.organizationId).order("name"),
         admin.from("inventory_items").select("*").eq("organization_id", scope.organizationId).order("name"),
       ]);
 
       if (wasteRows.error) throw new Error(wasteRows.error.message);
       if (transferRows.error) throw new Error(transferRows.error.message);
+      if (transferItemRows.error) throw new Error(transferItemRows.error.message);
       if (branchRows.error) throw new Error(branchRows.error.message);
       if (itemRows.error) throw new Error(itemRows.error.message);
 
@@ -916,12 +918,25 @@ export async function getOperationsData(): Promise<OperationsBundle> {
 
       const branchesMap = new Map(dbBranches.map((b) => [b.id, b]));
       const itemsMap = new Map(dbItems.map((i) => [i.id, i]));
+      const transferItems = (transferItemRows.data ?? []).map((row: any) => ({
+        id: String(row.id),
+        transferId: String(row.transfer_id),
+        itemId: String(row.item_id),
+        itemName: itemsMap.get(String(row.item_id))?.name ?? "مادة غير معروفة",
+        requestedQuantity: numberValue(row.requested_quantity ?? row.quantity),
+        sentQuantity: numberValue(row.sent_quantity),
+        receivedQuantity: numberValue(row.received_quantity),
+        varianceQuantity: numberValue(row.variance_quantity),
+        varianceReason: row.variance_reason || undefined,
+        batchNumber: row.batch_number || undefined,
+        expiryDate: row.expiry_date || undefined,
+      }));
 
       return {
         wasteLogs: (wasteRows.data ?? []).map((row: any) => ({
           id: row.id,
           organizationId: row.organization_id,
-          branchName: branchesMap.get(row.branch_id)?.name ?? "فرع غير معروف",
+          branchName: branchesMap.get(row.branch_id)?.name ?? "قسم غير معروف",
           itemName: itemsMap.get(row.item_id)?.name ?? "مادة غير معروفة",
           quantity: numberValue(row.quantity),
           reason: row.reason ?? "",
@@ -932,11 +947,14 @@ export async function getOperationsData(): Promise<OperationsBundle> {
         transfers: (transferRows.data ?? []).map((row: any) => ({
           id: row.id,
           organizationId: row.organization_id,
-          fromBranchName: branchesMap.get(row.from_branch_id)?.name ?? "فرع غير معروف",
-          toBranchName: branchesMap.get(row.to_branch_id)?.name ?? "فرع غير معروف",
-          status: row.status,
+          transferNumber: row.transfer_number ?? undefined,
+          fromBranchName: branchesMap.get(row.from_branch_id)?.name ?? "قسم غير معروف",
+          toBranchName: branchesMap.get(row.to_branch_id)?.name ?? "قسم غير معروف",
+          status: row.status === "sent" ? "in_transit" : row.status,
           createdAt: row.created_at,
-          totalItems: row.total_items ?? 0,
+          totalItems: transferItems.filter((item) => item.transferId === row.id).length,
+          notes: row.notes ?? undefined,
+          items: transferItems.filter((item) => item.transferId === row.id),
         })),
         branches: dbBranches,
         items: dbItems,
@@ -1039,7 +1057,7 @@ export async function getReportsData(filters: ReportsFilters = {}): Promise<Repo
       const wasteLogs = wasteRows.map((row: any) => ({
         id: row.id,
         organizationId: row.organization_id,
-        branchName: String(branchMap.get(row.branch_id)?.name ?? "فرع غير معروف"),
+        branchName: String(branchMap.get(row.branch_id)?.name ?? "قسم غير معروف"),
         itemName: String(itemMap.get(row.item_id)?.name ?? "مادة غير معروفة"),
         quantity: numberValue(row.quantity),
         reason: oneOf(

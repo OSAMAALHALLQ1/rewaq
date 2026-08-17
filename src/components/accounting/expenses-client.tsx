@@ -139,7 +139,7 @@ export function ExpensesClient({ data }: { data: ExpensesData }) {
         <div className="relative w-full max-w-md">
           <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <Input
-            placeholder="البحث بتصنيف المصروف، الوصف، الفرع أو مركز التكلفة..."
+            placeholder="البحث بتصنيف المصروف، الوصف، القسم أو مركز التكلفة..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pe-3 ps-9 bg-white border-slate-200 focus:border-teal-500 rounded-lg text-right"
@@ -167,7 +167,7 @@ export function ExpensesClient({ data }: { data: ExpensesData }) {
                   <TableHead className="text-right py-3.5 px-4 font-bold w-24">رقم السند</TableHead>
                   <TableHead className="text-right py-3.5 px-4 font-bold">الوصف / التفاصيل</TableHead>
                   <TableHead className="text-right py-3.5 px-4 font-bold w-28">طريقة الدفع</TableHead>
-                  <TableHead className="text-right py-3.5 px-4 font-bold w-28">الفرع</TableHead>
+                  <TableHead className="text-right py-3.5 px-4 font-bold w-28">القسم</TableHead>
                   <TableHead className="text-right py-3.5 px-4 font-bold w-32">مركز التكلفة</TableHead>
                   <TableHead className="text-left py-3.5 px-4 font-bold w-28">المبلغ</TableHead>
                   <TableHead className="text-center py-3.5 px-4 font-bold w-24">الحالة</TableHead>
@@ -349,14 +349,14 @@ export function ExpensesClient({ data }: { data: ExpensesData }) {
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="branchId" className="text-xs font-bold text-slate-500">الفرع المسؤول</Label>
+              <Label htmlFor="branchId" className="text-xs font-bold text-slate-500">القسم المسؤول</Label>
               <Select
                 id="branchId"
                 value={branchId}
                 onChange={(e) => setBranchId(e.target.value)}
                 className="bg-white border-slate-200 text-right"
               >
-                <option value="">الفرع الرئيسي</option>
+                <option value="">القسم الرئيسي</option>
                 {data.branches.map((b) => (
                   <option key={b.id} value={b.id}>
                     {b.name}

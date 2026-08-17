@@ -1,4 +1,4 @@
-import { CircleDollarSign, Download, ReceiptText, TrendingDown, TrendingUp, WalletCards } from "lucide-react";
+import { CircleDollarSign, Filter, ReceiptText, TrendingDown, TrendingUp, WalletCards } from "lucide-react";
 import { MetricCard } from "@/components/metric-card";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatCurrency, formatNumber, formatPercent } from "@/lib/utils";
-import { getAmwaliData } from "@/server/queries/app";
+import { todayLocal } from "@/lib/accounting/posting";
+import { getAmwaliInsights } from "@/server/queries/financial-services/insights";
 import type { CostCenter } from "@/types/domain";
 
 const sectionTone: Record<string, string> = {
@@ -25,9 +26,22 @@ const centerTone: Record<CostCenter["status"], "success" | "warning" | "danger">
   danger: "danger",
 };
 
-export default async function AmwaliPage() {
-  const { costTracking, branches } = await getAmwaliData();
-  const highestSection = costTracking.sections.reduce((highest, section) => (section.total > highest.total ? section : highest), costTracking.sections[0]);
+type Props = { searchParams: Promise<{ date?: string; branchId?: string; period?: string }> };
+
+function shiftDate(date: string, days: number) {
+  const value = new Date(`${date}T12:00:00`);
+  value.setDate(value.getDate() + days);
+  return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`;
+}
+
+export default async function AmwaliPage({ searchParams }: Props) {
+  const params = await searchParams;
+  const selectedDate = /^\d{4}-\d{2}-\d{2}$/.test(params.date ?? "") ? String(params.date) : todayLocal();
+  const period = params.period === "weekly" || params.period === "monthly" ? params.period : "daily";
+  const from = period === "monthly" ? `${selectedDate.slice(0, 7)}-01` : period === "weekly" ? shiftDate(selectedDate, -6) : selectedDate;
+  const selectedBranchId = params.branchId && params.branchId !== "all" ? params.branchId : undefined;
+  const { costTracking, branches } = await getAmwaliInsights({ from, to: selectedDate, branchId: selectedBranchId });
+  const highestSection = costTracking.sections.reduce((highest, section) => (section.total > highest.total ? section : highest), costTracking.sections[0] ?? { id: "none", title: "لا توجد تكاليف", description: "", total: 0, lines: [] });
   const wasteSection = costTracking.sections.find((section) => section.id === "waste");
   const materialsSection = costTracking.sections.find((section) => section.id === "raw-materials");
 
@@ -36,35 +50,38 @@ export default async function AmwaliPage() {
       <PageHeader
         title="أموالي"
         description="تقرير يوضح كل شيكل وين راح: مواد، رواتب، تشغيل، ثابت، هدر، والربح الحقيقي."
-        actions={
-          <Button variant="outline">
-            <Download className="h-4 w-4" />
-            تصدير التقرير
-          </Button>
-        }
       />
 
       <Card className="mb-4">
-        <CardContent className="flex flex-wrap gap-3 p-4">
-          <Input className="max-w-44" type="date" defaultValue={costTracking.date} />
-          <Select className="max-w-64" defaultValue="all">
-            <option value="all">كل الفروع</option>
+        <CardContent className="p-4">
+          <form className="flex flex-wrap items-end gap-3" action="/dashboard/amwali">
+          <label className="grid gap-1 text-xs font-semibold text-muted-foreground">نهاية الفترة
+          <Input className="max-w-44" name="date" type="date" defaultValue={selectedDate} />
+          </label>
+          <label className="grid gap-1 text-xs font-semibold text-muted-foreground">القسم
+          <Select className="max-w-64" name="branchId" defaultValue={selectedBranchId ?? "all"}>
+            <option value="all">كل الأقسام</option>
             {branches.map((branch) => (
               <option key={branch.id} value={branch.id}>
                 {branch.name}
               </option>
             ))}
           </Select>
-          <Select className="max-w-64" defaultValue="daily">
+          </label>
+          <label className="grid gap-1 text-xs font-semibold text-muted-foreground">الفترة
+          <Select className="max-w-64" name="period" defaultValue={period}>
             <option value="daily">تقرير يومي</option>
             <option value="weekly">تقرير أسبوعي</option>
             <option value="monthly">تقرير شهري</option>
           </Select>
+          </label>
+          <Button type="submit"><Filter className="h-4 w-4" />تطبيق</Button>
+          </form>
         </CardContent>
       </Card>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="دخل اليوم" value={formatCurrency(costTracking.salesTotal)} description={costTracking.branchName} icon={TrendingUp} tone="success" />
+        <MetricCard label="دخل الفترة" value={formatCurrency(costTracking.salesTotal)} description={costTracking.branchName} icon={TrendingUp} tone="success" />
         <MetricCard label="المصروف الكامل" value={formatCurrency(costTracking.expensesTotal)} description="كل مراكز التكلفة" icon={TrendingDown} tone="warning" />
         <MetricCard label="الربح الحقيقي" value={formatCurrency(costTracking.netProfit)} description={`هامش ${formatPercent(costTracking.profitMarginPercent)}`} icon={WalletCards} tone="success" />
         <MetricCard label="أكبر بند تكلفة" value={highestSection.title} description={formatCurrency(highestSection.total)} icon={CircleDollarSign} tone="danger" />
@@ -186,7 +203,7 @@ export default async function AmwaliPage() {
                   </div>
                   <div className="mt-3 flex items-center justify-between text-sm">
                     <span>{formatCurrency(center.amount)}</span>
-                    <span className="text-muted-foreground">من دخل اليوم</span>
+                    <span className="text-muted-foreground">من دخل الفترة</span>
                   </div>
                 </div>
               ))}
@@ -195,7 +212,7 @@ export default async function AmwaliPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>الصالة مقابل الدليفري</CardTitle>
+              <CardTitle>القنوات التشغيلية</CardTitle>
             </CardHeader>
             <CardContent>
               <Table>
@@ -227,7 +244,7 @@ export default async function AmwaliPage() {
 
       <Card className="mt-4">
         <CardHeader>
-          <CardTitle>تنبيهات ذكية لصاحب المطعم</CardTitle>
+          <CardTitle>مؤشرات محاسبية لصاحب المطعم</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           {costTracking.smartInsights.map((insight) => (

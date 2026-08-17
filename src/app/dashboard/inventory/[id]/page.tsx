@@ -253,7 +253,7 @@ export default async function InventoryItemDetailsPage({ params }: { params: Pro
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>الفرع / المستودع</TableHead>
+                    <TableHead>القسم / المستودع</TableHead>
                     <TableHead>الكمية الحالية</TableHead>
                     <TableHead>المحجوز</TableHead>
                     <TableHead>المتاح</TableHead>
@@ -279,7 +279,7 @@ export default async function InventoryItemDetailsPage({ params }: { params: Pro
                 </TableBody>
               </Table>
               {stock.length === 0 && (
-                <p className="py-8 text-center text-sm text-muted-foreground">لا توجد كميات مسجلة في الفروع.</p>
+                <p className="py-8 text-center text-sm text-muted-foreground">لا توجد كميات مسجلة في الأقسام.</p>
               )}
             </CardContent>
           </Card>
@@ -299,7 +299,7 @@ export default async function InventoryItemDetailsPage({ params }: { params: Pro
                 <TableHeader>
                   <TableRow>
                     <TableHead>التاريخ</TableHead>
-                    <TableHead>الفرع</TableHead>
+                    <TableHead>القسم</TableHead>
                     <TableHead>النوع</TableHead>
                     <TableHead>الكمية</TableHead>
                     <TableHead>التكلفة</TableHead>

@@ -16,7 +16,7 @@ export async function GET(request: Request) {
   }
   if (!auth.device.branchId) {
     return NextResponse.json(
-      { success: false, error: "جهاز المطبخ أو Expo يجب أن يكون مربوطاً بفرع." },
+      { success: false, error: "جهاز المطبخ أو Expo يجب أن يكون مربوطاً بقسم." },
       { status: 403 },
     );
   }

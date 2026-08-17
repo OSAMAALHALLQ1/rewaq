@@ -68,7 +68,7 @@ export function createInvoiceSvgImage(input: InvoiceImageInput) {
   <text x="80" y="105" class="subtitle">${escapeXml(input.invoiceNumber)}</text>
   <text x="80" y="148" class="subtitle">${escapeXml(formatDate(input.issuedAt))}</text>
 
-  <text x="820" y="235" class="label">الفرع</text>
+  <text x="820" y="235" class="label">القسم</text>
   <text x="820" y="270" class="value">${escapeXml(input.branchName)}</text>
   <text x="400" y="235" class="label">العميل</text>
   <text x="400" y="270" class="value">${escapeXml(input.customerName || "عميل نقدي")}</text>

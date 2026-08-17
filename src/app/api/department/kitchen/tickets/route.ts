@@ -26,7 +26,7 @@ export async function GET(request: Request) {
 
   const branchId = await resolveBranchId(auth);
   if (!branchId) {
-    return NextResponse.json({ success: false, error: "لا يوجد فرع مربوط بجهاز المطبخ." }, { status: 400 });
+    return NextResponse.json({ success: false, error: "لا يوجد قسم مربوط بجهاز المطبخ." }, { status: 400 });
   }
 
   const { data, error } = await (auth.admin as any)

@@ -140,7 +140,7 @@ export async function GET(request: Request) {
         } satisfies SearchResultItem,
       }];
     });
-    const wg = buildGroup("warehouses", "المستودعات والفروع", warehouseScored, 4);
+    const wg = buildGroup("warehouses", "المستودعات والأقسام", warehouseScored, 4);
     if (wg) groups.push(wg);
   }
 

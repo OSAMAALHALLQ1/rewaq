@@ -5,14 +5,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronDown, Layers, ReceiptText, ShoppingCart, X } from "lucide-react";
 import {
-  appNav,
   adminNav,
+  canViewNavItem,
+  navigationGroupsForRole,
   pinnedNav,
   type NavGroup,
   type NavItem,
 } from "@/components/layout/nav-config";
 import { cn } from "@/lib/utils";
-import { moduleForPath, planHasModule } from "@/lib/billing/plans";
 import type { Role } from "@/types/domain";
 
 type MobileMenuProps = {
@@ -23,20 +23,14 @@ type MobileMenuProps = {
   onChatOpen?: () => void;
 };
 
-function canView(item: NavItem, role?: Role, planCode?: string) {
-  if (item.roles && item.roles.length > 0 && role && !item.roles.includes(role)) return false;
-  const routeModule = moduleForPath(item.href);
-  return !routeModule || !planCode || planHasModule(planCode, routeModule);
-}
-
 function buildGroups(mode: "app" | "admin", role?: Role, planCode?: string): NavGroup[] {
   if (mode === "admin") {
     return [{ title: "المنصة", icon: Layers, items: adminNav }];
   }
-  return appNav
+  return navigationGroupsForRole(role)
     .map((group) => ({
       ...group,
-      items: group.items.filter((item) => canView(item, role, planCode)),
+      items: group.items.filter((item) => canViewNavItem(item, role, planCode)),
     }))
     .filter((group) => group.items.length > 0);
 }
@@ -71,9 +65,20 @@ export function MobileMenu({ mode = "app", role, planCode, onClose, onChatOpen }
     pathname === href || (href !== "/dashboard" && pathname.startsWith(`${href}/`));
 
   const quickLinks: NavItem[] = [
-    { title: "فاتورة توريد", href: "/dashboard/invoices", icon: ReceiptText },
-    { title: "طلب شراء", href: "/dashboard/purchase-orders", icon: ShoppingCart },
+    {
+      title: "فاتورة توريد",
+      href: "/dashboard/invoices",
+      icon: ReceiptText,
+      roles: ["purchasing_manager", "accountant", "branch_manager"],
+    },
+    {
+      title: "طلب شراء",
+      href: "/dashboard/purchase-orders",
+      icon: ShoppingCart,
+      roles: ["purchasing_manager", "branch_manager"],
+    },
   ];
+  const visibleQuickLinks = quickLinks.filter((item) => canViewNavItem(item, role, planCode));
 
   const handleLinkClick = () => {
     if (onClose) onClose();
@@ -100,10 +105,10 @@ export function MobileMenu({ mode = "app", role, planCode, onClose, onChatOpen }
         </button>
       </div>
 
-      {mode === "app" && (
+      {mode === "app" && visibleQuickLinks.length > 0 && (
         <div className="border-b border-border px-4 py-4">
           <div className="grid grid-cols-2 gap-3">
-            {quickLinks.filter((item) => canView(item, role, planCode)).map((item) => {
+            {visibleQuickLinks.map((item) => {
               const Icon = item.icon;
               return (
                 <Link
@@ -122,7 +127,7 @@ export function MobileMenu({ mode = "app", role, planCode, onClose, onChatOpen }
       )}
 
       <nav className="flex-1 space-y-3 overflow-y-auto px-4 py-5">
-        {pinnedNav.map((item) => {
+        {pinnedNav.filter((item) => canViewNavItem(item, role, planCode)).map((item) => {
           const Icon = item.icon;
           const active = isActive(item.href);
           return (

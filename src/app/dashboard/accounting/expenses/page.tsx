@@ -18,7 +18,7 @@ export default async function ExpensesPage() {
     <>
       <PageHeader
         title="إدارة المصروفات التشغيلية"
-        description="تسجيل المصاريف اليومية وتوزيعها على الفروع ومراكز التكلفة، مع ترحيل قيد محاسبي تلقائي لكل حركة."
+        description="تسجيل المصاريف اليومية وتوزيعها على الأقسام ومراكز التكلفة، مع ترحيل قيد محاسبي تلقائي لكل حركة."
       />
       <div className="mt-4">
         <ExpensesClient data={data} />

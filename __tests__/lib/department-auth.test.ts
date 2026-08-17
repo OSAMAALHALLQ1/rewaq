@@ -75,6 +75,21 @@ describe("requireDepartmentDeviceCapability", () => {
   });
 });
 
+describe("department role module boundary", () => {
+  it("does not let a crafted cashier key read another department", async () => {
+    const { departmentRoleAllowsModule } = await import("@/lib/department/auth");
+    expect(departmentRoleAllowsModule("cashier", "pos")).toBe(true);
+    expect(departmentRoleAllowsModule("cashier", "inventory")).toBe(false);
+    expect(departmentRoleAllowsModule("inventory_manager", "inventory")).toBe(true);
+    expect(departmentRoleAllowsModule("inventory_manager", "pos")).toBe(false);
+  });
+
+  it("fails closed for unknown roles", async () => {
+    const { departmentRoleAllowsModule } = await import("@/lib/department/auth");
+    expect(departmentRoleAllowsModule("unknown", "pos")).toBe(false);
+  });
+});
+
 describe("Supabase env gating (fail-closed)", () => {
   it("hasSupabaseEnv requires both url and publishable key", async () => {
     const { hasSupabaseEnv } = await import("@/lib/supabase/env");

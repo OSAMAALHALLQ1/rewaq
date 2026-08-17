@@ -199,7 +199,7 @@ export default function TablesWorkspaceClient({ initialTables, branches, initial
   const handleCreateTable = async () => {
     const branchId = selectedBranchId === "all" ? branches[0]?.id : selectedBranchId;
     if (!branchId) {
-      setError("أضف فرعًا أولًا قبل إنشاء طاولة");
+      setError("أضف قسمًا أولًا قبل إنشاء طاولة");
       return;
     }
     setBusy(true);
@@ -245,7 +245,7 @@ export default function TablesWorkspaceClient({ initialTables, branches, initial
         <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
           <div className="flex items-center gap-3">
             <Select className="max-w-72" value={selectedBranchId} onChange={(event) => setSelectedBranchId(event.target.value)}>
-              <option value="all">كل الفروع</option>
+              <option value="all">كل الأقسام</option>
               {branches.map((branch) => (
                 <option key={branch.id} value={branch.id}>
                   {branch.name}
@@ -263,7 +263,7 @@ export default function TablesWorkspaceClient({ initialTables, branches, initial
       </Card>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="إجمالي الطاولات" value={formatNumber(visibleTables.length)} description={selectedBranchId === "all" ? "كل مناطق الصالة" : "الفرع المحدد"} icon={Table2} />
+        <MetricCard label="إجمالي الطاولات" value={formatNumber(visibleTables.length)} description={selectedBranchId === "all" ? "كل مناطق الصالة" : "القسم المحدد"} icon={Table2} />
         <MetricCard label="طاولات مشغولة" value={formatNumber(occupiedTables.length)} description="جلسات طعام نشطة" icon={Users} tone="danger" />
         <MetricCard label="طاولات فارغة" value={formatNumber(visibleTables.filter((t) => t.status === "available").length)} description="جاهزة للاستقبال" icon={Armchair} tone="success" />
         <MetricCard label="قيمة الحساب المفتوح" value={formatCurrency(openTotal)} description="طلبات قيد التحضير والتسليم" icon={CircleDollarSign} tone="warning" />

@@ -151,7 +151,7 @@ export default async function AccountRequestsPage() {
             <div>
               <h2 className="font-semibold">عند الموافقة</h2>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                يتم ربط حساب Supabase Auth بالبريد، إنشاء المؤسسة والفرع الرئيسي، ثم إرسال رابط دخول مباشر لصاحب الطلب.
+                يتم ربط حساب Supabase Auth بالبريد، إنشاء المؤسسة والقسم الرئيسي، ثم إرسال رابط دخول مباشر لصاحب الطلب.
               </p>
             </div>
           </CardContent>

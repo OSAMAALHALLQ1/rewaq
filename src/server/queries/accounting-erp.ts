@@ -851,7 +851,7 @@ const demoJournalFormLookups: JournalFormLookups = {
     { id: "cc-1", code: "CC-100", name: "صالة (Dine-in)" },
     { id: "cc-2", code: "CC-300", name: "توصيل (Delivery)" },
   ],
-  branches: [{ id: "branch-demo", name: "الفرع الرئيسي" }],
+  branches: [{ id: "branch-demo", name: "القسم الرئيسي" }],
 };
 
 export async function getJournalFormLookups(): Promise<JournalFormLookups> {
@@ -923,7 +923,7 @@ const demoExpensesData: ExpensesData = {
     { id: "cc-1", code: "CC-100", name: "صالة (Dine-in)" },
     { id: "cc-2", code: "CC-300", name: "توصيل (Delivery)" },
   ],
-  branches: [{ id: "branch-demo", name: "الفرع الرئيسي" }],
+  branches: [{ id: "branch-demo", name: "القسم الرئيسي" }],
   expenseAccounts: [
     { id: "acc-exp", code: "6100", name: "مصروفات تشغيلية" },
   ],

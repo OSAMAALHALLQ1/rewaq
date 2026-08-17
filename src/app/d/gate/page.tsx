@@ -13,6 +13,7 @@ function GatewayContent() {
   const [apiKey, setApiKey] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const requestedNext = searchParams.get("next");
 
   useEffect(() => {
     // If the key is provided in the URL parameter, authenticate immediately
@@ -54,10 +55,24 @@ function GatewayContent() {
       localStorage.setItem("rwq_dept_device", data.deviceName);
 
 
-      // Redirect to the first permitted page based on allowed modules
+      // Honor only an internal, role-compatible destination. This keeps the
+      // employee identity separate from the physical device authorization.
       const allowed = data.allowedModules || [];
-      
-      if (allowed.includes("waiter")) {
+      const requestedModule: Record<string, string> = {
+        "/d/pos": "pos",
+        "/d/inventory": "inventory",
+        "/d/kitchen": "kitchen",
+        "/d/expo": "expo",
+        "/d/waiter": "waiter",
+      };
+
+      if (
+        requestedNext &&
+        requestedModule[requestedNext] &&
+        allowed.includes(requestedModule[requestedNext])
+      ) {
+        router.push(requestedNext);
+      } else if (allowed.includes("waiter")) {
         router.push("/d/waiter");
       } else if (allowed.includes("kitchen")) {
         router.push("/d/kitchen");
@@ -99,6 +114,11 @@ function GatewayContent() {
           </p>
         </CardHeader>
         <CardContent className="pb-8">
+          {requestedNext ? (
+            <div className="mb-4 rounded-xl border border-blue-400/20 bg-blue-400/10 p-3 text-xs leading-6 text-blue-100">
+              تم التحقق من هوية الموظف. أكّد الآن كود الجهاز المخصص لهذا القسم قبل فتح شاشة التشغيل.
+            </div>
+          ) : null}
           {loading ? (
             <div className="flex flex-col items-center justify-center py-6 space-y-4">
               <Loader2 className="h-8 w-8 text-teal-400 animate-spin" />
@@ -135,7 +155,7 @@ function GatewayContent() {
               </div>
 
               <div className="rounded-lg bg-slate-950/40 border border-slate-800/50 p-3 text-[11px] leading-relaxed text-slate-400 text-center">
-                ملاحظة: بمجرد الدخول، سيتم حفظ الجلسة على هذا الجهاز بشكل دائم لضمان استقرار العمل وعدم انقطاعه.
+                ملاحظة: تُحفظ جلسة الجهاز لمدة الوردية، ويمكن لمالك المؤسسة إلغاء الكود فورًا من لوحة الأجهزة.
               </div>
             </form>
           )}

@@ -89,7 +89,7 @@ export function mapBranchStock(
 ): BranchStock {
   return {
     branchId: String(row.branch_id ?? ""),
-    branchName: String(branchMap.get(String(row.branch_id ?? ""))?.name ?? "فرع غير معروف"),
+    branchName: String(branchMap.get(String(row.branch_id ?? ""))?.name ?? "قسم غير معروف"),
     itemId: String(row.item_id ?? ""),
     quantity: numberValue(row.quantity),
     reservedQuantity: numberValue(row.reserved_quantity),
@@ -115,7 +115,7 @@ export function mapStockMovement(
     id: String(row.id ?? ""),
     organizationId: String(row.organization_id ?? ""),
     branchId: String(row.branch_id ?? ""),
-    branchName: String(branchMap.get(String(row.branch_id ?? ""))?.name ?? "فرع غير معروف"),
+    branchName: String(branchMap.get(String(row.branch_id ?? ""))?.name ?? "قسم غير معروف"),
     itemId: String(row.item_id ?? ""),
     itemName: String(itemMap.get(String(row.item_id ?? ""))?.name ?? "مادة غير معروفة"),
     movementType: movementType as StockMovementType,
@@ -140,12 +140,30 @@ export function mapPurchaseOrder(
   orderItems: Array<RowLike<Tables<"purchase_order_items">>>,
 ): PurchaseOrder {
   const items: PurchaseOrderItem[] = orderItems.map((item) => ({
+    id: optionalText(item.id),
     itemId: String(item.item_id),
     itemName: String(itemMap.get(item.item_id)?.name ?? "مادة غير معروفة"),
     quantity: numberValue(item.quantity),
     expectedUnitPrice: numberValue(item.expected_unit_price),
+    discountAmount: numberValue(item.discount_amount),
+    taxRate: numberValue(item.tax_rate),
+    taxAmount: numberValue(item.tax_amount),
+    lineTotal: numberValue(item.line_total),
     receivedQuantity: numberValue(item.received_quantity),
+    rejectedQuantity: numberValue(item.rejected_quantity),
   }));
+
+  const attachmentMetadata = Array.isArray(row.attachment_metadata)
+    ? row.attachment_metadata.flatMap((entry: unknown) => {
+        if (!entry || typeof entry !== "object") return [];
+        const value = entry as { name?: unknown; url?: unknown };
+        if (typeof value.name !== "string" || !value.name.trim()) return [];
+        return [{
+          name: value.name.trim(),
+          ...(typeof value.url === "string" && value.url.trim() ? { url: value.url.trim() } : {}),
+        }];
+      })
+    : [];
 
   return {
     id: String(row.id ?? ""),
@@ -153,12 +171,25 @@ export function mapPurchaseOrder(
     supplierId: String(row.supplier_id ?? ""),
     supplierName: String(supplierMap.get(String(row.supplier_id ?? ""))?.name ?? "مورد غير معروف"),
     branchId: String(row.branch_id ?? ""),
-    branchName: String(branchMap.get(String(row.branch_id ?? ""))?.name ?? "فرع غير معروف"),
+    branchName: String(branchMap.get(String(row.branch_id ?? ""))?.name ?? "قسم غير معروف"),
     status: oneOf(String(row.status ?? ""), ["draft", "sent", "received", "partially_received", "cancelled"] as const, "draft"),
+    approvalStatus: oneOf(String(row.approval_status ?? ""), ["not_submitted", "pending", "approved"] as const, "not_submitted"),
     orderDate: String(row.order_date ?? ""),
     expectedDate: optionalText(row.expected_date),
+    destinationWarehouse: oneOf(String(row.destination_warehouse ?? ""), ["general", "kitchen"] as const, "general"),
+    destinationLocation: optionalText(row.destination_location),
+    paymentTerms: optionalText(row.payment_terms),
+    subtotal: numberValue(row.subtotal),
+    discountTotal: numberValue(row.discount_total),
+    taxTotal: numberValue(row.tax_total),
+    shippingTotal: numberValue(row.shipping_total),
     total: numberValue(row.total),
     notes: optionalText(row.notes),
+    attachmentMetadata,
+    submittedAt: optionalText(row.submitted_at),
+    submittedBy: optionalText(row.submitted_by),
+    approvedAt: optionalText(row.approved_at),
+    approvedBy: optionalText(row.approved_by),
     items,
   };
 }
@@ -190,7 +221,7 @@ export function mapInvoice(
     organizationId: String(row.organization_id ?? ""),
     supplierId: optionalText(row.supplier_id),
     supplierName: String(supplierMap.get(String(row.supplier_id ?? ""))?.name ?? "مورد غير معروف"),
-    branchName: String(branchMap.get(String(row.branch_id ?? ""))?.name ?? "فرع غير معروف"),
+    branchName: String(branchMap.get(String(row.branch_id ?? ""))?.name ?? "قسم غير معروف"),
     invoiceNumber,
     status,
     total,
@@ -224,7 +255,7 @@ export function mapCustomerInvoice(
     id: String(row.id ?? ""),
     organizationId: String(row.organization_id ?? ""),
     branchId: String(row.branch_id ?? ""),
-    branchName: String(branchMap.get(String(row.branch_id ?? ""))?.name ?? "فرع غير معروف"),
+    branchName: String(branchMap.get(String(row.branch_id ?? ""))?.name ?? "قسم غير معروف"),
     invoiceNumber: String(row.invoice_number ?? ""),
     customerName: String(row.customer_name ?? ""),
     customerPhone: optionalText(row.customer_phone),

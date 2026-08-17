@@ -11,6 +11,7 @@ vi.mock("@/server/queries/_shared/utils", () => ({
 }));
 
 import { checkDashboardModuleAccess } from "@/server/billing/module-gate";
+import { REWAQ_PLANS } from "@/lib/billing/plans";
 
 const savedDemoMode = process.env.RAWAQ_DEMO_MODE;
 const savedNodeEnv = process.env.NODE_ENV;
@@ -85,6 +86,50 @@ describe("checkDashboardModuleAccess", () => {
       periodEnd: null,
       modules: ["accounting"],
       limits: { maxBranches: null, maxUsers: null, maxDevices: null },
+      canWrite: true,
+    });
+
+    await expect(checkDashboardModuleAccess()).resolves.toEqual({ allowed: true });
+  });
+
+  it.each([
+    "/dashboard/tables",
+    "/d/waiter",
+    "/d/kitchen",
+    "/d/expo",
+  ])("denies the Tikka route %s on starter", async (pathname) => {
+    mocks.headers.mockResolvedValue(new Headers({ "x-rewaq-pathname": pathname }));
+    mocks.withAdminScope.mockResolvedValue({
+      organizationId: "org-starter",
+      selected: true,
+      planCode: "starter",
+      planName: REWAQ_PLANS.starter.name,
+      status: "active",
+      periodEnd: null,
+      modules: REWAQ_PLANS.starter.modules,
+      limits: REWAQ_PLANS.starter.limits,
+      canWrite: true,
+    });
+
+    await expect(checkDashboardModuleAccess()).resolves.toMatchObject({ allowed: false });
+  });
+
+  it.each([
+    "/dashboard/tables",
+    "/d/waiter",
+    "/d/kitchen",
+    "/d/expo",
+  ])("allows the Tikka route %s from growth", async (pathname) => {
+    mocks.headers.mockResolvedValue(new Headers({ "x-rewaq-pathname": pathname }));
+    mocks.withAdminScope.mockResolvedValue({
+      organizationId: "org-growth",
+      selected: true,
+      planCode: "growth",
+      planName: REWAQ_PLANS.growth.name,
+      status: "active",
+      periodEnd: null,
+      modules: REWAQ_PLANS.growth.modules,
+      limits: REWAQ_PLANS.growth.limits,
       canWrite: true,
     });
 

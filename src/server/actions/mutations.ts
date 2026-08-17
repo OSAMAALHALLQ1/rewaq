@@ -6,11 +6,15 @@ import {
   demoRequestSchema,
   inventoryItemSchema,
   menuItemSchema,
-  purchaseOrderSchema,
   recipeSchema,
   supplierSchema,
   salesReturnSchema,
 } from "@/lib/validation/schemas";
+import {
+  parseJsonField,
+  purchaseOrderDraftInputSchema,
+  purchaseReceiptInputSchema,
+} from "@/lib/purchasing/contracts";
 import { createClient } from "@/lib/supabase/server";
 import { hasSupabaseEnv } from "@/lib/supabase/env";
 import { createAdminClient, createAdminClientWithContext, hasSupabaseAdminEnv } from "@/lib/supabase/admin";
@@ -78,10 +82,10 @@ const issueCustomerInvoiceSchema = z.object({
 });
 
 const wasteLogSchema = z.object({
-  branchId: z.string().uuid("اختر الفرع"),
+  branchId: z.string().uuid("اختر القسم"),
   itemId: z.string().uuid("اختر المادة"),
   quantity: z.coerce.number().positive("الكمية يجب أن تكون أكبر من صفر"),
-  reason: z.enum(["تلف", "محاريق"]),
+  reason: z.enum(["تلف", "انتهاء صلاحية", "خطأ تحضير", "كسر/انسكاب", "منظفات", "إرجاع", "سبب آخر"]),
   notes: z.string().optional(),
 });
 
@@ -104,7 +108,7 @@ const recipeVersionIngredientSchema = z.object({
 });
 
 const stockCountSchema = z.object({
-  branchId: z.string().uuid("اختر الفرع"),
+  branchId: z.string().uuid("اختر القسم"),
   notes: z.string().optional(),
 });
 
@@ -116,7 +120,7 @@ const closeShiftSchema = z.object({
 
 const productionOrderSchema = z.object({
   recipeId: z.string().uuid("اختر الوصفة"),
-  branchId: z.string().uuid("اختر مستودع/فرع الإنتاج"),
+  branchId: z.string().uuid("اختر مستودع/قسم الإنتاج"),
   sourceBranchId: z.string().uuid("اختر مستودع صرف المواد"),
   plannedQuantity: z.coerce.number().positive("الكمية المخططة يجب أن تكون أكبر من صفر"),
   completedQuantity: z.coerce.number().positive("الكمية المنتجة يجب أن تكون أكبر من صفر"),
@@ -448,7 +452,7 @@ export async function issueCustomerInvoiceAction(input: unknown) {
     const { admin, organizationId, userId, auth } = await resolveMutationScope("sales");
     requireSensitiveActionCapability(auth, "sales_write", parsed.data.branchId);
     const branch = await getScopedBranch(admin, organizationId, parsed.data.branchId);
-    if (!branch?.id) return invalid("الفرع المختار غير موجود في المؤسسة الحالية.");
+    if (!branch?.id) return invalid("القسم المختار غير موجود في المؤسسة الحالية.");
 
     const idempotencyKey = parsed.data.idempotencyKey ?? crypto.randomUUID();
     const { data: existing } = await admin
@@ -893,7 +897,7 @@ export async function saveSalesReturnAction(_prevState: ActionState, formData: F
       getScopedInventoryItem(admin, organizationId, parsed.data.itemId),
     ]);
 
-    if (!branch?.id) return invalid("الفرع المختار غير موجود في المؤسسة الحالية.");
+    if (!branch?.id) return invalid("القسم المختار غير موجود في المؤسسة الحالية.");
     if (!item?.id) return invalid("المادة المختارة غير موجودة في المؤسسة الحالية.");
 
     const unitCost = Number(item.average_cost ?? 0);
@@ -923,28 +927,43 @@ export async function saveSalesReturnAction(_prevState: ActionState, formData: F
 }
 
 export async function savePurchaseOrderAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
-  const parsed = purchaseOrderSchema.safeParse({
+  let items: unknown;
+  let attachmentMetadata: unknown;
+  try {
+    items = parseJsonField(formData.get("itemsJson"), "بنود أمر الشراء");
+    const rawAttachments = formData.get("attachmentMetadataJson");
+    attachmentMetadata = typeof rawAttachments === "string" && rawAttachments.trim()
+      ? parseJsonField(rawAttachments, "بيانات المرفقات")
+      : [];
+  } catch (error) {
+    return invalid(error instanceof Error ? error.message : "بيانات أمر الشراء غير صالحة.");
+  }
+
+  const parsed = purchaseOrderDraftInputSchema.safeParse({
     supplierId: formData.get("supplierId"),
     branchId: formData.get("branchId"),
-    itemId: formData.get("itemId"),
-    quantity: formData.get("quantity"),
-    unitPrice: formData.get("unitPrice"),
-    status: formData.get("status") || "draft",
     orderDate: formData.get("orderDate"),
-    notes: formData.get("notes") || "",
+    expectedDate: formData.get("expectedDate"),
+    destinationWarehouse: formData.get("destinationWarehouse"),
+    destinationLocation: formData.get("destinationLocation"),
+    paymentTerms: formData.get("paymentTerms"),
+    shippingAmount: formData.get("shippingAmount") || 0,
+    notes: formData.get("notes") || undefined,
     idempotencyKey: formData.get("idempotencyKey"),
+    attachmentMetadata,
+    items,
   });
 
-  if (!parsed.success) return invalid(parsed.error.issues[0]?.message ?? "بيانات طلب الشراء غير صحيحة");
+  if (!parsed.success) return invalid(parsed.error.issues[0]?.message ?? "بيانات أمر الشراء غير صحيحة");
 
   if (!hasSupabaseAdminEnv()) {
-    return invalid("مفتاح Supabase الإداري غير موجود. لا يمكن حفظ طلب الشراء في قاعدة البيانات.");
+    return invalid("مفتاح Supabase الإداري غير موجود. لا يمكن حفظ أمر الشراء في قاعدة البيانات.");
   }
 
   try {
     const { admin, organizationId, userId, auth } = await resolveMutationScope("purchasing");
     requireSensitiveActionCapability(auth, "purchasing_write", parsed.data.branchId);
-    const [branch, supplierResult, itemResult] = await Promise.all([
+    const [branch, supplierResult] = await Promise.all([
       getScopedBranch(admin, organizationId, parsed.data.branchId),
       admin
         .from("suppliers")
@@ -952,62 +971,62 @@ export async function savePurchaseOrderAction(_prevState: ActionState, formData:
         .eq("id", parsed.data.supplierId)
         .eq("organization_id", organizationId)
         .maybeSingle(),
-      admin
-        .from("inventory_items")
-        .select("id")
-        .eq("id", parsed.data.itemId)
-        .eq("organization_id", organizationId)
-        .maybeSingle(),
     ]);
 
-    if (!branch?.id) {
-      return invalid("الفرع المختار غير موجود في المؤسسة الحالية.");
-    }
-
-    if (supplierResult.error) {
-      return invalid(supplierResult.error.message);
-    }
-
-    if (!supplierResult.data?.id) {
-      return invalid("المورد المختار غير موجود في المؤسسة الحالية.");
-    }
-    if (itemResult.error) return invalid(itemResult.error.message);
-    if (!itemResult.data?.id) return invalid("الصنف المختار غير موجود في المؤسسة الحالية.");
+    if (!branch?.id) return invalid("القسم المختار غير موجود في المؤسسة الحالية.");
+    if (supplierResult.error) return invalid(supplierResult.error.message);
+    if (!supplierResult.data?.id) return invalid("المورد المختار غير موجود في المؤسسة الحالية.");
 
     const { data: result, error } = await admin.rpc("create_purchase_order_atomic", {
       p_organization_id: organizationId,
       p_supplier_id: parsed.data.supplierId,
       p_branch_id: parsed.data.branchId,
-      p_item_id: parsed.data.itemId,
-      p_quantity: parsed.data.quantity,
-      p_unit_price: parsed.data.unitPrice,
       p_order_date: parsed.data.orderDate,
-      p_status: parsed.data.status,
+      p_expected_date: parsed.data.expectedDate,
+      p_destination_warehouse: parsed.data.destinationWarehouse,
+      p_destination_location: parsed.data.destinationLocation,
+      p_payment_terms: parsed.data.paymentTerms,
+      p_items: parsed.data.items.map((item) => ({
+        item_id: item.itemId,
+        quantity: item.quantity,
+        unit_price: item.unitPrice,
+        discount_amount: item.discountAmount,
+        tax_rate: item.taxRate,
+      })),
+      p_shipping_amount: parsed.data.shippingAmount,
       p_notes: parsed.data.notes || null,
+      p_attachment_metadata: parsed.data.attachmentMetadata,
       p_idempotency_key: parsed.data.idempotencyKey,
       p_created_by: userId,
     });
 
     if (error) return invalid(error.message);
-    const response = result as { success?: boolean } | null;
+    const response = result as { success?: boolean; duplicate?: boolean } | null;
     if (!response?.success) return invalid("تعذر إنشاء أمر الشراء ببنوده.");
+    if (response.duplicate) return ok("أمر الشراء محفوظ مسبقاً (تم تجاهل إعادة الإرسال).");
   } catch (error) {
-    return invalid(error instanceof Error ? error.message : "تعذر حفظ طلب الشراء في Supabase.");
+    return invalid(error instanceof Error ? error.message : "تعذر حفظ أمر الشراء في Supabase.");
   }
 
   revalidatePath("/dashboard/purchase-orders");
-  return ok("تم حفظ طلب الشراء في Supabase.");
+  return ok("تم حفظ مسودة أمر الشراء متعددة البنود. أرسلها للموافقة من قائمة الأوامر.");
 }
 
-export async function receivePurchaseOrderAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
-  const purchaseOrderId = String(formData.get("purchaseOrderId") ?? "");
-  const idempotencyKey = String(formData.get("idempotencyKey") ?? "");
-  const receivedAt = String(formData.get("receivedAt") || todayLocal());
-  if (!purchaseOrderId) return invalid("طلب الشراء غير معروف");
-  if (idempotencyKey.length < 8) return invalid("مفتاح منع التكرار غير صالح.");
+async function transitionPurchaseOrder(
+  formData: FormData,
+  transition: "submit_purchase_order_atomic" | "approve_purchase_order_atomic",
+): Promise<ActionState> {
+  const parsed = z.object({
+    purchaseOrderId: z.string().uuid("أمر الشراء غير صالح"),
+    idempotencyKey: z.string().trim().min(8, "مفتاح منع التكرار غير صالح"),
+  }).safeParse({
+    purchaseOrderId: formData.get("purchaseOrderId"),
+    idempotencyKey: formData.get("idempotencyKey"),
+  });
+  if (!parsed.success) return invalid(parsed.error.issues[0]?.message ?? "بيانات الإجراء غير صالحة.");
 
   if (!hasSupabaseAdminEnv()) {
-    return invalid("مفتاح Supabase الإداري غير موجود. لا يمكن استلام طلب الشراء.");
+    return invalid("مفتاح Supabase الإداري غير موجود. لا يمكن تحديث أمر الشراء.");
   }
 
   try {
@@ -1015,35 +1034,115 @@ export async function receivePurchaseOrderAction(_prevState: ActionState, formDa
     requireSensitiveActionCapability(auth, "purchasing_write");
     const { data: order, error: orderError } = await admin
       .from("purchase_orders")
-      .select("*")
-      .eq("id", purchaseOrderId)
+      .select("id,branch_id")
+      .eq("id", parsed.data.purchaseOrderId)
       .eq("organization_id", organizationId)
       .maybeSingle();
-
     if (orderError) return invalid(orderError.message);
-    if (!order) return invalid("طلب الشراء غير موجود.");
+    if (!order) return invalid("أمر الشراء غير موجود.");
+    requireSensitiveActionCapability(auth, "purchasing_write", order.branch_id);
+    const { data, error } = await admin.rpc(transition, {
+      p_organization_id: organizationId,
+      p_purchase_order_id: parsed.data.purchaseOrderId,
+      p_idempotency_key: parsed.data.idempotencyKey,
+      p_actor_user_id: userId,
+    });
+    if (error) return invalid(error.message);
+    const response = data as { success?: boolean; duplicate?: boolean } | null;
+    if (!response?.success) return invalid("تعذر تحديث دورة أمر الشراء.");
+    if (response.duplicate) return ok("تم تنفيذ هذا الإجراء مسبقاً (تم تجاهل التكرار).");
+  } catch (error) {
+    return invalid(error instanceof Error ? error.message : "تعذر تحديث أمر الشراء.");
+  }
+
+  revalidatePath("/dashboard/purchase-orders");
+  return transition === "submit_purchase_order_atomic"
+    ? ok("تم إرسال أمر الشراء للموافقة.")
+    : ok("تم اعتماد أمر الشراء وإرساله للمورد.");
+}
+
+export async function submitPurchaseOrderAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
+  return transitionPurchaseOrder(formData, "submit_purchase_order_atomic");
+}
+
+export async function approvePurchaseOrderAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
+  return transitionPurchaseOrder(formData, "approve_purchase_order_atomic");
+}
+
+export async function receivePurchaseOrderAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
+  let lines: unknown;
+  try {
+    lines = parseJsonField(formData.get("linesJson"), "بنود الاستلام");
+  } catch (error) {
+    return invalid(error instanceof Error ? error.message : "بنود الاستلام غير صالحة.");
+  }
+  const parsed = purchaseReceiptInputSchema.safeParse({
+    purchaseOrderId: formData.get("purchaseOrderId"),
+    receivedAt: formData.get("receivedAt") || todayLocal(),
+    notes: formData.get("notes") || undefined,
+    idempotencyKey: formData.get("idempotencyKey"),
+    lines,
+  });
+  if (!parsed.success) return invalid(parsed.error.issues[0]?.message ?? "بيانات الاستلام غير صالحة.");
+  if (parsed.data.receivedAt > todayLocal()) return invalid("لا يمكن زيادة المخزون باستلام مؤرخ في المستقبل.");
+
+  if (!hasSupabaseAdminEnv()) {
+    return invalid("مفتاح Supabase الإداري غير موجود. لا يمكن تسجيل الاستلام.");
+  }
+
+  try {
+    const { admin, organizationId, userId, auth } = await resolveMutationScope("purchasing");
+    requireSensitiveActionCapability(auth, "purchasing_write");
+    const { data: order, error: orderError } = await admin
+      .from("purchase_orders")
+      .select("id,branch_id")
+      .eq("id", parsed.data.purchaseOrderId)
+      .eq("organization_id", organizationId)
+      .maybeSingle();
+    if (orderError) return invalid(orderError.message);
+    if (!order) return invalid("أمر الشراء غير موجود.");
     requireSensitiveActionCapability(auth, "purchasing_write", order.branch_id);
     const { data: receiptResult, error: receiptError } = await admin.rpc("record_purchase_receipt_atomic", {
       p_organization_id: organizationId,
-      p_purchase_order_id: purchaseOrderId,
-      p_received_at: receivedAt,
-      p_idempotency_key: idempotencyKey,
+      p_purchase_order_id: parsed.data.purchaseOrderId,
+      p_received_at: parsed.data.receivedAt,
+      p_lines: parsed.data.lines.map((line) => ({
+        purchase_order_item_id: line.purchaseOrderItemId,
+        accepted_quantity: line.acceptedQuantity,
+        rejected_quantity: line.rejectedQuantity,
+        rejection_reason: line.rejectionReason || null,
+        batch_number: line.batchNumber || null,
+        expiry_date: line.expiryDate || null,
+        destination_warehouse: line.destinationWarehouse,
+        destination_location: line.destinationLocation,
+      })),
+      p_notes: parsed.data.notes || null,
+      p_idempotency_key: parsed.data.idempotencyKey,
       p_created_by: userId,
     });
 
     if (receiptError) return invalid(receiptError.message);
-    const response = receiptResult as { success?: boolean; duplicate?: boolean } | null;
+    const response = receiptResult as {
+      success?: boolean;
+      duplicate?: boolean;
+      accepted_quantity?: number;
+      rejected_quantity?: number;
+    } | null;
     if (!response?.success) return invalid("تعذر استلام أمر الشراء.");
     if (response.duplicate) return ok("تم استلام أمر الشراء مسبقاً (تم تجاهل التكرار).");
+    if (Number(response.accepted_quantity ?? 0) === 0 && Number(response.rejected_quantity ?? 0) > 0) {
+      revalidatePath("/dashboard/purchase-orders");
+      return ok("تم تسجيل فحص الكمية المرفوضة دون أي زيادة في المخزون أو قيد GRNI.");
+    }
   } catch (error) {
-    return invalid(error instanceof Error ? error.message : "تعذر استلام طلب الشراء في Supabase.");
+    return invalid(error instanceof Error ? error.message : "تعذر تسجيل استلام أمر الشراء.");
   }
 
   revalidatePath("/dashboard/purchase-orders");
   revalidatePath("/dashboard/inventory");
   revalidatePath("/dashboard/stock-movements");
   revalidatePath("/dashboard/accounting/ledger");
-  return ok("تم استلام طلب الشراء وتحديث المخزون.");
+  return ok("تم تسجيل الاستلام الجزئي وتحديث المخزون والقيد للكميات المقبولة فقط.");
 }
 
 export async function receivePurchaseOrderFormAction(formData: FormData): Promise<void> {
@@ -1197,7 +1296,7 @@ export async function saveMenuItemAction(_prevState: ActionState, formData: Form
 
     if (recipeError) return invalid(recipeError.message);
     if (!recipe?.id) return invalid("الوصفة المختارة غير موجودة في المؤسسة الحالية.");
-    if (parsed.data.branchId && !branch?.id) return invalid("الفرع المختار غير موجود في المؤسسة الحالية.");
+    if (parsed.data.branchId && !branch?.id) return invalid("القسم المختار غير موجود في المؤسسة الحالية.");
 
     const { data: menuItem, error: menuError } = await admin
       .from("menu_items")
@@ -1301,7 +1400,7 @@ export async function saveProductionOrderAction(_prevState: ActionState, formDat
     if (sourceBranchResult.error) return invalid(sourceBranchResult.error.message);
     if (ingredientResult.error) return invalid(ingredientResult.error.message);
     if (!recipeResult.data?.id) return invalid("الوصفة المختارة غير موجودة.");
-    if (!branchResult.data?.id) return invalid("فرع الإنتاج غير موجود.");
+    if (!branchResult.data?.id) return invalid("قسم الإنتاج غير موجود.");
     if (!sourceBranchResult.data?.id) return invalid("مستودع صرف المواد غير موجود.");
 
     type RecipeIngredientRow = {
@@ -1479,7 +1578,7 @@ export async function saveWasteLogAction(_prevState: ActionState, formData: Form
       getScopedInventoryItem(admin, organizationId, parsed.data.itemId),
     ]);
 
-    if (!branch?.id) return invalid("الفرع المختار غير موجود في المؤسسة الحالية.");
+    if (!branch?.id) return invalid("القسم المختار غير موجود في المؤسسة الحالية.");
     if (!item?.id) return invalid("المادة المختارة غير موجودة في المؤسسة الحالية.");
 
     const unitCost = Number(item.average_cost ?? 0);
@@ -1577,7 +1676,7 @@ export async function saveStockCountAction(_prevState: ActionState, formData: Fo
     const { admin, organizationId, userId, auth } = await resolveMutationScope("inventory");
     requireSensitiveActionCapability(auth, "inventory_movement_write", parsed.data.branchId);
     const branch = await getScopedBranch(admin, organizationId, parsed.data.branchId);
-    if (!branch?.id) return invalid("الفرع المختار غير موجود في المؤسسة الحالية.");
+    if (!branch?.id) return invalid("القسم المختار غير موجود في المؤسسة الحالية.");
 
     const { data: atomicResult, error: atomicError } = await (admin as any).rpc("post_stock_count_atomic", {
       p_organization_id: organizationId,
@@ -1778,7 +1877,7 @@ const catalogItemSchema = z.object({
 
 const invoiceSchema = z.object({
   supplierId: z.string().uuid("اختر المورد"),
-  branchId: z.string().uuid("اختر القسم / الفرع"),
+  branchId: z.string().uuid("اختر القسم"),
   invoiceNumber: z.string().min(1, "رقم الفاتورة مطلوب"),
   issuedAt: z.string().min(1, "التاريخ مطلوب"),
   itemId: z.string().uuid("اختر الصنف"),
@@ -1794,9 +1893,18 @@ const invoiceSchema = z.object({
 const transferSchema = z.object({
   fromBranchId: z.string().uuid("اختر القسم المرسل"),
   toBranchId: z.string().uuid("اختر القسم المستقبل"),
-  itemId: z.string().uuid("اختر المادة"),
-  quantity: z.coerce.number().positive("الكمية يجب أن تكون أكبر من صفر"),
+  lines: z.array(z.object({
+    itemId: z.string().uuid("اختر المادة"),
+    quantity: z.coerce.number().positive("الكمية يجب أن تكون أكبر من صفر"),
+    sourceWarehouse: z.enum(["general", "kitchen"]).default("general"),
+    sourceLocation: z.string().optional(),
+    destinationWarehouse: z.enum(["general", "kitchen"]).default("general"),
+    destinationLocation: z.string().optional(),
+    batchNumber: z.string().optional(),
+    expiryDate: z.string().optional(),
+  })).min(1, "أضف مادة واحدة على الأقل"),
   notes: z.string().optional(),
+  idempotencyKey: z.string().min(8, "مفتاح منع التكرار غير صالح"),
 });
 
 const returnSchema = z.object({
@@ -1908,7 +2016,7 @@ export async function saveInvoiceAction(_prevState: ActionState, formData: FormD
     ]);
 
     if (!supplier.data?.id) return invalid("المورد غير موجود.");
-    if (!branch.data?.id) return invalid("القسم/الفرع غير موجود.");
+    if (!branch.data?.id) return invalid("القسم غير موجود.");
     if (!item.data?.id) return invalid("المادة غير موجودة.");
 
     const dueDate = parsed.data.dueDate || addDaysLocal(parsed.data.issuedAt, 30);
@@ -2012,18 +2120,25 @@ export async function paySupplierInvoiceAction(_prevState: ActionState, formData
   }
 
   revalidatePath("/dashboard/invoices");
+  revalidatePath("/dashboard/bill-payments");
   revalidatePath("/dashboard/accounting/ledger");
   revalidatePath("/dashboard/suppliers");
   return ok("تم تسجيل دفعة المورد وتحديث الرصيد المستحق.");
 }
 
 export async function saveTransferAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
+  let lines: unknown = [];
+  try {
+    lines = JSON.parse(String(formData.get("linesJson") || "[]"));
+  } catch {
+    return invalid("بنود التحويل غير صالحة.");
+  }
   const parsed = transferSchema.safeParse({
     fromBranchId: formData.get("fromBranchId"),
     toBranchId: formData.get("toBranchId"),
-    itemId: formData.get("itemId"),
-    quantity: formData.get("quantity"),
+    lines,
     notes: formData.get("notes") || undefined,
+    idempotencyKey: formData.get("idempotencyKey"),
   });
 
   if (!parsed.success) return invalid(parsed.error.issues[0]?.message ?? "بيانات التحويل غير صحيحة");
@@ -2039,95 +2154,26 @@ export async function saveTransferAction(_prevState: ActionState, formData: Form
   try {
     const { admin, organizationId, userId, auth } = await resolveMutationScope("transfers");
     requireSensitiveActionCapability(auth, "inventory_movement_write", parsed.data.fromBranchId);
-    requireSensitiveActionCapability(auth, "inventory_movement_write", parsed.data.toBranchId);
-
-    const [fromBranch, toBranch, item] = await Promise.all([
-      admin.from("branches").select("id").eq("id", parsed.data.fromBranchId).eq("organization_id", organizationId).maybeSingle(),
-      admin.from("branches").select("id").eq("id", parsed.data.toBranchId).eq("organization_id", organizationId).maybeSingle(),
-      admin.from("inventory_items").select("id, name, average_cost").eq("id", parsed.data.itemId).eq("organization_id", organizationId).maybeSingle(),
-    ]);
-
-    if (!fromBranch.data?.id) return invalid("القسم المرسل غير موجود.");
-    if (!toBranch.data?.id) return invalid("القسم المستقبل غير موجود.");
-    if (!item.data?.id) return invalid("المادة غير موجودة.");
-
-    const { data: stockRow } = await admin
-      .from("branch_stock")
-      .select("quantity")
-      .eq("organization_id", organizationId)
-      .eq("branch_id", parsed.data.fromBranchId)
-      .eq("item_id", parsed.data.itemId)
-      .maybeSingle();
-
-    const currentStock = Number(stockRow?.quantity ?? 0);
-    if (currentStock < parsed.data.quantity) {
-      return invalid(`رصيد المادة لا يكفي في القسم المرسل. الرصيد الحالي: ${currentStock}`);
-    }
-
-    const { data: transfer, error: transferError } = await admin
-      .from("transfers")
-      .insert({
-        organization_id: organizationId,
-        from_branch_id: parsed.data.fromBranchId,
-        to_branch_id: parsed.data.toBranchId,
-        status: "received",
-        sent_at: new Date().toISOString(),
-        received_at: new Date().toISOString(),
-        notes: parsed.data.notes || null,
-        created_by: userId,
-      })
-      .select("id")
-      .single();
-
-    if (transferError) return invalid(transferError.message);
-
-    const unitCost = Number(item.data.average_cost ?? 0);
-
-    const { error: itemError } = await admin
-      .from("transfer_items")
-      .insert({
-        organization_id: organizationId,
-        transfer_id: transfer.id,
-        item_id: parsed.data.itemId,
-        quantity: parsed.data.quantity,
-        unit_cost: unitCost,
-        created_by: userId,
-      });
-
-    if (itemError) return invalid(itemError.message);
-
-    await addToBranchStock(admin, organizationId, parsed.data.fromBranchId, parsed.data.itemId, -parsed.data.quantity, userId);
-    await addToBranchStock(admin, organizationId, parsed.data.toBranchId, parsed.data.itemId, parsed.data.quantity, userId);
-
-    const { error: movementOutError } = await admin.from("stock_movements").insert({
-      organization_id: organizationId,
-      branch_id: parsed.data.fromBranchId,
-      item_id: parsed.data.itemId,
-      movement_type: "transfer_out",
-      quantity: -parsed.data.quantity,
-      unit_cost: unitCost,
-      source_doc_type: "transfer",
-      source_doc_id: transfer.id,
-      idempotency_key: `${transfer.id}:${parsed.data.itemId}:out`,
-      notes: `تحويل صادر إلى ${toBranch.data.id}`,
-      created_by: userId,
+    const { data, error } = await (admin as any).rpc("create_inventory_transfer_atomic", {
+      p_organization_id: organizationId,
+      p_from_branch_id: parsed.data.fromBranchId,
+      p_to_branch_id: parsed.data.toBranchId,
+      p_lines: parsed.data.lines.map((line) => ({
+        item_id: line.itemId,
+        quantity: line.quantity,
+        source_warehouse: line.sourceWarehouse,
+        source_location: line.sourceLocation || null,
+        destination_warehouse: line.destinationWarehouse,
+        destination_location: line.destinationLocation || null,
+        batch_number: line.batchNumber || null,
+        expiry_date: line.expiryDate || null,
+      })),
+      p_notes: parsed.data.notes || null,
+      p_idempotency_key: parsed.data.idempotencyKey,
+      p_actor_user_id: userId,
     });
-    if (movementOutError) return invalid(movementOutError.message);
-
-    const { error: movementInError } = await admin.from("stock_movements").insert({
-      organization_id: organizationId,
-      branch_id: parsed.data.toBranchId,
-      item_id: parsed.data.itemId,
-      movement_type: "transfer_in",
-      quantity: parsed.data.quantity,
-      unit_cost: unitCost,
-      source_doc_type: "transfer",
-      source_doc_id: transfer.id,
-      idempotency_key: `${transfer.id}:${parsed.data.itemId}:in`,
-      notes: `تحويل وارد من ${fromBranch.data.id}`,
-      created_by: userId,
-    });
-    if (movementInError) return invalid(movementInError.message);
+    if (error) return invalid(error.message);
+    if (!(data as { success?: boolean } | null)?.success) return invalid("تعذر إنشاء التحويل.");
 
   } catch (error) {
     return invalid(error instanceof Error ? error.message : "تعذر حفظ التحويل في Supabase.");
@@ -2137,7 +2183,79 @@ export async function saveTransferAction(_prevState: ActionState, formData: Form
   revalidatePath("/dashboard/inventory");
   revalidatePath("/dashboard/stock-movements");
   revalidatePath("/dashboard/reports");
-  return ok("تم تسجيل التحويل الداخلي وتحديث رصيد المخزن بنجاح.");
+  return ok("حُفظت مسودة التحويل دون تحريك المخزون.");
+}
+
+const transferTransitionSchema = z.object({
+  transferId: z.string().uuid("التحويل غير صالح"),
+  transition: z.enum(["submit", "approve", "ship", "cancel", "close"]),
+  reason: z.string().optional(),
+});
+
+export async function transitionTransferAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
+  const parsed = transferTransitionSchema.safeParse({
+    transferId: formData.get("transferId"),
+    transition: formData.get("transition"),
+    reason: formData.get("reason") || undefined,
+  });
+  if (!parsed.success) return invalid(parsed.error.issues[0]?.message ?? "إجراء التحويل غير صالح");
+  if (!hasSupabaseAdminEnv()) return invalid("مفتاح Supabase الإداري غير موجود.");
+  try {
+    const { admin, organizationId, userId, auth } = await resolveMutationScope("transfers");
+    requireSensitiveActionCapability(auth, "inventory_movement_write");
+    const { data, error } = await (admin as any).rpc("transition_inventory_transfer_atomic", {
+      p_organization_id: organizationId,
+      p_transfer_id: parsed.data.transferId,
+      p_action: parsed.data.transition,
+      p_reason: parsed.data.reason || null,
+      p_actor_user_id: userId,
+    });
+    if (error) return invalid(error.message);
+    if (!(data as { success?: boolean } | null)?.success) return invalid("تعذر تحديث التحويل.");
+  } catch (error) {
+    return invalid(error instanceof Error ? error.message : "تعذر تحديث التحويل.");
+  }
+  revalidatePath("/dashboard/transfers");
+  revalidatePath("/dashboard/inventory");
+  revalidatePath("/dashboard/stock-movements");
+  return ok("تم تحديث مرحلة التحويل بنجاح.");
+}
+
+export async function receiveTransferAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
+  const transferId = String(formData.get("transferId") || "");
+  if (!z.string().uuid().safeParse(transferId).success) return invalid("التحويل غير صالح.");
+  let lines: unknown;
+  try { lines = JSON.parse(String(formData.get("linesJson") || "[]")); }
+  catch { return invalid("بيانات الاستلام غير صالحة."); }
+  const parsedLines = z.array(z.object({
+    transferItemId: z.string().uuid(),
+    receivedQuantity: z.coerce.number().nonnegative(),
+    varianceReason: z.string().optional(),
+  })).min(1).safeParse(lines);
+  if (!parsedLines.success) return invalid("بيانات الاستلام غير صالحة.");
+  if (!hasSupabaseAdminEnv()) return invalid("مفتاح Supabase الإداري غير موجود.");
+  try {
+    const { admin, organizationId, userId, auth } = await resolveMutationScope("transfers");
+    requireSensitiveActionCapability(auth, "inventory_movement_write");
+    const { data, error } = await (admin as any).rpc("receive_inventory_transfer_atomic", {
+      p_organization_id: organizationId,
+      p_transfer_id: transferId,
+      p_lines: parsedLines.data.map((line) => ({
+        transfer_item_id: line.transferItemId,
+        received_quantity: line.receivedQuantity,
+        variance_reason: line.varianceReason || null,
+      })),
+      p_actor_user_id: userId,
+    });
+    if (error) return invalid(error.message);
+    if (!(data as { success?: boolean } | null)?.success) return invalid("تعذر استلام التحويل.");
+  } catch (error) {
+    return invalid(error instanceof Error ? error.message : "تعذر استلام التحويل.");
+  }
+  revalidatePath("/dashboard/transfers");
+  revalidatePath("/dashboard/inventory");
+  revalidatePath("/dashboard/stock-movements");
+  return ok("سُجل الاستلام ولم يدخل إلى المخزون إلا المقدار المستلم فعليًا.");
 }
 
 export async function saveReturnAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {

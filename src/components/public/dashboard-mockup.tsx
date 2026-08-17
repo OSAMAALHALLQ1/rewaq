@@ -1,4 +1,4 @@
-import { AlertTriangle, BarChart3, Boxes, Megaphone, ShoppingCart } from "lucide-react";
+import { AlertTriangle, BarChart3, Boxes, ReceiptText, ShoppingCart } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 export function DashboardMockup() {
@@ -6,7 +6,7 @@ export function DashboardMockup() {
     { label: "قيمة المخزون", value: "₪42,800", icon: Boxes, variant: "light" },
     { label: "طلبات مفتوحة", value: "4", icon: ShoppingCart, variant: "dark" },
     { label: "تكلفة الطعام", value: "29.8%", icon: BarChart3, variant: "primary" },
-    { label: "منشورات اليوم", value: "2", icon: Megaphone, variant: "white" },
+    { label: "فواتير اليوم", value: "86", icon: ReceiptText, variant: "white" },
   ] as const;
 
   return (

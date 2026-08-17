@@ -26,6 +26,8 @@ describe("Rawaq billing plans", () => {
     expect(planHasModule("growth", "restaurant_workflow")).toBe(true);
     expect(planHasModule("growth", "digital_presence")).toBe(true);
     expect(planHasModule("growth", "accounting")).toBe(false);
+    expect(planHasModule(undefined, "pos")).toBe(false);
+    expect(planHasModule("unknown", "pos")).toBe(false);
   });
 
   it("opens every module on the scale plan", () => {
@@ -36,14 +38,36 @@ describe("Rawaq billing plans", () => {
       expect(planHasModule("scale", moduleKey)).toBe(true);
     }
   });
+
+  it("keeps basic POS in starter and opens the full Tikka workflow from growth", () => {
+    expect(planHasModule("starter", "pos")).toBe(true);
+
+    const tikkaRoutes = [
+      ["/dashboard/tables", "tables"],
+      ["/d/waiter", "restaurant_workflow"],
+      ["/d/kitchen", "kitchen"],
+      ["/d/expo", "expo"],
+    ] as const;
+
+    for (const [pathname, module] of tikkaRoutes) {
+      expect(moduleForPath(pathname)).toBe(module);
+      expect(planHasModule("starter", module)).toBe(false);
+      expect(planHasModule("growth", module)).toBe(true);
+    }
+  });
 });
 
 describe("billing module routes", () => {
   it("maps every declared route prefix to its module", () => {
     for (const rule of MODULE_ROUTE_RULES) {
       expect(moduleForPath(rule.prefix)).toBe(rule.module);
-      expect(moduleForPath(`${rule.prefix}/details`)).toBe(rule.module);
+      if (!rule.exact) {
+        expect(moduleForPath(`${rule.prefix}/details`)).toBe(rule.module);
+      }
     }
+
+    expect(moduleForPath("/dashboard?tab=overview")).toBe("dashboard");
+    expect(moduleForPath("/dashboard/accounting-notes")).toBeNull();
   });
 
   it("returns null for routes without a billing module rule", () => {

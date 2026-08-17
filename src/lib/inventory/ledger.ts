@@ -37,7 +37,7 @@ export function isLowStock(quantity: number, minimumQuantity: number) {
   return quantity <= minimumQuantity;
 }
 
-/** يجمع الرصيد المتاح لكل مادة عبر الفروع بدون الاعتماد على سعر التكلفة. */
+/** يجمع الرصيد المتاح لكل مادة عبر الأقسام بدون الاعتماد على سعر التكلفة. */
 export function quantitiesByItem(rows: StockQuantity[]): Map<string, number> {
   const quantities = new Map<string, number>();
 

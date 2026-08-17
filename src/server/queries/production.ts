@@ -118,7 +118,7 @@ async function loadProductionData(admin: any, organizationId: string): Promise<P
         id: order.id,
         orderNumber: order.order_number,
         recipeName: recipeMap.get(order.recipe_id)?.name ?? "وصفة غير معروفة",
-        branchName: branchMap.get(order.branch_id)?.name ?? "فرع غير معروف",
+        branchName: branchMap.get(order.branch_id)?.name ?? "قسم غير معروف",
         status: order.status,
         plannedQuantity: numberValue(order.planned_quantity),
         completedQuantity: numberValue(order.completed_quantity),

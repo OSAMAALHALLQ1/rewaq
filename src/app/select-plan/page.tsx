@@ -3,8 +3,8 @@ import { CreditCard, ShieldCheck } from "lucide-react";
 import { PlanCard } from "@/components/billing/plan-card";
 import { Badge } from "@/components/ui/badge";
 import { requireAuthOrRedirect } from "@/lib/auth/require-auth";
-import { REWAQ_PLAN_LIST } from "@/lib/billing/plans";
 import { selectTrialPlanAction } from "@/server/actions/billing";
+import { getCurrentPlanCatalog } from "@/server/billing/plan-catalog";
 import { getOrganizationPlanSelection } from "@/server/billing/plan-selection";
 
 const ERROR_MESSAGES: Record<string, string> = {
@@ -20,8 +20,11 @@ export default async function SelectPlanPage({
   searchParams: Promise<{ error?: string }>;
 }) {
   const user = await requireAuthOrRedirect();
-  const selection = await getOrganizationPlanSelection(user);
-  const { error } = await searchParams;
+  const [selection, plans, { error }] = await Promise.all([
+    getOrganizationPlanSelection(user),
+    getCurrentPlanCatalog(),
+    searchParams,
+  ]);
 
   if (selection.selected) {
     redirect("/dashboard");
@@ -60,7 +63,7 @@ export default async function SelectPlanPage({
         ) : null}
 
         <section className="mt-9 grid items-stretch gap-5 lg:grid-cols-3" aria-label="باقات رواق">
-          {REWAQ_PLAN_LIST.map((plan) => (
+          {plans.map((plan) => (
             <PlanCard
               key={plan.code}
               plan={plan}

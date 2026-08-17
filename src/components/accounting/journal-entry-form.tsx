@@ -190,14 +190,14 @@ export function JournalEntryForm({
           </div>
           {branches.length > 0 && (
             <div className="space-y-2">
-              <Label htmlFor="branchId" className="text-xs font-bold text-slate-500">الفرع (اختياري)</Label>
+              <Label htmlFor="branchId" className="text-xs font-bold text-slate-500">القسم (اختياري)</Label>
               <Select
                 id="branchId"
                 value={branchId}
                 onChange={(e) => setBranchId(e.target.value)}
                 className="bg-white border-slate-200 text-right"
               >
-                <option value="">بدون فرع محدد</option>
+                <option value="">بدون قسم محدد</option>
                 {branches.map((branch) => (
                   <option key={branch.id} value={branch.id}>
                     {branch.name}

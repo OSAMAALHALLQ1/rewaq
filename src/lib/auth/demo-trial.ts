@@ -10,7 +10,7 @@ export const DEMO_TRIAL_HOURS = 8;
 
 function trialSecret(): Uint8Array | null {
   const secret = process.env.INTERNAL_ADMIN_SECRET;
-  return secret ? new TextEncoder().encode(secret) : null;
+  return secret && secret.length >= 32 ? new TextEncoder().encode(secret) : null;
 }
 
 export async function createDemoTrialToken(): Promise<string | null> {
@@ -26,9 +26,9 @@ export async function createDemoTrialToken(): Promise<string | null> {
 
 export async function isDemoTrialTokenValid(token: string | undefined): Promise<boolean> {
   const secret = trialSecret();
-  // Without a configured secret the ticket cannot be verified; the trial
-  // window is then unenforced (demo data isolation still applies).
-  if (!secret) return true;
+  // Fail closed: without a strong configured secret, no trial ticket can be
+  // trusted and an existing demo session must not outlive the intended window.
+  if (!secret) return false;
   if (!token) return false;
 
   try {

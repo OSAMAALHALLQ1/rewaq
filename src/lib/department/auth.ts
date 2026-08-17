@@ -46,7 +46,22 @@ const DEPARTMENT_MODULE_ENTITLEMENTS: Readonly<Record<string, RewaqModule>> = {
   expo: "restaurant_workflow",
 };
 
+const DEPARTMENT_ROLE_MODULES: Readonly<Record<string, ReadonlySet<string>>> = {
+  cashier: new Set(["pos"]),
+  inventory_manager: new Set(["inventory", "purchasing", "waste", "reports"]),
+  chef: new Set(["recipes", "inventory", "waste", "kitchen", "expo"]),
+  staff: new Set(["pos", "inventory", "recipes", "waste", "waiter", "kitchen", "expo"]),
+  manager: new Set(["pos", "inventory", "recipes", "purchasing", "waste", "reports", "waiter", "kitchen", "expo"]),
+  branch_manager: new Set(["pos", "inventory", "recipes", "purchasing", "waste", "reports", "waiter", "kitchen", "expo"]),
+  organization_owner: new Set(["pos", "inventory", "recipes", "purchasing", "waste", "reports", "waiter", "kitchen", "expo"]),
+  super_admin: new Set(["pos", "inventory", "recipes", "purchasing", "waste", "reports", "waiter", "kitchen", "expo"]),
+};
+
 export type DepartmentDeviceCapability = keyof typeof DEPARTMENT_CAPABILITY_ROLES;
+
+export function departmentRoleAllowsModule(role: string, module: string): boolean {
+  return DEPARTMENT_ROLE_MODULES[role]?.has(module) ?? false;
+}
 
 export function requireDepartmentDeviceCapability(
   auth: DepartmentAuthResult,
@@ -60,7 +75,7 @@ export function requireDepartmentDeviceCapability(
   }
 
   if (targetBranchId !== undefined && auth.device.branchId !== targetBranchId) {
-    return { ok: false, status: 403, error: "هذا الجهاز غير مخول للعمل على هذا الفرع." };
+    return { ok: false, status: 403, error: "هذا الجهاز غير مخول للعمل على هذا القسم." };
   }
 
   return auth;
@@ -116,7 +131,11 @@ export async function authenticateDepartmentDevice(
 
   const allowedModules = Array.isArray(data.allowed_modules) ? data.allowed_modules.map(String) : [];
 
-  if (requiredModule && !allowedModules.includes(requiredModule)) {
+  if (
+    requiredModule &&
+    (!allowedModules.includes(requiredModule) ||
+      !departmentRoleAllowsModule(String(data.role), requiredModule))
+  ) {
     return { ok: false, status: 403, error: "هذا الجهاز لا يملك صلاحية هذه الشاشة." };
   }
 

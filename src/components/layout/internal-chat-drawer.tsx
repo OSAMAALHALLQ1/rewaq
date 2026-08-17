@@ -27,7 +27,7 @@ type ChatDrawerProps = {
 // Map roles to Arabic names
 const roleNames: Record<string, string> = {
   organization_owner: "مدير المطعم",
-  branch_manager: "مدير الفرع",
+  branch_manager: "مدير القسم",
   cashier: "الكاشير",
   chef: "المطبخ / الشيف",
   inventory_manager: "المستودع / المخزون",

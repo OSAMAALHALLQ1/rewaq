@@ -19,12 +19,12 @@ const dashboardCopy = {
     body: "Foodics-style للتشغيل اليومي مع طبقة محاسبة: موردين، فواتير، تكلفة طبق، وربحية.",
   },
   chain: {
-    title: "لوحة فروع ومحاسبة",
-    body: "صلاحيات دقيقة، توزيع مخزون، تقارير فروع، ومحاسبة أثقل شبيهة باحتياج Golden Asseal.",
+    title: "لوحة أقسام ومحاسبة",
+    body: "صلاحيات دقيقة، توزيع مخزون، تقارير أقسام، ومحاسبة أثقل شبيهة باحتياج Golden Asseal.",
   },
   other: {
     title: "لوحة عمل مرنة",
-    body: "مبيعات، مخزون، فريق، وتسويق حسب احتياج النشاط وليس حسب قالب مطاعم فقط.",
+    body: "مبيعات، مخزون، فريق، وتقارير حسب احتياج النشاط وليس حسب قالب مطاعم فقط.",
   },
 };
 
@@ -69,12 +69,12 @@ export function BusinessFitForm() {
               <option value="cafe">كافيه حديث</option>
               <option value="small_restaurant">مطعم صغير</option>
               <option value="restaurant">مطعم متوسط</option>
-              <option value="chain">سلسلة فروع</option>
+              <option value="chain">سلسلة أقسام</option>
               <option value="other">متجر/عمل آخر</option>
             </select>
           </label>
           <label className="space-y-2 text-sm font-bold">
-            عدد الفروع
+            عدد الأقسام
             <input
               className={fieldClass}
               inputMode="numeric"
@@ -93,7 +93,7 @@ export function BusinessFitForm() {
               <option value="pos">كاشير سريع</option>
               <option value="accounting">محاسبة وموردين</option>
               <option value="inventory">مخزون وتكاليف</option>
-              <option value="marketing">تسويق وجدولة نشر</option>
+              <option value="operations">تشغيل وطاولات ومطبخ</option>
             </select>
           </label>
         </div>

@@ -31,7 +31,7 @@ export async function GET(request: Request) {
     });
   }
 
-  // الإنتاج: جلب الأصناف + رصيد الفرع (عبر inventory_item_id و menu_item_id) + الباركودات
+  // الإنتاج: جلب الأصناف + رصيد القسم (عبر inventory_item_id و menu_item_id) + الباركودات
   const branchId = auth.device.branchId;
 
   const { data: itemRows, error: itemError } = await auth.admin
@@ -97,7 +97,7 @@ export async function GET(request: Request) {
     ]);
   }
 
-  // أرصدة الفرع لأصناف الكتالوج ومكونات الوصفات
+  // أرصدة القسم لأصناف الكتالوج ومكونات الوصفات
   const stockByInventoryItem = new Map<string, number>();
   if (branchId && allInventoryItemIds.length) {
     const { data: stockRows } = await auth.admin
@@ -155,7 +155,7 @@ export async function GET(request: Request) {
     success: true,
     device: auth.device,
     items: (itemRows ?? []).map((item: any) => {
-      // حساب رصيد الصنف المباشر أو رصيد الوصفة اللحظي بناءً على المكونات المتوفرة في الفرع
+      // حساب رصيد الصنف المباشر أو رصيد الوصفة اللحظي بناءً على المكونات المتوفرة في القسم
       let finalStock: number | null = null;
       if (item.inventory_item_id) {
         finalStock = stockByInventoryItem.get(item.inventory_item_id) ?? 0;
@@ -294,7 +294,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 
-  // ربط الصنف بالمخزن: إنشاء صنف مخزون وربطه برصيد الفرع ليظهر في المخزون ويبقى دائمًا
+  // ربط الصنف بالمخزن: إنشاء صنف مخزون وربطه برصيد القسم ليظهر في المخزون ويبقى دائمًا
   let inventoryItemId: string | null = null;
   if (linkInventory) {
     const { data: inv, error: invErr } = await auth.admin

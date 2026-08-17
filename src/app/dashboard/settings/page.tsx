@@ -55,7 +55,7 @@ export default async function SettingsPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Building2 className="h-5 w-5 text-primary" />
-                الأقسام والفرع الحالية
+                الأقسام والقسم الحالية
               </CardTitle>
             </CardHeader>
             <CardContent className="grid gap-2 sm:grid-cols-2">
@@ -84,7 +84,7 @@ export default async function SettingsPage() {
                   <span>
                     {type === "price_increase" && "ارتفاع غير متوقع للأسعار (تذبذب الأسعار)"}
                     {type === "purchase_received" && "اعتماد توريد شحنة أو فاتورة جديدة"}
-                    {type === "waste_logged" && "تسجيل كميات تالف ومحاريق"}
+                    {type === "waste_logged" && "تسجيل كميات هدر وتالف"}
                     {type === "expiry_near" && "اقتراب موعد انتهاء صلاحية مادة"}
                     {type === "department_order_ready" && "طلب جديد مرسل من الأقسام الداخلية"}
                   </span>
@@ -113,7 +113,7 @@ export default async function SettingsPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Plus className="h-5 w-5 text-primary" />
-                إضافة قسم / فرع جديد
+                إضافة قسم / قسم جديد
               </CardTitle>
             </CardHeader>
             <CardContent>

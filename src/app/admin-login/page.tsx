@@ -72,6 +72,8 @@ export default function AdminLoginPage() {
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
+              placeholder="admin"
+              autoComplete="username"
               className="w-full rounded-2xl border border-transparent bg-muted px-4 py-3 text-foreground outline-none transition-all focus:ring-2 focus:ring-primary"
               required
               dir="ltr"
@@ -86,6 +88,7 @@ export default function AdminLoginPage() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
               className="w-full rounded-2xl border border-transparent bg-muted px-4 py-3 text-foreground outline-none transition-all focus:ring-2 focus:ring-primary"
               required
               dir="ltr"

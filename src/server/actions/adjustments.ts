@@ -14,7 +14,7 @@ type ActionState = {
 };
 
 const manualAdjustmentSchema = z.object({
-  branchId: z.string().uuid("اختر الفرع"),
+  branchId: z.string().uuid("اختر القسم"),
   itemId: z.string().uuid("اختر المادة"),
   movementType: z.enum(["purchase", "waste", "adjustment", "stock_count"]),
   quantity: z.coerce.number(),

@@ -5,13 +5,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronDown, Layers, PanelLeftClose, PanelLeftOpen, ShieldCheck } from "lucide-react";
 import {
-  appNav,
   adminNav,
+  canViewNavItem,
+  navigationGroupsForRole,
+  pinnedNav,
   type NavGroup,
-  type NavItem,
 } from "@/components/layout/nav-config";
 import { cn } from "@/lib/utils";
-import { moduleForPath, planHasModule } from "@/lib/billing/plans";
 import type { Role } from "@/types/domain";
 
 type AppSidebarProps = {
@@ -26,22 +26,22 @@ type AppSidebarProps = {
 const STORAGE_GROUPS = "rewaq.sidebar.openGroups";
 const STORAGE_COLLAPSE = "rewaq.sidebar.collapsed";
 
-function canView(item: NavItem, role?: Role, planCode?: string) {
-  if (item.roles && item.roles.length > 0 && role && !item.roles.includes(role)) return false;
-  const routeModule = moduleForPath(item.href);
-  return !routeModule || !planCode || planHasModule(planCode, routeModule);
-}
-
 function buildGroups(mode: "app" | "admin", role?: Role, planCode?: string): NavGroup[] {
   if (mode === "admin") {
     return [{ title: "المنصة", icon: Layers, items: adminNav }];
   }
-  return appNav
+
+  const primary = pinnedNav.filter((item) => canViewNavItem(item, role, planCode));
+  const groups = navigationGroupsForRole(role)
     .map((group) => ({
       ...group,
-      items: group.items.filter((item) => canView(item, role, planCode)),
+      items: group.items.filter((item) => canViewNavItem(item, role, planCode)),
     }))
     .filter((group) => group.items.length > 0);
+
+  return primary.length > 0
+    ? [{ title: "الرئيسية", icon: primary[0].icon, defaultOpen: true, items: primary }, ...groups]
+    : groups;
 }
 
 export function AppSidebar({
@@ -100,7 +100,6 @@ export function AppSidebar({
       });
       return next;
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPath, groups]);
 
   const toggleGroup = (title: string) => {

@@ -99,7 +99,7 @@ export async function POST(request: Request) {
     }
     if (isWorkflowDevice && !branchId) {
       return NextResponse.json(
-        { success: false, error: "يجب تحديد فرع لجهاز النادل أو المطبخ أو Expo." },
+        { success: false, error: "يجب تحديد قسم لجهاز النادل أو المطبخ أو Expo." },
         { status: 400 },
       );
     }
@@ -173,11 +173,11 @@ export async function POST(request: Request) {
         .eq("organization_id", session.organizationId)
         .maybeSingle();
       if (branchError) {
-        return NextResponse.json({ success: false, error: "تعذر التحقق من الفرع." }, { status: 500 });
+        return NextResponse.json({ success: false, error: "تعذر التحقق من القسم." }, { status: 500 });
       }
       if (!branch) {
         return NextResponse.json(
-          { success: false, error: "الفرع المحدد غير موجود داخل مؤسستك." },
+          { success: false, error: "القسم المحدد غير موجود داخل مؤسستك." },
           { status: 400 },
         );
       }

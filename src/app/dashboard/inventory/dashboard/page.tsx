@@ -40,7 +40,7 @@ export default async function InventoryDashboardPage() {
   });
 
   const wasteTotal = wasteLogs.reduce((sum, w) => sum + (w.cost || 0), 0);
-  const pendingTransfers = transfers.filter((t) => t.status === "draft" || t.status === "sent").length;
+  const pendingTransfers = transfers.filter((t) => ["draft", "pending_approval", "approved", "in_transit", "variance_review"].includes(t.status)).length;
 
   // حركات واردة/صادرة
   const incoming = movements.filter((m) => m.quantity > 0);

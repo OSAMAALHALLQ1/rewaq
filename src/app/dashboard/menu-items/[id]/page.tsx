@@ -1,9 +1,6 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Megaphone } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatCurrency, formatPercent } from "@/lib/utils";
 import { getMenuItem } from "@/server/queries/app";
@@ -17,15 +14,7 @@ export default async function MenuItemDetailsPage({ params }: { params: Promise<
     <>
       <PageHeader
         title={item.name}
-        description="تحليل ربحية الطبق وسرعة تحويله إلى منشور تسويقي."
-        actions={
-          <Button asChild>
-            <Link href={`/dashboard/marketing/create?menuItem=${item.id}`}>
-              <Megaphone className="h-4 w-4" />
-              حوّل هذا الطبق إلى منشور
-            </Link>
-          </Button>
-        }
+        description="تحليل ربحية الطبق وتكلفة الوصفة وهامش الربح."
       />
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <Card>

@@ -41,7 +41,11 @@ function makeAdmin(options: {
     error: options.subscriptionError ?? null,
   });
   const organizations = makeQuery({
-    data: options.organization ?? null,
+    data:
+      options.organization ?? {
+        plan: "starter",
+        plan_selected_at: "2026-07-01T00:00:00.000Z",
+      },
     error: options.organizationError ?? null,
   });
   const from = vi.fn((table: string) => {
@@ -79,6 +83,8 @@ describe("getOrganizationEntitlements", () => {
         plan: {
           code: "growth",
           name: "خطة مخصصة",
+          monthly_price: "299.50",
+          currency: "USD",
           features: ["inventory", "purchasing", "unknown", 42, null],
           limits: { maxBranches: 5, maxUsers: 40, maxDevices: null },
         },
@@ -89,8 +95,11 @@ describe("getOrganizationEntitlements", () => {
 
     expect(entitlements).toMatchObject({
       organizationId: "org-1",
+      selected: true,
       planCode: "growth",
       planName: "خطة مخصصة",
+      monthlyPrice: 299.5,
+      currency: "USD",
       status: "active",
       periodEnd: "2026-08-01T00:00:00.000Z",
       modules: ["inventory", "purchasing"],
@@ -99,7 +108,7 @@ describe("getOrganizationEntitlements", () => {
     });
   });
 
-  it("falls back to catalog features and limits when database values are unusable", async () => {
+  it("fails closed for an explicit feature list with no recognized modules", async () => {
     useDatabaseEntitlements();
     const { admin } = makeAdmin({
       subscription: {
@@ -116,8 +125,26 @@ describe("getOrganizationEntitlements", () => {
 
     const entitlements = await getOrganizationEntitlements(admin, "org-2");
 
-    expect(entitlements.modules).toEqual(REWAQ_PLANS.growth.modules);
+    expect(entitlements.modules).toEqual([]);
     expect(entitlements.limits).toEqual(REWAQ_PLANS.growth.limits);
+  });
+
+  it("fails closed instead of granting features from an unknown plan code", async () => {
+    useDatabaseEntitlements();
+    const { admin } = makeAdmin({
+      subscription: {
+        status: "active",
+        plan: {
+          code: "custom-unreviewed",
+          features: ["accounting", "marketing"],
+          limits: {},
+        },
+      },
+    });
+
+    await expect(getOrganizationEntitlements(admin, "org-unknown-plan")).rejects.toThrow(
+      "خطة الاشتراك الحالية غير معروفة",
+    );
   });
 
   it("uses the organization plan when no subscription exists", async () => {
@@ -131,6 +158,30 @@ describe("getOrganizationEntitlements", () => {
     expect(entitlements.canWrite).toBe(true);
   });
 
+  it("denies every module while the organization has not selected a plan", async () => {
+    useDatabaseEntitlements();
+    const { admin } = makeAdmin({
+      organization: { plan: "starter", plan_selected_at: null },
+      subscription: {
+        status: "active",
+        plan: { code: "scale", features: REWAQ_MODULES },
+      },
+    });
+
+    const entitlements = await getOrganizationEntitlements(admin, "org-unselected");
+
+    expect(entitlements).toMatchObject({
+      selected: false,
+      status: "unselected",
+      modules: [],
+      canWrite: false,
+    });
+    await expect(requireOrganizationModule(admin, "org-unselected", "pos")).rejects.toMatchObject({
+      code: "PLAN_MODULE_LOCKED",
+      message: expect.stringContaining("يختار مالك المؤسسة"),
+    });
+  });
+
   it("grants the full scale plan in non-production demo mode without querying", async () => {
     process.env.RAWAQ_DEMO_MODE = "true";
     (process.env as Record<string, string | undefined>).NODE_ENV = "test";
@@ -140,6 +191,7 @@ describe("getOrganizationEntitlements", () => {
 
     expect(entitlements).toMatchObject({
       organizationId: "demo-org",
+      selected: true,
       planCode: "scale",
       status: "trial",
       modules: REWAQ_MODULES,
@@ -151,6 +203,22 @@ describe("getOrganizationEntitlements", () => {
 });
 
 describe("requireOrganizationModule", () => {
+  it.each(["tables", "restaurant_workflow", "kitchen", "expo"] as const)(
+    "opens the %s Tikka entitlement from growth but not starter",
+    async (module) => {
+      useDatabaseEntitlements();
+      const starter = makeAdmin({ organization: { plan: "starter" } });
+      const growth = makeAdmin({ organization: { plan: "growth" } });
+
+      await expect(
+        requireOrganizationModule(starter.admin, "org-starter", module),
+      ).rejects.toMatchObject({ code: "PLAN_MODULE_LOCKED", module });
+      await expect(
+        requireOrganizationModule(growth.admin, "org-growth", module),
+      ).resolves.toMatchObject({ planCode: "growth" });
+    },
+  );
+
   it("rejects a module locked by the current plan", async () => {
     useDatabaseEntitlements();
     const { admin } = makeAdmin({ organization: { plan: "starter" } });

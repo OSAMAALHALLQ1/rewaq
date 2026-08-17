@@ -10,7 +10,7 @@ export async function GET(request: Request) {
   }
   if (!auth.device.branchId) {
     return NextResponse.json(
-      { success: false, error: "جهاز النادل يجب أن يكون مربوطاً بفرع محدد." },
+      { success: false, error: "جهاز النادل يجب أن يكون مربوطاً بقسم محدد." },
       { status: 403 },
     );
   }

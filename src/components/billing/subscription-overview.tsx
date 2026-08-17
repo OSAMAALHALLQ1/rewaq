@@ -39,6 +39,16 @@ const SUBSCRIPTION_STATUS: Record<
     tone: "danger",
     description: "يمكن مراجعة البيانات، بينما تتطلب العمليات الجديدة إعادة تفعيل الاشتراك.",
   },
+  cancelled: {
+    label: "ملغى",
+    tone: "danger",
+    description: "يمكن مراجعة البيانات السابقة، بينما تتطلب العمليات الجديدة اشتراكًا فعالًا.",
+  },
+  unselected: {
+    label: "لم تُختر باقة",
+    tone: "warning",
+    description: "يجب أن يختار مالك المؤسسة باقة قبل فتح وحدات النظام.",
+  },
 };
 
 export function SubscriptionOverview({
@@ -72,10 +82,10 @@ export function SubscriptionOverview({
     description: "حالة الاشتراك قيد المراجعة لدى فريق رواق.",
   };
   const limits = [
-    { label: "الفروع", value: formatLimit(plan.limits.maxBranches), icon: Building2 },
-    { label: "المستخدمون", value: formatLimit(plan.limits.maxUsers), icon: UsersRound },
-    { label: "الأجهزة", value: formatLimit(plan.limits.maxDevices), icon: MonitorSmartphone },
-    { label: "الوحدات", value: String(plan.modules.length), icon: Layers3 },
+    { label: "الأقسام", value: formatLimit(subscription.limits.maxBranches), icon: Building2 },
+    { label: "المستخدمون", value: formatLimit(subscription.limits.maxUsers), icon: UsersRound },
+    { label: "الأجهزة", value: formatLimit(subscription.limits.maxDevices), icon: MonitorSmartphone },
+    { label: "الوحدات", value: String(subscription.modules.length), icon: Layers3 },
   ];
 
   return (
@@ -86,7 +96,7 @@ export function SubscriptionOverview({
             <p className="text-xs font-bold text-muted-foreground">الاشتراك الحالي</p>
             <CardTitle className="mt-1 flex items-center gap-2 text-2xl">
               <WalletCards className="h-5 w-5 text-primary" aria-hidden="true" />
-              {plan.name}
+              {subscription.planName}
             </CardTitle>
           </div>
           <Badge tone={status.tone}>{status.label}</Badge>
@@ -95,8 +105,12 @@ export function SubscriptionOverview({
           <div className="flex flex-col gap-2 border-b border-border pb-5 sm:flex-row sm:items-end sm:justify-between">
             <p className="text-sm leading-6 text-muted-foreground">{plan.description}</p>
             <p className="shrink-0 font-bold text-foreground" dir="ltr">
-              <span className="text-3xl font-black tabular-nums">{plan.monthlyPriceUsd}</span>{" "}
-              <span className="text-sm text-muted-foreground">USD / month</span>
+              <span className="text-3xl font-black tabular-nums">
+                {subscription.monthlyPrice}
+              </span>{" "}
+              <span className="text-sm text-muted-foreground">
+                {subscription.currency} / month
+              </span>
             </p>
           </div>
 

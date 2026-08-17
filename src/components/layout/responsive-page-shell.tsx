@@ -97,7 +97,7 @@ export function ResponsivePageShell({
       </div>
 
       {/* Mobile Bottom Navigation (visible below md) */}
-      <MobileBottomNav planCode={planCode} />
+      <MobileBottomNav role={session.role} planCode={planCode} />
     </>
   );
 }

@@ -5,11 +5,11 @@ import { PlanComparison } from "@/components/billing/plan-comparison";
 import { SubscriptionOverview } from "@/components/billing/subscription-overview";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
-import { REWAQ_PLAN_LIST } from "@/lib/billing/plans";
 import {
   getOrganizationEntitlements,
   type OrganizationEntitlements,
 } from "@/server/billing/entitlements";
+import { getCurrentPlanCatalog } from "@/server/billing/plan-catalog";
 import { withAdminScope } from "@/server/queries/_shared/utils";
 
 async function loadSubscription(): Promise<OrganizationEntitlements | null> {
@@ -25,7 +25,10 @@ async function loadSubscription(): Promise<OrganizationEntitlements | null> {
 }
 
 export default async function BillingPage() {
-  const subscription = await loadSubscription();
+  const [subscription, plans] = await Promise.all([
+    loadSubscription(),
+    getCurrentPlanCatalog(),
+  ]);
 
   return (
     <>
@@ -54,7 +57,7 @@ export default async function BillingPage() {
           </p>
         </div>
         <div className="grid items-stretch gap-5 lg:grid-cols-3">
-          {REWAQ_PLAN_LIST.map((plan) => {
+          {plans.map((plan) => {
             const current = subscription?.planCode === plan.code;
             return (
               <PlanCard
@@ -73,6 +76,7 @@ export default async function BillingPage() {
       </section>
 
       <PlanComparison
+        plans={plans}
         className="mt-10 pb-2"
         description="الوحدات المتاحة لكل باقة كما هي معتمدة في كتالوج رواق."
       />

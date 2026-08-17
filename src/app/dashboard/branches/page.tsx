@@ -12,12 +12,12 @@ export default async function BranchesPage() {
   return (
     <>
       <PageHeader
-        title="الفروع"
-        description="إدارة فروع المؤسسة وربط المخزون، المشتريات، التقارير، والصلاحيات بكل فرع."
+        title="الأقسام"
+        description="إدارة أقسام المؤسسة وربط المخزون، المشتريات، التقارير، والصلاحيات بكل قسم."
         actions={
           <Button>
             <Plus className="h-4 w-4" />
-            فرع جديد
+            قسم جديد
           </Button>
         }
       />
@@ -25,14 +25,14 @@ export default async function BranchesPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Building2 className="h-5 w-5 text-primary" />
-            فروع المؤسسة
+            أقسام المؤسسة
           </CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>الفرع</TableHead>
+                <TableHead>القسم</TableHead>
                 <TableHead>المدينة</TableHead>
                 <TableHead>العنوان</TableHead>
                 <TableHead>المدير</TableHead>

@@ -201,7 +201,7 @@ export function CustomerInvoicesClient({ invoices, branches, catalogItems }: Cus
                 value={selectedBranchFilter}
                 onChange={(e) => setSelectedBranchFilter(e.target.value)}
               >
-                <option value="all">كل الفروع</option>
+                <option value="all">كل الأقسام</option>
                 {branches.map((branch) => (
                   <option key={branch.id} value={branch.id}>
                     {branch.name}
@@ -217,7 +217,7 @@ export function CustomerInvoicesClient({ invoices, branches, catalogItems }: Cus
               <TableRow>
                 <TableHead>رقم الفاتورة</TableHead>
                 <TableHead>العميل</TableHead>
-                <TableHead>الفرع</TableHead>
+                <TableHead>القسم</TableHead>
                 <TableHead>الدفع</TableHead>
                 <TableHead>المجموع</TableHead>
                 <TableHead>الحالة</TableHead>
@@ -289,7 +289,7 @@ export function CustomerInvoicesClient({ invoices, branches, catalogItems }: Cus
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-1.5 block text-xs font-bold text-muted-foreground">الفرع المالي</label>
+              <label className="mb-1.5 block text-xs font-bold text-muted-foreground">القسم المالي</label>
               <Select value={branchId} onChange={(e) => setBranchId(e.target.value)}>
                 {branches.map((b) => (
                   <option key={b.id} value={b.id}>

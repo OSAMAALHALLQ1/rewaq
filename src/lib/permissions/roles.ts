@@ -3,7 +3,7 @@ import type { Role } from "@/types/domain";
 export const roleLabels: Record<Role, string> = {
   super_admin: "Super Admin",
   organization_owner: "مالك المؤسسة",
-  branch_manager: "مدير فرع",
+  branch_manager: "مدير قسم",
   cashier: "كاشير",
   inventory_manager: "مدير مخزون",
   purchasing_manager: "مدير مشتريات",

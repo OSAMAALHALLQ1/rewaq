@@ -6,11 +6,11 @@ import { getOptionalSession } from "@/lib/auth/session";
 // Demo seed staff members (Tekka-style: avatar initial + role color + login code).
 // Used when Supabase admin env is not configured (simulation mode).
 const demoStaff = [
-  { id: "staff-demo-1", full_name: "سامي الخطيب", phone: "0599123456", role: "waiter", login_code: "W-7392", is_active: true, created_at: new Date().toISOString(), branch_name: "فرع شارع عبد القادر الحسيني", linked_device_key_id: null },
-  { id: "staff-demo-2", full_name: "ليان مرعي", phone: "0599654321", role: "waiter", login_code: "W-4815", is_active: true, created_at: new Date().toISOString(), branch_name: "فرع شارع عبد القادر الحسيني", linked_device_key_id: null },
-  { id: "staff-demo-3", full_name: "أحمد الكاشير", phone: "0567112233", role: "cashier", login_code: "C-2046", is_active: true, created_at: new Date().toISOString(), branch_name: "فرع شارع عبد القادر الحسيني", linked_device_key_id: null },
-  { id: "staff-demo-4", full_name: "الشيف خالد", phone: "0599009988", role: "kitchen", login_code: "K-9123", is_active: true, created_at: new Date().toISOString(), branch_name: "فرع شارع عبد القادر الحسيني", linked_device_key_id: null },
-  { id: "staff-demo-5", full_name: "محمود بار", phone: "0567556677", role: "bar", login_code: "B-3378", is_active: false, created_at: new Date().toISOString(), branch_name: "فرع الرمال", linked_device_key_id: null },
+  { id: "staff-demo-1", full_name: "سامي الخطيب", phone: "0599123456", role: "waiter", login_code: "W-7392", is_active: true, created_at: new Date().toISOString(), branch_name: "قسم شارع عبد القادر الحسيني", linked_device_key_id: null },
+  { id: "staff-demo-2", full_name: "ليان مرعي", phone: "0599654321", role: "waiter", login_code: "W-4815", is_active: true, created_at: new Date().toISOString(), branch_name: "قسم شارع عبد القادر الحسيني", linked_device_key_id: null },
+  { id: "staff-demo-3", full_name: "أحمد الكاشير", phone: "0567112233", role: "cashier", login_code: "C-2046", is_active: true, created_at: new Date().toISOString(), branch_name: "قسم شارع عبد القادر الحسيني", linked_device_key_id: null },
+  { id: "staff-demo-4", full_name: "الشيف خالد", phone: "0599009988", role: "kitchen", login_code: "K-9123", is_active: true, created_at: new Date().toISOString(), branch_name: "قسم شارع عبد القادر الحسيني", linked_device_key_id: null },
+  { id: "staff-demo-5", full_name: "محمود بار", phone: "0567556677", role: "bar", login_code: "B-3378", is_active: false, created_at: new Date().toISOString(), branch_name: "قسم الرمال", linked_device_key_id: null },
 ];
 
 export async function GET(request: Request) {
@@ -55,7 +55,7 @@ export async function GET(request: Request) {
     login_code: row.login_code,
     is_active: row.is_active,
     created_at: row.created_at,
-    branch_name: row.branches?.name ?? "فرع غير محدد",
+    branch_name: row.branches?.name ?? "قسم غير محدد",
     linked_device_key_id: row.linked_device_key_id ?? null,
   }));
 

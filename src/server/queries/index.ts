@@ -22,7 +22,6 @@ export * from "./purchasing";
 export * from "./sales";
 export * from "./recipes";
 export * from "./production";
-export * from "./marketing";
 export * from "./admin";
 
 // ============================================================================

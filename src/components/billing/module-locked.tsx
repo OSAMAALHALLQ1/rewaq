@@ -8,11 +8,15 @@ export function ModuleLocked({
   currentPlanName,
   requiredPlanName,
   verificationFailed = false,
+  canManageBilling = false,
+  returnHref = "/dashboard",
 }: {
   moduleLabel: string;
   currentPlanName: string;
   requiredPlanName: string;
   verificationFailed?: boolean;
+  canManageBilling?: boolean;
+  returnHref?: string | null;
 }) {
   return (
     <div className="grid min-h-[60vh] place-items-center">
@@ -35,18 +39,23 @@ export function ModuleLocked({
             ) : (
               <>
                 باقتك الحالية هي «{currentPlanName}». للوصول إلى وحدة {moduleLabel} تحتاج إلى
-                باقة «{requiredPlanName}» أو أعلى. يمكنك مراجعة الباقات وطلب الترقية من صفحة
-                الفوترة.
+                باقة «{requiredPlanName}» أو أعلى. {canManageBilling
+                  ? "يمكنك مراجعة الباقات وطلب الترقية من صفحة الفوترة."
+                  : "تواصل مع مالك المؤسسة لطلب ترقية الباقة."}
               </>
             )}
           </p>
           <div className="mt-2 flex flex-wrap justify-center gap-3">
-            <Button asChild>
-              <Link href="/dashboard/billing">مراجعة الباقات والترقية</Link>
-            </Button>
-            <Button variant="outline" asChild>
-              <Link href="/dashboard">العودة للوحة التحكم</Link>
-            </Button>
+            {canManageBilling ? (
+              <Button asChild>
+                <Link href="/dashboard/billing">مراجعة الباقات والترقية</Link>
+              </Button>
+            ) : null}
+            {returnHref ? (
+              <Button variant="outline" asChild>
+                <Link href={returnHref}>العودة لمساحة العمل</Link>
+              </Button>
+            ) : null}
           </div>
         </CardContent>
       </Card>

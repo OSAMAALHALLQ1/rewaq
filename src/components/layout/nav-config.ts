@@ -18,7 +18,6 @@ import {
   ArrowLeftRight,
   Landmark,
   ListChecks,
-  Megaphone,
   MonitorSmartphone,
   PackageMinus,
   Percent,
@@ -45,6 +44,9 @@ import {
   BookOpenCheck,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { canRoleAccessPath } from "@/lib/auth/route-access";
+import { moduleForPath, planHasModule } from "@/lib/billing/plans";
+import type { Role } from "@/types/domain";
 
 export type NavItem = {
   title: string;
@@ -74,6 +76,24 @@ export const appNav: NavGroup[] = [
       { title: "شاشة الكاشير POS", href: "/d/pos", icon: MonitorSmartphone, badge: "أساسي" },
       { title: "الورديات والصندوق", href: "/dashboard/shifts", icon: WalletCards },
       { title: "الطاولات", href: "/dashboard/tables", icon: Table },
+      {
+        title: "شاشة النادل",
+        href: "/d/waiter",
+        icon: Tablet,
+        roles: ["super_admin", "organization_owner", "branch_manager", "staff"],
+      },
+      {
+        title: "شاشة المطبخ KDS",
+        href: "/d/kitchen",
+        icon: Utensils,
+        roles: ["super_admin", "organization_owner", "branch_manager", "chef"],
+      },
+      {
+        title: "التجميع والتسليم Expo",
+        href: "/d/expo",
+        icon: ClipboardCheck,
+        roles: ["super_admin", "organization_owner", "branch_manager", "chef"],
+      },
     ],
   },
   {
@@ -105,7 +125,7 @@ export const appNav: NavGroup[] = [
       { title: "حركات المخزن", href: "/dashboard/stock-movements", icon: FileText },
       { title: "الجرد", href: "/dashboard/stock-counts", icon: ListChecks },
       { title: "التحويلات الداخلية", href: "/dashboard/transfers", icon: Truck },
-      { title: "التالف والمحاريق", href: "/dashboard/waste", icon: PackageMinus },
+      { title: "الهدر والتالف", href: "/dashboard/waste", icon: PackageMinus },
     ],
   },
   {
@@ -121,7 +141,7 @@ export const appNav: NavGroup[] = [
     icon: Utensils,
     items: [
       { title: "أطباق القائمة", href: "/dashboard/menu-items", icon: Utensils },
-      { title: "المنيو والموقع", href: "/dashboard/digital-presence", icon: Store, badge: "باقة 250$" },
+      { title: "المنيو والموقع", href: "/dashboard/digital-presence", icon: Store },
       { title: "مجموعات الإضافات", href: "/dashboard/modifiers", icon: ListPlus },
     ],
   },
@@ -170,27 +190,114 @@ export const appNav: NavGroup[] = [
     ],
   },
   {
-    title: "التسويق والنشر",
-    icon: Megaphone,
-    items: [
-      { title: "إدارة التسويق", href: "/dashboard/marketing", icon: ClipboardList },
-      { title: "النشر عبر السوشيال", href: "/dashboard/social-publishing", icon: Megaphone },
-    ],
-  },
-  {
     title: "الإعدادات",
     icon: Settings,
     items: [
-      { title: "الفروع", href: "/dashboard/branches", icon: Building2 },
+      {
+        title: "الأقسام",
+        href: "/dashboard/branches",
+        icon: Building2,
+        roles: ["super_admin", "organization_owner"],
+      },
+      {
+        title: "المستخدمون والفريق",
+        href: "/dashboard/settings/users",
+        icon: UserCheck,
+        roles: ["super_admin", "organization_owner", "branch_manager"],
+      },
+      {
+        title: "إدارة الموظفين",
+        href: "/dashboard/settings/devices?tab=staff",
+        icon: Users,
+        roles: ["super_admin", "organization_owner", "branch_manager"],
+      },
+      {
+        title: "الأجهزة والأكواد",
+        href: "/dashboard/settings/devices",
+        icon: Tablet,
+        roles: ["super_admin", "organization_owner"],
+      },
+      {
+        title: "مركز الاختصارات",
+        href: "/dashboard/settings#shortcuts",
+        icon: Keyboard,
+        roles: ["super_admin", "organization_owner"],
+      },
+      {
+        title: "الإعدادات العامة",
+        href: "/dashboard/settings",
+        icon: SlidersHorizontal,
+        roles: ["super_admin", "organization_owner"],
+      },
+      {
+        title: "الفوترة والاشتراك",
+        href: "/dashboard/billing",
+        icon: WalletCards,
+        roles: ["super_admin", "organization_owner"],
+      },
+    ],
+  },
+];
+
+/**
+ * The owner/admin sidebar is intentionally concise. These roles retain their
+ * server-side access to deeper pages, but the primary navigation stays focused
+ * on management outcomes instead of exposing the entire operational ledger.
+ */
+export const managementNav: NavGroup[] = [
+  {
+    title: "الإدارة والأداء",
+    icon: Gauge,
+    defaultOpen: true,
+    items: [
+      { title: "التقارير والتحليلات", href: "/dashboard/reports", icon: BarChart3 },
+      {
+        title: "الربحية",
+        href: "/dashboard/accounting/p-and-l",
+        icon: TrendingUp,
+        roles: ["super_admin", "organization_owner"],
+      },
+      {
+        title: "تكلفة الطعام",
+        href: "/dashboard/food-cost",
+        icon: WalletCards,
+        roles: ["super_admin", "organization_owner"],
+      },
+      { title: "المنيو والموقع", href: "/dashboard/digital-presence", icon: Store },
+    ],
+  },
+  {
+    title: "الأقسام والفريق",
+    icon: Building2,
+    defaultOpen: true,
+    items: [
+      { title: "الأقسام", href: "/dashboard/branches", icon: Building2 },
       { title: "المستخدمون والفريق", href: "/dashboard/settings/users", icon: UserCheck },
-      { title: "إدارة الموظفين", href: "/dashboard/settings/devices?tab=staff", icon: Users },
       { title: "الأجهزة والأكواد", href: "/dashboard/settings/devices", icon: Tablet },
-      { title: "مركز الاختصارات", href: "/dashboard/settings#shortcuts", icon: Keyboard },
+    ],
+  },
+  {
+    title: "إعدادات المؤسسة",
+    icon: Settings,
+    defaultOpen: true,
+    items: [
       { title: "الإعدادات العامة", href: "/dashboard/settings", icon: SlidersHorizontal },
       { title: "الفوترة والاشتراك", href: "/dashboard/billing", icon: WalletCards },
     ],
   },
 ];
+
+export function canViewNavItem(item: NavItem, role?: Role, planCode?: string): boolean {
+  if (!role || !canRoleAccessPath(role, item.href)) return false;
+  if (item.roles && item.roles.length > 0 && !item.roles.includes(role)) return false;
+
+  const routeModule = moduleForPath(item.href);
+  return !routeModule || Boolean(planCode && planHasModule(planCode, routeModule));
+}
+
+export function navigationGroupsForRole(role?: Role): NavGroup[] {
+  return role === "organization_owner" || role === "super_admin" ? managementNav : appNav;
+}
 
 export const accountingNav: NavGroup = {
   title: "المحاسبة والمالية",

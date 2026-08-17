@@ -10,7 +10,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
   const svg = createInvoiceSvgImage({
     invoiceNumber,
     organizationName: "رواق",
-    branchName: "فرع البيع السريع",
+    branchName: "قسم البيع السريع",
     customerName: "عميل نقدي",
     issuedAt: new Date().toISOString(),
     total,

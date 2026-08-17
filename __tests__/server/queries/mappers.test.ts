@@ -153,7 +153,7 @@ describe("mapInventoryItem", () => {
 describe("mapBranchStock", () => {
   it("should map database row to BranchStock type", () => {
     const branchMap = new Map([
-      ["branch-001", { id: "branch-001", name: "الفرع الرئيسي" }],
+      ["branch-001", { id: "branch-001", name: "القسم الرئيسي" }],
     ]);
 
     const row = {
@@ -167,7 +167,7 @@ describe("mapBranchStock", () => {
 
     expect(result).toEqual({
       branchId: "branch-001",
-      branchName: "الفرع الرئيسي",
+      branchName: "القسم الرئيسي",
       itemId: "item-001",
       quantity: 50,
       reservedQuantity: 5,
@@ -186,7 +186,7 @@ describe("mapBranchStock", () => {
 
     const result = mapBranchStock(row, branchMap);
 
-    expect(result.branchName).toBe("فرع غير معروف");
+    expect(result.branchName).toBe("قسم غير معروف");
   });
 });
 
@@ -196,7 +196,7 @@ describe("mapPurchaseOrder", () => {
       ["sup-123", { id: "sup-123", name: "مورد الدجاج" }],
     ]);
     const branchMap = new Map([
-      ["branch-001", { id: "branch-001", name: "الفرع الرئيسي" }],
+      ["branch-001", { id: "branch-001", name: "القسم الرئيسي" }],
     ]);
     const itemMap = new Map([
       ["item-001", { id: "item-001", name: "دجاج" }],
@@ -222,7 +222,7 @@ describe("mapPurchaseOrder", () => {
 
     expect(result.id).toBe("po-001");
     expect(result.supplierName).toBe("مورد الدجاج");
-    expect(result.branchName).toBe("الفرع الرئيسي");
+    expect(result.branchName).toBe("القسم الرئيسي");
     expect(result.status).toBe("received");
     expect(result.total).toBe(1500);
     expect(result.items).toHaveLength(1);
@@ -236,7 +236,7 @@ describe("mapInvoice", () => {
       ["sup-123", { id: "sup-123", name: "مورد الخضار" }],
     ]);
     const branchMap = new Map([
-      ["branch-001", { id: "branch-001", name: "فرع الرمال" }],
+      ["branch-001", { id: "branch-001", name: "قسم الرمال" }],
     ]);
 
     const row = {
@@ -254,7 +254,7 @@ describe("mapInvoice", () => {
 
     expect(result.id).toBe("inv-001");
     expect(result.supplierName).toBe("مورد الخضار");
-    expect(result.branchName).toBe("فرع الرمال");
+    expect(result.branchName).toBe("قسم الرمال");
     expect(result.invoiceNumber).toBe("INV-2026-001");
     expect(result.status).toBe("paid");
     expect(result.total).toBe(2500);

@@ -1,24 +1,28 @@
 import { describe, expect, it } from "vitest";
-import {
-  employeeCodeLoginSchema,
-  ownerPasswordLoginSchema,
-} from "@/lib/validation/access";
+import { employeeCodeLoginSchema } from "@/lib/validation/access";
+import { authSchema } from "@/lib/validation/schemas";
 
 describe("password and employee-code login validation", () => {
-  it("accepts a valid owner password without requesting an email", () => {
-    const parsed = ownerPasswordLoginSchema.parse({ password: "valid-owner-password" });
-    expect(parsed).toEqual({ password: "valid-owner-password" });
+  it("requires each SaaS owner to use their own email and password", () => {
+    const parsed = authSchema.parse({
+      email: "owner@example.com",
+      password: "valid-owner-password",
+    });
+    expect(parsed).toEqual({
+      email: "owner@example.com",
+      password: "valid-owner-password",
+    });
   });
 
   it("normalizes employee invite codes without needing a password", () => {
     const parsed = employeeCodeLoginSchema.parse({
-      inviteCode: " abcd1234 ",
+      inviteCode: " rwq-7kmp-3xhf-9qtr-6wyz ",
     });
-    expect(parsed).toEqual({ inviteCode: "ABCD1234" });
+    expect(parsed).toEqual({ inviteCode: "RWQ-7KMP-3XHF-9QTR-6WYZ" });
   });
 
-  it("rejects short owner passwords and invalid employee codes", () => {
-    expect(ownerPasswordLoginSchema.safeParse({ password: "short" }).success).toBe(false);
+  it("rejects owner login without an email and invalid employee codes", () => {
+    expect(authSchema.safeParse({ password: "valid-owner-password" }).success).toBe(false);
     expect(employeeCodeLoginSchema.safeParse({ inviteCode: "12" }).success).toBe(false);
   });
 });

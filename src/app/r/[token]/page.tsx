@@ -60,7 +60,7 @@ export default async function DigitalReceiptPage({
               <div>
                 <p className="text-sm text-muted-foreground">البائع</p>
                 <p className="mt-1 font-bold">مطعم إيوان</p>
-                <p className="text-sm">فرع شارع عبد القادر الحسيني</p>
+                <p className="text-sm">قسم شارع عبد القادر الحسيني</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">الزبون</p>

@@ -90,13 +90,13 @@ export function MobileHeader({
         {/* Branch selector - shown below when branches available */}
         {branches.length > 0 && (
           <div className="px-4 pb-3 flex items-center gap-2 text-xs border-t border-border">
-            <span className="text-muted-foreground">الفرع:</span>
+            <span className="text-muted-foreground">القسم:</span>
             <select
               defaultValue={session.branchId ?? "all"}
               className="flex-1 rounded-full border border-transparent bg-muted px-3 py-1.5 text-xs hover:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               suppressHydrationWarning
             >
-              <option value="all">كل الفروع</option>
+              <option value="all">كل الأقسام</option>
               {branches.map((branch) => (
                 <option key={branch.id} value={branch.id}>
                   {branch.name}

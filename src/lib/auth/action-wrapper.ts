@@ -142,7 +142,7 @@ export function withBranchAuth<
       const access = await requireOrganizationAccess(user.organizationId);
       
       if (branchId && user.branchId && user.branchId !== branchId && !access.isOwner) {
-        return { ok: false, message: "ليس لديك صلاحية على هذا الفرع" } as Result;
+        return { ok: false, message: "ليس لديك صلاحية على هذا القسم" } as Result;
       }
 
       if (options.requiredRole && !access.isOwner && access.role !== options.requiredRole) {

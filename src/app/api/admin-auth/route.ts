@@ -1,34 +1,61 @@
 import { NextResponse } from "next/server";
 import { createAdminSession } from "@/lib/auth/admin-session";
+import {
+  adminClientFingerprint,
+  checkAdminLoginRateLimit,
+  getConfiguredAdminCredentials,
+  recordAdminLoginResult,
+  verifyConfiguredAdminCredentials,
+} from "@/lib/auth/admin-credentials";
+
+const GENERIC_ADMIN_ERROR = "تعذر تسجيل الدخول إلى بوابة الإدارة.";
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const { username, password } = body;
+    const body = await request.json().catch(() => ({}));
+    const username = typeof body.username === "string" ? body.username.trim() : "";
+    const password = typeof body.password === "string" ? body.password : "";
+    const secret = process.env.INTERNAL_ADMIN_SECRET;
+    const configuredCredentials = getConfiguredAdminCredentials();
 
-    const expectedUsername = process.env.INTERNAL_ADMIN_USERNAME;
-    const expectedPassword = process.env.INTERNAL_ADMIN_PASSWORD;
-
-    if (!expectedUsername || !expectedPassword) {
+    if (!configuredCredentials || !secret || secret.length < 32) {
       return NextResponse.json(
-        { error: "Admin credentials not configured on the server" },
-        { status: 500 }
+        { error: "بوابة الإدارة غير مهيأة بأسرار الخادم المطلوبة." },
+        { status: 503 },
       );
     }
 
-    if (username === expectedUsername && password === expectedPassword) {
-      await createAdminSession(username);
-      return NextResponse.json({ success: true });
+    const fingerprint = adminClientFingerprint(request, secret);
+    const rateLimit = checkAdminLoginRateLimit(fingerprint);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: "محاولات كثيرة. انتظر قليلًا ثم أعد المحاولة." },
+        {
+          status: 429,
+          headers: { "Retry-After": String(rateLimit.retryAfterSeconds) },
+        },
+      );
     }
 
-    return NextResponse.json(
-      { error: "Invalid credentials" },
-      { status: 401 }
-    );
-  } catch (error) {
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    if (
+      username.length > 120 ||
+      password.length > 512 ||
+      !verifyConfiguredAdminCredentials(username, password)
+    ) {
+      recordAdminLoginResult(fingerprint, false);
+      return NextResponse.json({ error: GENERIC_ADMIN_ERROR }, { status: 401 });
+    }
+
+    recordAdminLoginResult(fingerprint, true);
+    try {
+      await createAdminSession(username);
+    } catch (error) {
+      console.error("[admin-session]", error instanceof Error ? error.message : error);
+      return NextResponse.json({ error: GENERIC_ADMIN_ERROR }, { status: 503 });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch {
+    return NextResponse.json({ error: GENERIC_ADMIN_ERROR }, { status: 500 });
   }
 }

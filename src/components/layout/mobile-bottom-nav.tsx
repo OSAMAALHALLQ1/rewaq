@@ -3,19 +3,22 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { mobileMainNav } from "@/components/layout/mobile-nav-config";
-import { moduleForPath, planHasModule } from "@/lib/billing/plans";
+import { canViewNavItem } from "@/components/layout/nav-config";
+import { mobileMainNavForRole } from "@/components/layout/mobile-nav-config";
+import type { Role } from "@/types/domain";
 
-export function MobileBottomNav({ planCode }: { planCode?: string }) {
+export function MobileBottomNav({ role, planCode }: { role: Role; planCode?: string }) {
   const pathname = usePathname();
+  const items = mobileMainNavForRole(role).filter((item) =>
+    canViewNavItem(item, role, planCode),
+  );
+
+  if (items.length === 0) return null;
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-border/80 bg-white/95 backdrop-blur md:hidden">
       <div className="flex items-stretch justify-around">
-        {mobileMainNav.filter((item) => {
-          const routeModule = moduleForPath(item.href);
-          return !routeModule || !planCode || planHasModule(planCode, routeModule);
-        }).map((item) => {
+        {items.map((item) => {
           const Icon = item.icon;
           const isActive =
             pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(`${item.href}/`));

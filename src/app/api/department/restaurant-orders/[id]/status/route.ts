@@ -33,7 +33,7 @@ export async function PATCH(
     return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
   }
   if (!auth.device.branchId) {
-    return NextResponse.json({ success: false, error: "الجهاز غير مربوط بفرع." }, { status: 403 });
+    return NextResponse.json({ success: false, error: "الجهاز غير مربوط بقسم." }, { status: 403 });
   }
   const capability = requireDepartmentDeviceCapability(
     auth,

@@ -36,14 +36,10 @@ export type MenuItemRow = Tables<"menu_items">;
 export type CustomerInvoiceRow = Tables<"customer_invoices">;
 export type CustomerInvoiceItemRow = Tables<"customer_invoice_items">;
 export type NotificationRow = Tables<"notifications">;
-export type SocialAccountRow = Tables<"social_accounts">;
-export type SocialPostRow = Tables<"social_posts">;
-export type SocialPostTargetRow = Tables<"social_post_targets">;
 export type CatalogItemRow = Tables<"catalog_items">;
 export type ItemBarcodeRow = Tables<"item_barcodes">;
 export type SalesDailySummaryRow = Tables<"sales_daily_summaries">;
 export type DailyCostEntryRow = Tables<"daily_cost_entries">;
-export type SocialMediaAssetRow = Tables<"social_media_assets">;
 
 // ============================================================================
 // Demo Fallback

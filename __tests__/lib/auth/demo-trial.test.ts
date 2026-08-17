@@ -11,14 +11,14 @@ describe("demo trial ticket", () => {
     vi.useRealTimers();
   });
 
-  it("cannot sign a ticket without the secret and does not enforce the window", async () => {
+  it("fails closed when the signing secret is missing", async () => {
     vi.stubEnv("INTERNAL_ADMIN_SECRET", "");
     await expect(createDemoTrialToken()).resolves.toBeNull();
-    await expect(isDemoTrialTokenValid(undefined)).resolves.toBe(true);
+    await expect(isDemoTrialTokenValid(undefined)).resolves.toBe(false);
   });
 
   it("accepts a freshly signed ticket and rejects a missing or tampered one", async () => {
-    vi.stubEnv("INTERNAL_ADMIN_SECRET", "test-secret-for-demo-trial");
+    vi.stubEnv("INTERNAL_ADMIN_SECRET", "test-secret-for-demo-trial-at-least-32-characters");
     const token = await createDemoTrialToken();
 
     expect(token).toBeTruthy();
@@ -28,7 +28,7 @@ describe("demo trial ticket", () => {
   });
 
   it("rejects the ticket after the 8-hour window passes", async () => {
-    vi.stubEnv("INTERNAL_ADMIN_SECRET", "test-secret-for-demo-trial");
+    vi.stubEnv("INTERNAL_ADMIN_SECRET", "test-secret-for-demo-trial-at-least-32-characters");
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-07-17T08:00:00Z"));
 

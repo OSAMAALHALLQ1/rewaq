@@ -53,7 +53,7 @@ export async function GET(request: Request) {
 
   const branchId = await resolveBranchId(auth);
   if (!branchId) {
-    return NextResponse.json({ success: false, error: "لا يوجد فرع مربوط بجهاز المستودع." }, { status: 400 });
+    return NextResponse.json({ success: false, error: "لا يوجد قسم مربوط بجهاز المستودع." }, { status: 400 });
   }
 
   const [itemsResult, stockResult] = await Promise.all([

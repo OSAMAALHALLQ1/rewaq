@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { MapPin, MessageCircle, Phone, UtensilsCrossed } from "lucide-react";
 import { createAdminClientWithContext, hasSupabaseAdminEnv } from "@/lib/supabase/admin";
+import { formatCurrency } from "@/lib/utils";
 
 type PublicMenuItem = {
   id: string;
@@ -98,7 +99,7 @@ export default async function PublicRestaurantSitePage(
                   {site.items.filter((item) => item.category_name === category).map((item) => (
                     <article key={item.id} className={`overflow-hidden rounded-3xl border bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg ${item.is_featured ? "ring-2 ring-[var(--site-color)]/30" : ""}`}>
                       {item.image_url ? <img src={item.image_url} alt={item.name} className="aspect-[16/10] w-full object-cover" /> : <div className="grid aspect-[16/10] place-items-center bg-slate-100"><UtensilsCrossed className="h-10 w-10 text-slate-300" /></div>}
-                      <div className="p-5"><div className="flex items-start justify-between gap-4"><div><div className="flex items-center gap-2"><h3 className="text-lg font-black">{item.name}</h3>{item.is_featured && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">مميز</span>}</div>{item.description && <p className="mt-2 text-sm leading-6 text-slate-500">{item.description}</p>}</div><strong className="shrink-0 text-lg" style={{ color: site.primary_color }}>{Number(item.selling_price).toFixed(2)} د.أ</strong></div></div>
+                      <div className="p-5"><div className="flex items-start justify-between gap-4"><div><div className="flex items-center gap-2"><h3 className="text-lg font-black">{item.name}</h3>{item.is_featured && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">مميز</span>}</div>{item.description && <p className="mt-2 text-sm leading-6 text-slate-500">{item.description}</p>}</div><strong className="shrink-0 text-lg" style={{ color: site.primary_color }}>{formatCurrency(Number(item.selling_price))}</strong></div></div>
                     </article>
                   ))}
                 </div>

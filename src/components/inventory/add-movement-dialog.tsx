@@ -29,7 +29,7 @@ export function AddMovementDialog({ itemId, itemName, usageUnit, branches }: Add
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedBranch) {
-      setErrorMsg("يرجى اختيار الفرع.");
+      setErrorMsg("يرجى اختيار القسم.");
       return;
     }
 
@@ -91,7 +91,7 @@ export function AddMovementDialog({ itemId, itemName, usageUnit, branches }: Add
           if (!loading) setOpen(false);
         }}
         title={`إضافة حركة مخزن يدوية: ${itemName}`}
-        description="تسجيل حركة صادر أو وارد يدوية للمادة وتعديل الكمية المتاحة في الفرع المحدد فوراً."
+        description="تسجيل حركة صادر أو وارد يدوية للمادة وتعديل الكمية المتاحة في القسم المحدد فوراً."
         className="max-w-md text-right"
       >
         <form onSubmit={handleSubmit} className="space-y-4" dir="rtl">
@@ -103,7 +103,7 @@ export function AddMovementDialog({ itemId, itemName, usageUnit, branches }: Add
           )}
 
           <div className="grid gap-1.5">
-            <Label htmlFor="branchId" className="text-xs font-bold text-slate-800">الفرع المخصص للحركة:</Label>
+            <Label htmlFor="branchId" className="text-xs font-bold text-slate-800">القسم المخصص للحركة:</Label>
             <select
               id="branchId"
               value={selectedBranch}
@@ -111,7 +111,7 @@ export function AddMovementDialog({ itemId, itemName, usageUnit, branches }: Add
               className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 outline-none focus:border-teal-500/50"
               required
             >
-              <option value="" disabled>اختر الفرع...</option>
+              <option value="" disabled>اختر القسم...</option>
               {branches.map((b) => (
                 <option key={b.id} value={b.id}>{b.name}</option>
               ))}
@@ -154,7 +154,7 @@ export function AddMovementDialog({ itemId, itemName, usageUnit, branches }: Add
             />
             <span className="text-[10px] text-slate-400">
               {movementType === "waste" 
-                ? "💡 سيتم خصم هذه الكمية تلقائياً من مخزون الفرع."
+                ? "💡 سيتم خصم هذه الكمية تلقائياً من مخزون القسم."
                 : "💡 الرقم الموجب يزيد المخزون (مثال: 10)، والرقم السالب ينقص المخزون (مثال: -5)."}
             </span>
           </div>

@@ -1,20 +1,19 @@
 import { expect, test } from "@playwright/test";
 
-test("renders the email-free login with owner and employee tabs", async ({ page }) => {
+test("renders secure owner and employee login paths", async ({ page }) => {
   await page.goto("/login");
 
-  await expect(page.getByRole("heading", { name: "تسجيل الدخول" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "سجّل دخولك إلى رواق" })).toBeVisible();
 
-  // No email input anywhere on the page.
-  await expect(page.locator('input[type="email"], input[name="email"]')).toHaveCount(0);
+  // Restaurant owners authenticate with their own Supabase credentials.
+  await expect(page.getByLabel("البريد الإلكتروني")).toBeVisible();
+  await expect(page.getByLabel("كلمة المرور", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "دخول لوحة الإدارة" })).toBeVisible();
 
-  // Owner tab is the default: a single password field.
-  await expect(page.getByLabel("كلمة مرور المالك")).toBeVisible();
-  await expect(page.getByRole("button", { name: "دخول المالك", exact: true }).last()).toBeVisible();
-
-  // Employee tab: invite code only — no password field.
+  // Employees use their permanent scoped code without an owner password.
   await page.getByRole("button", { name: "دخول الموظف" }).first().click();
-  await expect(page.getByLabel("كود الموظف")).toBeVisible();
+  await expect(page.getByLabel("كود الموظف الدائم")).toBeVisible();
+  await expect(page.locator('input[type="email"], input[name="email"]')).toHaveCount(0);
   await expect(page.getByLabel("كلمة المرور", { exact: true })).toHaveCount(0);
 
   // The 8-hour free trial entry stays available.

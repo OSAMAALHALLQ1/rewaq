@@ -20,7 +20,7 @@ export default async function StockMovementsPage() {
           <div className="flex flex-wrap gap-2">
             <Input className="max-w-72" placeholder="بحث بالمرجع أو المادة" />
             <Select className="max-w-56" defaultValue="all">
-              <option value="all">كل الفروع</option>
+              <option value="all">كل الأقسام</option>
               {branches.map((branch) => (
                 <option key={branch.id} value={branch.id}>
                   {branch.name}
@@ -41,7 +41,7 @@ export default async function StockMovementsPage() {
               <TableRow>
                 <TableHead>التاريخ</TableHead>
                 <TableHead>المادة</TableHead>
-                <TableHead>الفرع</TableHead>
+                <TableHead>القسم</TableHead>
                 <TableHead>النوع</TableHead>
                 <TableHead>الكمية</TableHead>
                 <TableHead>المرجع</TableHead>

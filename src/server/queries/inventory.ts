@@ -43,13 +43,31 @@ export type InventoryBundle = {
 
 export type StockCountSummary = {
   id: string;
+  countNumber: string;
+  branchId: string;
   branchName: string;
   status: string;
   countedAt: string | null;
   approvedAt: string | null;
+  warehouse: string;
+  blindCount: boolean;
+  snapshotAt: string | null;
+  varianceApprovalThreshold: number;
   itemsCount: number;
   varianceCount: number;
   notes?: string;
+  lines: Array<{
+    id: string;
+    itemId: string;
+    itemName: string;
+    systemQuantity: number;
+    firstCountQuantity: number | null;
+    secondCountQuantity: number | null;
+    countedQuantity: number | null;
+    varianceQuantity: number | null;
+    varianceReason?: string;
+    countState: string;
+  }>;
 };
 
 // ============================================================================
@@ -162,7 +180,7 @@ async function loadInventoryBundle(admin: AdminClient, organizationId: string) {
 async function loadStockCountsBundle(admin: AdminClient, organizationId: string) {
   const [inventory, countRows, countItemRows] = await Promise.all([
     loadInventoryBundle(admin, organizationId),
-    query(
+    query<any[]>(
       admin
         .from("stock_counts")
         .select("*")
@@ -171,26 +189,54 @@ async function loadStockCountsBundle(admin: AdminClient, organizationId: string)
         .limit(100),
       "stock_counts",
     ),
-    query(admin.from("stock_count_items").select("*").eq("organization_id", organizationId), "stock_count_items"),
+    query<any[]>(admin.from("stock_count_items").select("*").eq("organization_id", organizationId), "stock_count_items"),
   ]);
 
   const branchMap = indexBy(inventory.branches, (row) => row.id);
+  const itemMap = indexBy(inventory.items, (row) => row.id);
   const itemsByCount = groupBy(countItemRows, (row) => row.stock_count_id);
 
   return {
     ...inventory,
     counts: countRows.map((count): StockCountSummary => {
       const items = itemsByCount.get(count.id) ?? [];
+      const lines = items.map((item) => ({
+        id: item.id,
+        itemId: item.item_id,
+        itemName: itemMap.get(item.item_id)?.name ?? "مادة غير معروفة",
+        systemQuantity: numberValue(item.system_quantity),
+        firstCountQuantity: item.first_count_quantity === null || item.first_count_quantity === undefined
+          ? null
+          : numberValue(item.first_count_quantity),
+        secondCountQuantity: item.second_count_quantity === null || item.second_count_quantity === undefined
+          ? null
+          : numberValue(item.second_count_quantity),
+        countedQuantity: item.counted_quantity === null || item.counted_quantity === undefined
+          ? null
+          : numberValue(item.counted_quantity),
+        varianceQuantity: item.counted_quantity === null || item.counted_quantity === undefined
+          ? null
+          : numberValue(item.counted_quantity) - numberValue(item.system_quantity),
+        varianceReason: optionalText(item.variance_reason),
+        countState: String(item.count_state ?? "resolved"),
+      }));
 
       return {
         id: count.id,
-        branchName: branchMap.get(count.branch_id)?.name ?? "فرع غير معروف",
+        countNumber: count.count_number ?? count.id.slice(0, 8),
+        branchId: count.branch_id,
+        branchName: branchMap.get(count.branch_id)?.name ?? "قسم غير معروف",
         status: count.status,
         countedAt: count.counted_at,
         approvedAt: count.approved_at,
+        warehouse: count.warehouse ?? "all",
+        blindCount: Boolean(count.blind_count ?? false),
+        snapshotAt: count.snapshot_at ?? null,
+        varianceApprovalThreshold: numberValue(count.variance_approval_threshold),
         itemsCount: items.length,
-        varianceCount: items.filter((item) => numberValue(item.variance_quantity) !== 0).length,
+        varianceCount: lines.filter((item) => item.varianceQuantity !== null && item.varianceQuantity !== 0).length,
         notes: optionalText(count.notes),
+        lines,
       };
     }),
   };
