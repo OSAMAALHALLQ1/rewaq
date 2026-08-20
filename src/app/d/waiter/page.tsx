@@ -69,10 +69,8 @@ const orderStatusLabels: Record<string, string> = {
 };
 
 function departmentHeaders(json = false): HeadersInit {
-  const token = typeof window !== "undefined" ? localStorage.getItem("rwq_dept_key") : null;
   return {
     ...(json ? { "Content-Type": "application/json" } : {}),
-    ...(token ? { "x-department-key": token } : {}),
   };
 }
 
@@ -247,7 +245,7 @@ export default function WaiterPage() {
               <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
               تحديث
             </Button>
-            <Button variant="ghost" size="icon" onClick={() => { localStorage.removeItem("rwq_dept_key"); window.location.href = "/d/gate"; }} aria-label="تسجيل الخروج">
+            <Button variant="ghost" size="icon" onClick={async () => { await fetch("/api/auth/department-session", { method: "DELETE" }).catch(() => undefined); localStorage.removeItem("rwq_dept_key"); window.location.href = "/d/gate"; }} aria-label="تسجيل الخروج">
               <LogOut className="h-4 w-4" />
             </Button>
           </div>

@@ -5,8 +5,7 @@ import { getOptionalSession } from "@/lib/auth/session";
 
 export async function GET(request: Request) {
   try {
-    const departmentKey = request.headers.get("x-department-key") || request.headers.get("x-api-key");
-    const auth = departmentKey ? await authenticateDepartmentDevice(request) : null;
+    const auth = await authenticateDepartmentDevice(request);
     const session = auth?.ok ? null : await getOptionalSession();
     const organizationId = auth?.ok ? auth.device.organizationId : session?.organizationId;
     const branchId = auth?.ok ? auth.device.branchId : session?.branchId;

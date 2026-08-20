@@ -26,9 +26,9 @@ const PRODUCT_POINTS = [
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ trial?: string }>;
+  searchParams: Promise<{ approval?: string; trial?: string }>;
 }) {
-  const { trial } = await searchParams;
+  const { approval, trial } = await searchParams;
 
   return (
     <main
@@ -55,6 +55,15 @@ export default async function LoginPage({
                 <Building2 className="h-6 w-6" aria-hidden="true" />
               </span>
             </div>
+
+            {approval === "pending" ? (
+              <div
+                role="alert"
+                className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-900"
+              >
+                حسابك مسجل، لكنه بانتظار موافقة الإدارة قبل فتح لوحة التحكم.
+              </div>
+            ) : null}
 
             {trial === "expired" ? (
               <div

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { KeyRound, ShieldAlert, Loader2, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,15 +14,6 @@ function GatewayContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const requestedNext = searchParams.get("next");
-
-  useEffect(() => {
-    // If the key is provided in the URL parameter, authenticate immediately
-    const keyParam = searchParams.get("key");
-    if (keyParam) {
-      setApiKey(keyParam);
-      handleAuthenticate(keyParam);
-    }
-  }, [searchParams]);
 
   const handleAuthenticate = async (keyToSubmit: string) => {
     if (!keyToSubmit || keyToSubmit.trim().length !== 10) {
@@ -72,19 +63,21 @@ function GatewayContent() {
         allowed.includes(requestedModule[requestedNext])
       ) {
         router.push(requestedNext);
+      } else if (allowed.includes("pos")) {
+        router.push("/d/pos");
       } else if (allowed.includes("waiter")) {
         router.push("/d/waiter");
       } else if (allowed.includes("kitchen")) {
         router.push("/d/kitchen");
       } else if (allowed.includes("expo")) {
         router.push("/d/expo");
-      } else if (allowed.includes("pos")) {
-        router.push("/d/pos");
       } else if (allowed.includes("recipes")) {
         router.push("/d/kitchen");
       } else if (allowed.includes("inventory")) {
         router.push("/d/inventory");
       } else {
+        setError("لا توجد شاشة تشغيل مسموحة لهذا الجهاز.");
+        setLoading(false);
       }
     } catch (err: any) {
       setError(err.message || "حدث خطأ غير متوقع أثناء التوثيق.");

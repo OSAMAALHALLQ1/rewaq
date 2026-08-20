@@ -11,10 +11,10 @@
   --brand-100: #DEE9FF;
   --brand-200: #C2D6FF;
   --brand-300: #94B8FF;
-  --brand-400: #6093FF;
-  --brand-500: #3B75FF;
-  --brand-600: #1E5EFF;
-  --brand-700: #1445D1;
+  --brand-400: #7AA7EA;
+  --brand-500: #4C86E4;
+  --brand-600: #1363DF;
+  --brand-700: #0F55C3;
   --brand-800: #1237A8;
   --brand-900: #11235A;
   --brand-950: #0A1128;
@@ -38,7 +38,7 @@
   --border-subtle: #EDF1F7;
   --border-default: #E2E8F0;
   --border-strong: #CBD5E1;
-  --border-focus: #1E5EFF;
+  --border-focus: #1363DF;
 
   /* Sidebar — light, low-noise operational navigation */
   --sidebar-bg: #F1F6F9;
@@ -46,8 +46,8 @@
   --sidebar-active: #E1E8FF;
   --sidebar-text: #000000;
   --sidebar-muted: #000000;
-  --sidebar-icon: #4E4FEB;
-  --sidebar-active-accent: #068FFF;
+  --sidebar-icon: #1363DF;
+  --sidebar-active-accent: #1363DF;
   --sidebar-border: #D7E3EA;
 
   /* Operational state colours — Crisp & Vibrant */
@@ -79,7 +79,7 @@
   --input-bg: #FFFFFF;
   --input-border: #E2E8F0;
   --input-border-hover: #CBD5E1;
-  --input-border-focus: #1E5EFF;
+  --input-border-focus: #1363DF;
   --input-placeholder: #94A3B8;
   --input-disabled-bg: #F1F5F9;
   --table-header-bg: #F8FAFD;
@@ -124,7 +124,7 @@
   --border: var(--border-default);
   --input: var(--input-border);
   --ring: var(--brand-600);
-  --chart-1: #1E5EFF;
+  --chart-1: #1363DF;
   --chart-2: #10B981;
   --chart-3: #F59E0B;
   --chart-4: #7C3AED;
@@ -373,7 +373,7 @@ select {
 
   /* Signature gradient for CTAs, welcome screens, and upsells */
   .gradient-rewaq {
-    background: linear-gradient(135deg, #00C6FF 0%, #1E5EFF 100%);
+    background: linear-gradient(135deg, #00C6FF 0%, #1363DF 100%);
   }
 
   /* Sidebar active state — subtle blue gradient fade */

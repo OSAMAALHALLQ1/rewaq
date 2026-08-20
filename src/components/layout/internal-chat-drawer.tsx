@@ -41,7 +41,6 @@ export function InternalChatDrawer({
   branchId,
   currentRole,
   currentName,
-  departmentKey,
 }: ChatDrawerProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [activeTab, setActiveTab] = useState<"general" | "kitchen" | "pos" | "warehouse">("general");
@@ -68,7 +67,6 @@ export function InternalChatDrawer({
 
     async function fetchHistory() {
       const response = await fetch("/api/internal-messages/list?limit=80", {
-        headers: departmentKey ? { "x-department-key": departmentKey } : undefined,
       });
       const payload = await response.json().catch(() => ({}));
 
@@ -96,7 +94,7 @@ export function InternalChatDrawer({
       cancelled = true;
       window.clearInterval(intervalId);
     };
-  }, [orgId, departmentKey, isOpen]);
+  }, [orgId, isOpen]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -111,7 +109,6 @@ export function InternalChatDrawer({
       method: "POST",
       headers: {
         "content-type": "application/json",
-        ...(departmentKey ? { "x-department-key": departmentKey } : {}),
       },
       body: JSON.stringify({
         branchId: branchId || null,

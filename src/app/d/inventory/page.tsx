@@ -18,7 +18,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
 type DeviceSession = {
-  token: string;
   name: string;
   orgId: string;
   branchId: string;
@@ -61,7 +60,7 @@ function formatMoney(value: number) {
 
 export default function DepartmentInventoryPage() {
   const router = useRouter();
-  const [device, setDevice] = useState<DeviceSession>({ token: "", name: "", orgId: "", branchId: "", role: "" });
+  const [device, setDevice] = useState<DeviceSession>({ name: "", orgId: "", branchId: "", role: "" });
   const [authorized, setAuthorized] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [stockItems, setStockItems] = useState<StockItem[]>([]);
@@ -69,26 +68,26 @@ export default function DepartmentInventoryPage() {
   const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
-    const token = localStorage.getItem("rwq_dept_key");
-    const allowed = JSON.parse(localStorage.getItem("rwq_dept_allowed") || "[]") as string[];
-
-    if (!token || !allowed.includes("inventory")) {
-      router.push("/d/gate");
-      return;
-    }
-
-    setDevice({
-      token,
-      name: localStorage.getItem("rwq_dept_device") ?? "",
-      orgId: localStorage.getItem("rwq_dept_org_id") ?? "",
-      branchId: localStorage.getItem("rwq_dept_branch_id") ?? "",
-      role: localStorage.getItem("rwq_dept_role") ?? "",
-    });
-    setAuthorized(true);
+    void fetch("/api/auth/department-session", { cache: "no-store" })
+      .then(async (response) => {
+        const session = await response.json().catch(() => ({}));
+        if (!response.ok || !session.success || !session.allowedModules?.includes("inventory")) {
+          router.replace("/d/gate?next=/d/inventory");
+          return;
+        }
+        setDevice({
+          name: session.deviceName ?? "",
+          orgId: session.organizationId ?? "",
+          branchId: session.branchId ?? "",
+          role: session.role ?? "",
+        });
+        setAuthorized(true);
+      })
+      .catch(() => router.replace("/d/gate?next=/d/inventory"));
   }, [router]);
 
   useEffect(() => {
-    if (!authorized || !device.token) return;
+    if (!authorized) return;
 
     let cancelled = false;
 
@@ -98,7 +97,6 @@ export default function DepartmentInventoryPage() {
 
       try {
         const response = await fetch("/api/department/inventory/stock", {
-          headers: { "x-department-key": device.token },
           cache: "no-store",
         });
         const payload = (await response.json()) as StockResponse;
@@ -128,7 +126,7 @@ export default function DepartmentInventoryPage() {
       cancelled = true;
       window.clearInterval(interval);
     };
-  }, [authorized, device.token]);
+  }, [authorized]);
 
   const filteredItems = useMemo(
     () => {
@@ -142,14 +140,14 @@ export default function DepartmentInventoryPage() {
     [searchQuery, stockItems],
   );
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await fetch("/api/auth/department-session", { method: "DELETE" }).catch(() => undefined);
     localStorage.removeItem("rwq_dept_key");
     localStorage.removeItem("rwq_dept_role");
     localStorage.removeItem("rwq_dept_org_id");
     localStorage.removeItem("rwq_dept_branch_id");
     localStorage.removeItem("rwq_dept_allowed");
     localStorage.removeItem("rwq_dept_device");
-    document.cookie = "rwq_dept_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     router.push("/d/gate");
   };
 
