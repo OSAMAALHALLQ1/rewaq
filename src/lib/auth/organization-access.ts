@@ -74,11 +74,11 @@ export async function getOrganizationAccess(): Promise<OrganizationAccess | null
 
     const { data: membership } = await (supabase as any)
       .from("organization_memberships")
-      .select("organization_id, role, branch_id")
+      .select("organization_id, role, branch_id, is_active")
       .eq("user_id", user.id)
       .maybeSingle();
 
-    if (!membership?.organization_id) {
+    if (!membership?.organization_id || membership.is_active === false) {
       return null;
     }
 

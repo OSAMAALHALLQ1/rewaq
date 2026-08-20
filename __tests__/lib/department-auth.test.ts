@@ -14,6 +14,7 @@ function makeDevice(overrides: Partial<{
   branchId: string | null;
   organizationId: string;
   allowedModules: string[];
+  actorRole: "organization_owner" | "branch_manager" | "cashier" | "chef" | "staff";
 }> = {}) {
   return {
     ok: true as const,
@@ -25,6 +26,14 @@ function makeDevice(overrides: Partial<{
       role: overrides.role ?? "cashier",
       deviceName: "test",
       allowedModules: overrides.allowedModules ?? ["pos"],
+    },
+    actor: {
+      id: "employee-1",
+      name: "موظف اختبار",
+      role: overrides.actorRole ?? "cashier",
+      organizationId: overrides.organizationId ?? "org-1",
+      branchId: overrides.branchId ?? "branch-1",
+      departmentId: null,
     },
   };
 }
@@ -40,6 +49,14 @@ function makeDeviceNullableBranch(role: string, branchId: string | null) {
       role,
       deviceName: "test",
       allowedModules: ["pos", "recipes", "inventory"],
+    },
+    actor: {
+      id: "employee-1",
+      name: "موظف اختبار",
+      role: role === "chef" ? "chef" as const : "cashier" as const,
+      organizationId: "org-1",
+      branchId,
+      departmentId: null,
     },
   };
 }
@@ -58,6 +75,13 @@ describe("requireDepartmentDeviceCapability", () => {
     const result = requireDepartmentDeviceCapability(auth, "pos_refund", "branch-1");
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.status).toBe(403);
+  });
+
+  it("allows a manager employee to approve a refund from a cashier device", async () => {
+    const { requireDepartmentDeviceCapability } = await import("@/lib/department/auth");
+    const auth = makeDevice({ role: "cashier", actorRole: "branch_manager" });
+    const result = requireDepartmentDeviceCapability(auth, "pos_refund", "branch-1");
+    expect(result.ok).toBe(true);
   });
 
   it("denies when device branch does not match the target branch", async () => {
@@ -87,6 +111,15 @@ describe("department role module boundary", () => {
   it("fails closed for unknown roles", async () => {
     const { departmentRoleAllowsModule } = await import("@/lib/department/auth");
     expect(departmentRoleAllowsModule("unknown", "pos")).toBe(false);
+  });
+
+  it("routes employee roles only to their own operational interface", async () => {
+    const { employeeRoleAllowsModule } = await import("@/lib/department/auth");
+    expect(employeeRoleAllowsModule("cashier", "pos")).toBe(true);
+    expect(employeeRoleAllowsModule("cashier", "kitchen")).toBe(false);
+    expect(employeeRoleAllowsModule("chef", "kitchen")).toBe(true);
+    expect(employeeRoleAllowsModule("staff", "waiter")).toBe(true);
+    expect(employeeRoleAllowsModule("staff", "inventory")).toBe(false);
   });
 });
 

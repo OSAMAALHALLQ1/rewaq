@@ -203,13 +203,7 @@ export const appNav: NavGroup[] = [
         title: "المستخدمون والفريق",
         href: "/dashboard/settings/users",
         icon: UserCheck,
-        roles: ["super_admin", "organization_owner", "branch_manager"],
-      },
-      {
-        title: "إدارة الموظفين",
-        href: "/dashboard/settings/devices?tab=staff",
-        icon: Users,
-        roles: ["super_admin", "organization_owner", "branch_manager"],
+        roles: ["super_admin", "organization_owner"],
       },
       {
         title: "الأجهزة والأكواد",
@@ -239,64 +233,22 @@ export const appNav: NavGroup[] = [
   },
 ];
 
-/**
- * The owner/admin sidebar is intentionally concise. These roles retain their
- * server-side access to deeper pages, but the primary navigation stays focused
- * on management outcomes instead of exposing the entire operational ledger.
- */
-export const managementNav: NavGroup[] = [
-  {
-    title: "الإدارة والأداء",
-    icon: Gauge,
-    defaultOpen: true,
-    items: [
-      { title: "التقارير والتحليلات", href: "/dashboard/reports", icon: BarChart3 },
-      {
-        title: "الربحية",
-        href: "/dashboard/accounting/p-and-l",
-        icon: TrendingUp,
-        roles: ["super_admin", "organization_owner"],
-      },
-      {
-        title: "تكلفة الطعام",
-        href: "/dashboard/food-cost",
-        icon: WalletCards,
-        roles: ["super_admin", "organization_owner"],
-      },
-      { title: "المنيو والموقع", href: "/dashboard/digital-presence", icon: Store },
-    ],
-  },
-  {
-    title: "الأقسام والفريق",
-    icon: Building2,
-    defaultOpen: true,
-    items: [
-      { title: "الأقسام", href: "/dashboard/branches", icon: Building2 },
-      { title: "المستخدمون والفريق", href: "/dashboard/settings/users", icon: UserCheck },
-      { title: "الأجهزة والأكواد", href: "/dashboard/settings/devices", icon: Tablet },
-    ],
-  },
-  {
-    title: "إعدادات المؤسسة",
-    icon: Settings,
-    defaultOpen: true,
-    items: [
-      { title: "الإعدادات العامة", href: "/dashboard/settings", icon: SlidersHorizontal },
-      { title: "الفوترة والاشتراك", href: "/dashboard/billing", icon: WalletCards },
-    ],
-  },
-];
-
 export function canViewNavItem(item: NavItem, role?: Role, planCode?: string): boolean {
   if (!role || !canRoleAccessPath(role, item.href)) return false;
   if (item.roles && item.roles.length > 0 && !item.roles.includes(role)) return false;
+
+  // The owner must always be able to discover every workspace they control.
+  // Individual pages remain responsible for showing an upgrade/locked state
+  // when the selected subscription does not include the module.
+  if (role === "organization_owner" || role === "super_admin") return true;
 
   const routeModule = moduleForPath(item.href);
   return !routeModule || Boolean(planCode && planHasModule(planCode, routeModule));
 }
 
 export function navigationGroupsForRole(role?: Role): NavGroup[] {
-  return role === "organization_owner" || role === "super_admin" ? managementNav : appNav;
+  void role;
+  return appNav;
 }
 
 export const accountingNav: NavGroup = {

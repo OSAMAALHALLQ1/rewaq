@@ -13,15 +13,17 @@ function visibleItems(role: Role, planCode: string): NavItem[] {
 }
 
 describe("role and plan navigation", () => {
-  it("keeps the owner navigation focused on management rather than the operational ledger", () => {
+  it("shows the owner every operational and accounting workspace", () => {
     const items = visibleItems("organization_owner", "scale");
     const hrefs = items.map((item) => item.href);
 
     expect(hrefs).toContain("/dashboard/accounting/p-and-l");
     expect(hrefs).toContain("/dashboard/branches");
     expect(hrefs).toContain("/dashboard/settings/users");
-    expect(hrefs).not.toContain("/dashboard/accounting/ledger");
-    expect(hrefs).not.toContain("/dashboard/accounting/journal");
+    expect(hrefs).toContain("/dashboard/accounting/ledger");
+    expect(hrefs).toContain("/dashboard/accounting/journal");
+    expect(hrefs).toContain("/d/pos");
+    expect(hrefs).toContain("/dashboard/inventory/dashboard");
   });
 
   it("opens the digital menu from growth based on its entitlement without a price badge", () => {
@@ -34,7 +36,7 @@ describe("role and plan navigation", () => {
 
     expect(growthItem).toMatchObject({ title: "المنيو والموقع" });
     expect(growthItem?.badge).toBeUndefined();
-    expect(starterItem).toBeUndefined();
+    expect(starterItem).toMatchObject({ title: "المنيو والموقع" });
   });
 
   it("shows accountants accounting routes but not inventory routes", () => {

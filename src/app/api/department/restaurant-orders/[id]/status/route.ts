@@ -73,7 +73,7 @@ export async function PATCH(
       p_order_item_ids: parsed.data.itemIds,
       p_to_status: parsed.data.targetStatus,
       p_idempotency_key: parsed.data.idempotencyKey,
-      p_actor_user_id: null,
+      p_actor_user_id: auth.actor.id,
       p_actor_device_id: auth.device.id,
       p_occurred_at: new Date().toISOString(),
     },

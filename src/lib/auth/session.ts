@@ -15,6 +15,8 @@ export type AppSession = {
   organizationName: string;
   branchId?: string;
   branchName?: string;
+  departmentId?: string;
+  permissions?: string[];
   role: Role;
 };
 
@@ -51,14 +53,14 @@ export async function getCurrentSession(): Promise<AppSession> {
   // used to manufacture an organization scope when the tenant row is missing.
   const { data: membership } = await (supabase as any)
     .from("organization_memberships")
-    .select("organization_id, role, branch_id, organizations(name)")
+    .select("organization_id, role, branch_id, department_id, permissions, is_active, organizations(name)")
     .eq("user_id", user.id)
     .maybeSingle();
 
   const approvalStatus = getApprovalStatus(user);
   const { data: profile } = await (supabase as any)
     .from("profiles")
-    .select("status")
+    .select("status, full_name")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -74,6 +76,10 @@ export async function getCurrentSession(): Promise<AppSession> {
     redirect("/pending-approval");
   }
 
+  if (membership.is_active === false) {
+    redirect("/login?access=revoked");
+  }
+
   const { data: org } = membership?.organization_id
     ? await (supabase as any)
         .from("organizations")
@@ -86,12 +92,14 @@ export async function getCurrentSession(): Promise<AppSession> {
     user: {
       id: user.id,
       email: user.email ?? "",
-      name: user.user_metadata?.name ?? user.email ?? "مستخدم",
+      name: profile?.full_name ?? user.user_metadata?.name ?? user.email ?? "مستخدم",
     },
     organizationId: membership.organization_id,
     organizationName: org?.name ?? "",
     branchId: membership?.branch_id ?? undefined,
     branchName: undefined,
+    departmentId: membership?.department_id ?? undefined,
+    permissions: Array.isArray(membership?.permissions) ? membership.permissions : [],
     role: membership.role as Role,
   };
 }

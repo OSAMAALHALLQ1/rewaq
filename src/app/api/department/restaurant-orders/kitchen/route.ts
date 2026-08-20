@@ -21,7 +21,7 @@ export async function GET(request: Request) {
     );
   }
   if (canUseDemoFallback()) {
-    return NextResponse.json({ success: true, mode, device: auth.device, stations: [], orders: [] });
+    return NextResponse.json({ success: true, mode, device: auth.device, actor: auth.actor, stations: [], orders: [] });
   }
 
   const organizationId = auth.device.organizationId;
@@ -100,6 +100,7 @@ export async function GET(request: Request) {
     success: true,
     mode,
     device: auth.device,
+    actor: auth.actor,
     stations: stationsResult.data ?? [],
     orders: [...ordersById.values()].sort((a, b) => {
       if (a.priority === "rush" && b.priority !== "rush") return -1;

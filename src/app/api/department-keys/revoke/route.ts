@@ -60,17 +60,11 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ success: false, error: message }, { status: 403 });
     }
 
-    if (!existing.is_active) {
-      return NextResponse.json(
-        { success: false, error: "المفتاح ملغي بالفعل." },
-        { status: 400 }
-      );
-    }
-
-    const { error } = await (admin as any)
-      .from("department_api_keys")
-      .update({ is_active: false })
-      .eq("id", keyId);
+    const { error } = await admin.rpc("revoke_department_device_atomic", {
+      p_organization_id: session.organizationId,
+      p_device_id: keyId,
+      p_actor_user_id: session.user.id,
+    });
 
     if (error) {
       console.error("Error revoking key:", error);

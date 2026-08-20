@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { authenticateDepartmentDevice } from "@/lib/department/auth";
+import { authenticateDepartmentDevice, employeeRoleAllowsModule } from "@/lib/department/auth";
 
 export async function GET(request: Request) {
   const auth = await authenticateDepartmentDevice(request);
@@ -12,8 +12,13 @@ export async function GET(request: Request) {
     organizationId: auth.device.organizationId,
     branchId: auth.device.branchId,
     role: auth.device.role,
-    allowedModules: auth.device.allowedModules,
+    allowedModules: auth.device.allowedModules.filter((module) =>
+      employeeRoleAllowsModule(auth.actor.role, module),
+    ),
     deviceName: auth.device.deviceName,
+    employeeName: auth.actor.name,
+    employeeRole: auth.actor.role,
+    employeeDepartmentId: auth.actor.departmentId,
   });
 }
 

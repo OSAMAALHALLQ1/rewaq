@@ -284,7 +284,7 @@ export async function POST(request: Request) {
     p_reason: parsed.data.reason,
     p_refund_date: todayLocal(),
     p_idempotency_key: parsed.data.idempotencyKey ?? crypto.randomUUID(),
-    p_actor_user_id: null,
+    p_actor_user_id: auth.actor.id,
     p_actor_device_id: auth.device.id,
     p_items: parsed.data.items ? parsed.data.items.map(item => ({
       catalog_item_id: item.catalogItemId,

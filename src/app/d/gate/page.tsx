@@ -1,11 +1,36 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useCallback, useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { KeyRound, ShieldAlert, Loader2, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+const REQUESTED_MODULES: Record<string, string> = {
+  "/d/pos": "pos",
+  "/d/inventory": "inventory",
+  "/d/kitchen": "kitchen",
+  "/d/expo": "expo",
+  "/d/waiter": "waiter",
+};
+
+function destinationFor(allowed: string[], requestedNext: string | null) {
+  if (
+    requestedNext &&
+    REQUESTED_MODULES[requestedNext] &&
+    allowed.includes(REQUESTED_MODULES[requestedNext])
+  ) {
+    return requestedNext;
+  }
+  if (allowed.includes("pos")) return "/d/pos";
+  if (allowed.includes("waiter")) return "/d/waiter";
+  if (allowed.includes("kitchen")) return "/d/kitchen";
+  if (allowed.includes("expo")) return "/d/expo";
+  if (allowed.includes("recipes")) return "/d/kitchen";
+  if (allowed.includes("inventory")) return "/d/inventory";
+  return null;
+}
 
 function GatewayContent() {
   const searchParams = useSearchParams();
@@ -15,7 +40,7 @@ function GatewayContent() {
   const [error, setError] = useState<string | null>(null);
   const requestedNext = searchParams.get("next");
 
-  const handleAuthenticate = async (keyToSubmit: string) => {
+  const handleAuthenticate = useCallback(async (keyToSubmit: string) => {
     if (!keyToSubmit || keyToSubmit.trim().length !== 10) {
       setError("الرمز يجب أن يكون مكوناً من 10 رموز بالضبط.");
       return;
@@ -49,41 +74,40 @@ function GatewayContent() {
       // Honor only an internal, role-compatible destination. This keeps the
       // employee identity separate from the physical device authorization.
       const allowed = data.allowedModules || [];
-      const requestedModule: Record<string, string> = {
-        "/d/pos": "pos",
-        "/d/inventory": "inventory",
-        "/d/kitchen": "kitchen",
-        "/d/expo": "expo",
-        "/d/waiter": "waiter",
-      };
-
-      if (
-        requestedNext &&
-        requestedModule[requestedNext] &&
-        allowed.includes(requestedModule[requestedNext])
-      ) {
-        router.push(requestedNext);
-      } else if (allowed.includes("pos")) {
-        router.push("/d/pos");
-      } else if (allowed.includes("waiter")) {
-        router.push("/d/waiter");
-      } else if (allowed.includes("kitchen")) {
-        router.push("/d/kitchen");
-      } else if (allowed.includes("expo")) {
-        router.push("/d/expo");
-      } else if (allowed.includes("recipes")) {
-        router.push("/d/kitchen");
-      } else if (allowed.includes("inventory")) {
-        router.push("/d/inventory");
+      const destination = destinationFor(allowed, requestedNext);
+      if (destination) {
+        router.push(destination);
       } else {
         setError("لا توجد شاشة تشغيل مسموحة لهذا الجهاز.");
         setLoading(false);
       }
-    } catch (err: any) {
-      setError(err.message || "حدث خطأ غير متوقع أثناء التوثيق.");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "حدث خطأ غير متوقع أثناء التوثيق.");
       setLoading(false);
     }
-  };
+  }, [requestedNext, router]);
+
+  useEffect(() => {
+    const fragment = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    const fragmentKey = fragment.get("key")?.trim().toUpperCase();
+    if (!fragmentKey) {
+      void fetch("/api/auth/department-session", { cache: "no-store" })
+        .then(async (response) => {
+          const session = await response.json().catch(() => ({}));
+          if (!response.ok || !session.success) return;
+          const destination = destinationFor(session.allowedModules ?? [], requestedNext);
+          if (destination) router.replace(destination);
+        })
+        .catch(() => undefined);
+      return;
+    }
+
+    // Clear the credential from the visible address before authenticating. URL
+    // fragments never reach the server, request logs, analytics, or referrers.
+    window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+    const timer = window.setTimeout(() => void handleAuthenticate(fragmentKey), 0);
+    return () => window.clearTimeout(timer);
+  }, [handleAuthenticate, requestedNext, router]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

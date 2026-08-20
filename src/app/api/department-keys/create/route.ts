@@ -212,25 +212,22 @@ export async function POST(request: Request) {
       keyId = device.id;
       createdDeviceName = device.device_name;
     } else {
-      const { data, error } = await (admin as any)
-        .from("department_api_keys")
-        .insert({
-          organization_id: session.organizationId,
-          branch_id: branchId,
-          device_name: deviceName,
-          key_hash: keyHash,
-          role,
-          allowed_modules: normalizedModules,
-          created_by: session.user.id,
-        })
-        .select("id, device_name")
-        .single();
-      if (error || !data) {
+      const { data, error } = await admin.rpc("provision_department_device_atomic", {
+        p_organization_id: session.organizationId,
+        p_branch_id: branchId as string,
+        p_device_name: deviceName,
+        p_key_hash: keyHash,
+        p_role: role as "cashier" | "inventory_manager" | "staff",
+        p_allowed_modules: normalizedModules,
+        p_actor_user_id: session.user.id,
+      });
+      const device = (data as { device?: { id?: string; device_name?: string } } | null)?.device;
+      if (error || !device?.id || !device.device_name) {
         console.error("Error creating department key:", error);
         return NextResponse.json({ success: false, error: "فشل إنشاء مفتاح الوصول." }, { status: 500 });
       }
-      keyId = data.id;
-      createdDeviceName = data.device_name;
+      keyId = device.id;
+      createdDeviceName = device.device_name;
     }
 
     return NextResponse.json({

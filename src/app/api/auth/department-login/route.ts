@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { createHash } from "crypto";
 import { canUseDemoFallback, hasSupabaseAdminEnv } from "@/lib/supabase/env";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { departmentRoleAllowsModule } from "@/lib/department/auth";
+import { getOptionalSession } from "@/lib/auth/session";
+import { departmentRoleAllowsModule, employeeRoleAllowsModule } from "@/lib/department/auth";
 
 const INVALID_DEPARTMENT_CODE = "رمز الوصول غير صالح أو غير مفعل.";
 
@@ -90,6 +91,36 @@ export async function POST(request: Request) {
       );
     }
 
+    const employee = await getOptionalSession();
+    if (!employee) {
+      return NextResponse.json(
+        { success: false, error: "سجّل دخول الموظف بكوده الشخصي أولًا." },
+        { status: 401 },
+      );
+    }
+    if (employee.organizationId !== keyData.organization_id) {
+      return NextResponse.json(
+        { success: false, error: "الموظف والجهاز لا يتبعان نفس المؤسسة." },
+        { status: 403 },
+      );
+    }
+    if (employee.branchId && keyData.branch_id && employee.branchId !== keyData.branch_id) {
+      return NextResponse.json(
+        { success: false, error: "الموظف غير مخول للعمل على فرع هذا الجهاز." },
+        { status: 403 },
+      );
+    }
+
+    const employeeAllowedModules = allowedModules.filter((module: string) =>
+      employeeRoleAllowsModule(employee.role, module),
+    );
+    if (employeeAllowedModules.length === 0) {
+      return NextResponse.json(
+        { success: false, error: "دور الموظف لا يطابق واجهة هذا الجهاز." },
+        { status: 403 },
+      );
+    }
+
     // 3. Update last used timestamp and require an audit record before issuing
     // the cookie. A device login must never become an untracked privileged action.
     const [{ error: usageError }, { error: auditError }] = await Promise.all([
@@ -100,15 +131,16 @@ export async function POST(request: Request) {
       supabaseAdmin.from("audit_logs").insert({
         organization_id: keyData.organization_id,
         branch_id: keyData.branch_id,
-        user_id: null,
+        user_id: employee.user.id,
         action: "department_device_login",
         entity_type: "department_api_key",
         entity_id: keyData.id,
         old_data: null,
         new_data: {
           role: keyData.role,
-          allowed_modules: allowedModules,
+          allowed_modules: employeeAllowedModules,
           device_name: keyData.device_name,
+          employee_role: employee.role,
         },
       }),
     ]);
@@ -130,8 +162,10 @@ export async function POST(request: Request) {
       organizationId: keyData.organization_id,
       branchId: keyData.branch_id,
       role: keyData.role,
-      allowedModules,
+      allowedModules: employeeAllowedModules,
       deviceName: keyData.device_name,
+      employeeName: employee.user.name,
+      employeeRole: employee.role,
     });
 
     response.cookies.set("rwq_dept_token", normalizedKey, {

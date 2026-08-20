@@ -3,8 +3,10 @@ import "server-only";
 import { createHash } from "crypto";
 import { cookies } from "next/headers";
 import { isRewaqModule, type RewaqModule } from "@/lib/billing/plans";
+import { getOptionalSession } from "@/lib/auth/session";
 import { createAdminClient, hasSupabaseAdminEnv } from "@/lib/supabase/admin";
 import { isDemoModeEnabled } from "@/lib/supabase/env";
+import type { Role } from "@/types/domain";
 import {
   SubscriptionEntitlementError,
   requireOrganizationModule,
@@ -19,8 +21,22 @@ export type DepartmentDeviceContext = {
   allowedModules: string[];
 };
 
+export type DepartmentEmployeeActor = {
+  id: string;
+  name: string;
+  role: Role;
+  organizationId: string;
+  branchId: string | null;
+  departmentId: string | null;
+};
+
 export type DepartmentAuthResult =
-  | { ok: true; admin: ReturnType<typeof createAdminClient>; device: DepartmentDeviceContext }
+  | {
+      ok: true;
+      admin: ReturnType<typeof createAdminClient>;
+      device: DepartmentDeviceContext;
+      actor: DepartmentEmployeeActor;
+    }
   | { ok: false; status: number; error: string };
 
 const DEPARTMENT_CAPABILITY_ROLES = {
@@ -49,7 +65,7 @@ const DEPARTMENT_MODULE_ENTITLEMENTS: Readonly<Record<string, RewaqModule>> = {
 const DEPARTMENT_ROLE_MODULES: Readonly<Record<string, ReadonlySet<string>>> = {
   cashier: new Set(["pos"]),
   inventory_manager: new Set(["inventory", "purchasing", "waste", "reports"]),
-  chef: new Set(["recipes", "inventory", "waste", "kitchen", "expo"]),
+  chef: new Set(["recipes", "kitchen", "expo"]),
   staff: new Set(["pos", "inventory", "recipes", "waste", "waiter", "kitchen", "expo"]),
   manager: new Set(["pos", "inventory", "recipes", "purchasing", "waste", "reports", "waiter", "kitchen", "expo"]),
   branch_manager: new Set(["pos", "inventory", "recipes", "purchasing", "waste", "reports", "waiter", "kitchen", "expo"]),
@@ -57,10 +73,37 @@ const DEPARTMENT_ROLE_MODULES: Readonly<Record<string, ReadonlySet<string>>> = {
   super_admin: new Set(["pos", "inventory", "recipes", "purchasing", "waste", "reports", "waiter", "kitchen", "expo"]),
 };
 
+const EMPLOYEE_ROLE_MODULES: Readonly<Partial<Record<Role, ReadonlySet<string>>>> = {
+  super_admin: DEPARTMENT_ROLE_MODULES.super_admin,
+  organization_owner: DEPARTMENT_ROLE_MODULES.organization_owner,
+  branch_manager: DEPARTMENT_ROLE_MODULES.branch_manager,
+  cashier: new Set(["pos"]),
+  inventory_manager: new Set(["inventory", "purchasing", "waste", "reports"]),
+  purchasing_manager: new Set(["purchasing", "inventory", "reports"]),
+  chef: new Set(["recipes", "inventory", "waste", "kitchen", "expo"]),
+  staff: new Set(["waiter"]),
+};
+
+const PERSONAL_MANAGER_ROLES = new Set<Role>([
+  "super_admin",
+  "organization_owner",
+  "branch_manager",
+]);
+
+const PERSONAL_APPROVAL_CAPABILITIES = new Set<DepartmentDeviceCapability>([
+  "pos_refund",
+  "pos_discount",
+  "pos_price_edit",
+]);
+
 export type DepartmentDeviceCapability = keyof typeof DEPARTMENT_CAPABILITY_ROLES;
 
 export function departmentRoleAllowsModule(role: string, module: string): boolean {
   return DEPARTMENT_ROLE_MODULES[role]?.has(module) ?? false;
+}
+
+export function employeeRoleAllowsModule(role: Role, module: string): boolean {
+  return EMPLOYEE_ROLE_MODULES[role]?.has(module) ?? false;
 }
 
 export function requireDepartmentDeviceCapability(
@@ -70,7 +113,17 @@ export function requireDepartmentDeviceCapability(
 ): DepartmentAuthResult {
   if (!auth.ok) return auth;
 
-  if (!DEPARTMENT_CAPABILITY_ROLES[capability].has(auth.device.role)) {
+  if (
+    PERSONAL_APPROVAL_CAPABILITIES.has(capability) &&
+    !PERSONAL_MANAGER_ROLES.has(auth.actor.role)
+  ) {
+    return { ok: false, status: 403, error: "هذه العملية تحتاج اعتماد المالك أو مدير الفرع بكوده الشخصي." };
+  }
+
+  if (
+    !PERSONAL_APPROVAL_CAPABILITIES.has(capability) &&
+    !DEPARTMENT_CAPABILITY_ROLES[capability].has(auth.device.role)
+  ) {
     return { ok: false, status: 403, error: "دور هذا الجهاز لا يسمح بهذه العملية." };
   }
 
@@ -100,6 +153,14 @@ export async function authenticateDepartmentDevice(
         role: "manager",
         deviceName: "جهاز كاشير تجريبي",
         allowedModules: ["pos", "inventory", "recipes", "waste", "waiter", "kitchen", "expo"],
+      },
+      actor: {
+        id: "demo-employee-id",
+        name: "موظف تجريبي",
+        role: "branch_manager",
+        organizationId: "00000000-0000-4000-8000-000000000001",
+        branchId: "00000000-0000-4000-8000-000000000101",
+        departmentId: null,
       },
     };
   }
@@ -137,6 +198,20 @@ export async function authenticateDepartmentDevice(
       !departmentRoleAllowsModule(String(data.role), requiredModule))
   ) {
     return { ok: false, status: 403, error: "هذا الجهاز لا يملك صلاحية هذه الشاشة." };
+  }
+
+  const session = await getOptionalSession();
+  if (!session) {
+    return { ok: false, status: 401, error: "سجّل دخول الموظف بكوده الشخصي أولًا." };
+  }
+  if (session.organizationId !== data.organization_id) {
+    return { ok: false, status: 403, error: "الموظف والجهاز لا يتبعان نفس المؤسسة." };
+  }
+  if (session.branchId && data.branch_id && session.branchId !== data.branch_id) {
+    return { ok: false, status: 403, error: "الموظف غير مخول للعمل على فرع هذا الجهاز." };
+  }
+  if (requiredModule && !employeeRoleAllowsModule(session.role, requiredModule)) {
+    return { ok: false, status: 403, error: "دور الموظف لا يسمح بفتح هذه الواجهة." };
   }
 
   const commercialModule = requiredModule
@@ -178,6 +253,14 @@ export async function authenticateDepartmentDevice(
       role: data.role,
       deviceName: data.device_name,
       allowedModules,
+    },
+    actor: {
+      id: session.user.id,
+      name: session.user.name,
+      role: session.role,
+      organizationId: session.organizationId,
+      branchId: session.branchId ?? null,
+      departmentId: session.departmentId ?? null,
     },
   };
 }

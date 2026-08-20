@@ -115,6 +115,9 @@ export type Database = {
           user_id: string;
           role: Database["public"]["Enums"]["app_role"];
           branch_id: string | null;
+          department_id: string | null;
+          permissions: string[];
+          is_active: boolean;
           created_at: string;
           updated_at: string;
           created_by: string | null;
@@ -125,6 +128,9 @@ export type Database = {
           user_id: string;
           role?: Database["public"]["Enums"]["app_role"];
           branch_id?: string | null;
+          department_id?: string | null;
+          permissions?: string[];
+          is_active?: boolean;
           created_at?: string;
           updated_at?: string;
           created_by?: string | null;
@@ -135,6 +141,9 @@ export type Database = {
           user_id?: string;
           role?: Database["public"]["Enums"]["app_role"];
           branch_id?: string | null;
+          department_id?: string | null;
+          permissions?: string[];
+          is_active?: boolean;
           created_at?: string;
           updated_at?: string;
           created_by?: string | null;
@@ -2759,6 +2768,11 @@ export type Database = {
           failed_login_attempts: number;
           locked_until: string | null;
           last_failed_login_at: string | null;
+          full_name: string | null;
+          code_hint: string | null;
+          department_id: string | null;
+          permissions: string[];
+          code_issued_at: string | null;
         };
         Insert: {
           id?: string;
@@ -2778,6 +2792,11 @@ export type Database = {
           failed_login_attempts?: number;
           locked_until?: string | null;
           last_failed_login_at?: string | null;
+          full_name?: string | null;
+          code_hint?: string | null;
+          department_id?: string | null;
+          permissions?: string[];
+          code_issued_at?: string | null;
         };
         Update: {
           id?: string;
@@ -2797,6 +2816,11 @@ export type Database = {
           failed_login_attempts?: number;
           locked_until?: string | null;
           last_failed_login_at?: string | null;
+          full_name?: string | null;
+          code_hint?: string | null;
+          department_id?: string | null;
+          permissions?: string[];
+          code_issued_at?: string | null;
         };
         Relationships: [];
       };
@@ -3015,6 +3039,8 @@ export type Database = {
       submit_restaurant_order_with_priority_atomic: { Args: { p_organization_id: string; p_branch_id: string; p_idempotency_key: string; p_items: Json; p_restaurant_table_id?: string | null; p_waiter_user_id?: string | null; p_waiter_name?: string | null; p_customer_name?: string | null; p_customer_phone?: string | null; p_channel?: Database["public"]["Enums"]["sales_channel"]; p_guest_count?: number | null; p_priority?: string; p_notes?: string | null; p_allergens?: string[]; p_currency?: string; p_order_discount?: number; p_service_fee?: number; p_delivery_fee?: number; p_actor_user_id?: string | null; p_actor_device_id?: string | null; p_submitted_at?: string; }; Returns: Json; };
       transition_restaurant_order_items_bulk_atomic: { Args: { p_organization_id: string; p_branch_id: string; p_order_id: string; p_order_item_ids: string[]; p_to_status: string; p_idempotency_key: string; p_actor_user_id?: string | null; p_actor_device_id?: string | null; p_occurred_at?: string; }; Returns: Json; };
       provision_restaurant_workflow_device_atomic: { Args: { p_organization_id: string; p_branch_id: string; p_device_name: string; p_key_hash: string; p_role: Database["public"]["Enums"]["app_role"]; p_allowed_modules: string[]; p_actor_user_id: string; }; Returns: Json; };
+      provision_department_device_atomic: { Args: { p_organization_id: string; p_branch_id: string; p_device_name: string; p_key_hash: string; p_role: Database["public"]["Enums"]["app_role"]; p_allowed_modules: string[]; p_actor_user_id: string; }; Returns: Json; };
+      revoke_department_device_atomic: { Args: { p_organization_id: string; p_device_id: string; p_actor_user_id: string; }; Returns: Json; };
       post_balanced_journal_atomic: { Args: { p_organization_id: string; p_branch_id: string | null; p_source_doc_type: string; p_source_doc_id: string; p_memo: string; p_entry_date: string; p_lines: Json; p_created_by?: string | null; }; Returns: Json; };
       reverse_journal_entry_atomic: { Args: { p_organization_id: string; p_entry_id: string; p_reason: string; p_reversal_date: string; p_created_by?: string | null; }; Returns: Json; };
       activate_recipe_version_atomic: { Args: { p_organization_id: string; p_recipe_id: string | null; p_name: string; p_category: string; p_servings: number; p_preparation: string | null; p_target_food_cost_percent: number; p_labor_cost_per_batch: number; p_overhead_cost_per_batch: number; p_ingredients: Json; p_activation_key: string; p_actor_user_id: string; }; Returns: Json; };

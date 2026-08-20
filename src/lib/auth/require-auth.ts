@@ -25,6 +25,8 @@ export type AuthenticatedUser = {
   role: Role;
   organizationId: string;
   branchId?: string;
+  departmentId?: string;
+  permissions: string[];
 };
 
 type CapabilitySubject = Pick<AuthenticatedUser, "role" | "branchId">;
@@ -96,7 +98,7 @@ export async function requireAuth(): Promise<AuthenticatedUser> {
   // Fetch user's role and organization from the database
   const { data: membership } = await (supabase as any)
     .from("organization_memberships")
-    .select("organization_id, role, branch_id")
+    .select("organization_id, role, branch_id, department_id, permissions, is_active")
     .eq("user_id", user.id)
     .maybeSingle();
 
@@ -119,12 +121,18 @@ export async function requireAuth(): Promise<AuthenticatedUser> {
     throw new ForbiddenError("لم يتم ربط حسابك بمؤسسة بعد. انتظر موافقة الإدارة.");
   }
 
+  if (membership.is_active === false) {
+    throw new ForbiddenError("تم إيقاف وصول هذا الموظف. راجع مالك المؤسسة.");
+  }
+
   return {
     id: user.id,
     email: user.email ?? "",
     role: membership.role as Role,
     organizationId: membership.organization_id,
     branchId: membership?.branch_id ?? undefined,
+    departmentId: membership?.department_id ?? undefined,
+    permissions: Array.isArray(membership?.permissions) ? membership.permissions : [],
   };
 }
 

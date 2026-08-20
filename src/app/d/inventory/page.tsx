@@ -2,10 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
+  ArrowLeftRight,
   Boxes,
   CheckCircle2,
   ClipboardList,
+  FileClock,
+  Flame,
   Loader2,
   LogOut,
   PackageCheck,
@@ -22,6 +26,8 @@ type DeviceSession = {
   orgId: string;
   branchId: string;
   role: string;
+  employeeName: string;
+  employeeRole: string;
 };
 
 type StockItem = {
@@ -60,7 +66,14 @@ function formatMoney(value: number) {
 
 export default function DepartmentInventoryPage() {
   const router = useRouter();
-  const [device, setDevice] = useState<DeviceSession>({ name: "", orgId: "", branchId: "", role: "" });
+  const [device, setDevice] = useState<DeviceSession>({
+    name: "",
+    orgId: "",
+    branchId: "",
+    role: "",
+    employeeName: "",
+    employeeRole: "",
+  });
   const [authorized, setAuthorized] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [stockItems, setStockItems] = useState<StockItem[]>([]);
@@ -80,6 +93,8 @@ export default function DepartmentInventoryPage() {
           orgId: session.organizationId ?? "",
           branchId: session.branchId ?? "",
           role: session.role ?? "",
+          employeeName: session.employeeName ?? "",
+          employeeRole: session.employeeRole ?? "",
         });
         setAuthorized(true);
       })
@@ -165,7 +180,9 @@ export default function DepartmentInventoryPage() {
           </span>
           <div>
             <h1 className="font-bold text-sm tracking-wide">شاشة المستودع والمخزون</h1>
-            <p className="text-[10px] text-slate-400 mt-0.5">الجهاز: {device.name} | وصول قسم موثق</p>
+            <p className="text-[10px] text-slate-400 mt-0.5">
+              الموظف: {device.employeeName} | الجهاز: {device.name}
+            </p>
           </div>
         </div>
 
@@ -183,6 +200,30 @@ export default function DepartmentInventoryPage() {
       </header>
 
       <main className="flex-1 overflow-y-auto p-6 space-y-6 text-right">
+        <Card className="bg-slate-900 border-slate-800 text-slate-100">
+          <CardHeader className="border-b border-slate-800">
+            <CardTitle className="text-sm font-black">عمليات أمين المستودع</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-5">
+            {[
+              { href: "/dashboard/transfers", label: "طلبات وتحويلات الأقسام", icon: ArrowLeftRight },
+              { href: "/dashboard/stock-counts", label: "جلسات الجرد", icon: ClipboardList },
+              { href: "/dashboard/waste", label: "التالف والهدر", icon: Flame },
+              { href: "/dashboard/stock-movements", label: "سجل الحركات", icon: FileClock },
+              { href: "/dashboard/inventory", label: "بطاقات المواد", icon: Boxes },
+            ].map((shortcut) => (
+              <Link
+                key={shortcut.href}
+                href={shortcut.href}
+                className="flex min-h-20 items-center gap-3 rounded-xl border border-slate-800 bg-slate-950 p-3 transition hover:border-teal-500/50 hover:bg-teal-500/5"
+              >
+                <shortcut.icon className="h-5 w-5 shrink-0 text-teal-400" />
+                <span className="text-xs font-bold">{shortcut.label}</span>
+              </Link>
+            ))}
+          </CardContent>
+        </Card>
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card className="bg-slate-900 border-slate-800 text-slate-100">
             <CardContent className="p-4 flex items-center justify-between">

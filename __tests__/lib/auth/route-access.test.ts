@@ -8,9 +8,9 @@ import {
 describe("role route access", () => {
   it("redirects operational roles to their own section", () => {
     expect(roleHomePath("cashier")).toBe("/d/gate?next=/d/pos");
-    expect(roleHomePath("inventory_manager")).toBe(
-      "/dashboard/inventory/dashboard",
-    );
+    expect(roleHomePath("chef")).toBe("/d/gate?next=/d/kitchen");
+    expect(roleHomePath("staff")).toBe("/d/gate?next=/d/waiter");
+    expect(roleHomePath("inventory_manager")).toBe("/d/gate?next=/d/inventory");
     expect(roleHomePath("accountant")).toBe("/dashboard/accounting");
     expect(roleHomePath("marketing_manager")).toBe("/dashboard/digital-presence");
   });
@@ -39,9 +39,20 @@ describe("role route access", () => {
   it("allows each employee role only inside its section", () => {
     expect(canRoleAccessPath("cashier", "/d/pos")).toBe(true);
     expect(canRoleAccessPath("inventory_manager", "/dashboard/inventory/items?low=1")).toBe(true);
+    expect(canRoleAccessPath("inventory_manager", "/d/inventory")).toBe(true);
     expect(canRoleAccessPath("accountant", "/dashboard/accounting/trial-balance")).toBe(true);
     expect(canRoleAccessPath("marketing_manager", "/dashboard/digital-presence")).toBe(true);
     expect(canRoleAccessPath("marketing_manager", "/dashboard/social-publishing")).toBe(false);
+  });
+
+  it("limits branch managers to branch operations and summary accounting", () => {
+    expect(canRoleAccessPath("branch_manager", "/dashboard")).toBe(true);
+    expect(canRoleAccessPath("branch_manager", "/d/kitchen")).toBe(true);
+    expect(canRoleAccessPath("branch_manager", "/d/inventory")).toBe(true);
+    expect(canRoleAccessPath("branch_manager", "/dashboard/accounting")).toBe(true);
+    expect(canRoleAccessPath("branch_manager", "/dashboard/accounting/expenses")).toBe(true);
+    expect(canRoleAccessPath("branch_manager", "/dashboard/accounting/ledger")).toBe(false);
+    expect(canRoleAccessPath("branch_manager", "/dashboard/settings/users")).toBe(false);
   });
 
   it("does not confuse similar path prefixes", () => {

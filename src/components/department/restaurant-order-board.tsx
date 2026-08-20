@@ -73,6 +73,7 @@ export function RestaurantOrderBoard({ mode }: { mode: BoardMode }) {
   const [workingOrderId, setWorkingOrderId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [employeeName, setEmployeeName] = useState("");
 
   const loadBoard = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -86,6 +87,7 @@ export function RestaurantOrderBoard({ mode }: { mode: BoardMode }) {
       if (!response.ok || !result.success) throw new Error(result.error || "تعذر تحميل لوحة الطلبات.");
       setOrders(result.orders ?? []);
       setStations(result.stations ?? []);
+      setEmployeeName(result.actor?.name ?? "");
       setLastUpdated(new Date());
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "تعذر الاتصال بالخادم.");
@@ -95,9 +97,12 @@ export function RestaurantOrderBoard({ mode }: { mode: BoardMode }) {
   }, [mode]);
 
   useEffect(() => {
-    void loadBoard();
+    const initialLoad = window.setTimeout(() => void loadBoard(), 0);
     const timer = window.setInterval(() => void loadBoard(true), 10_000);
-    return () => window.clearInterval(timer);
+    return () => {
+      window.clearTimeout(initialLoad);
+      window.clearInterval(timer);
+    };
   }, [loadBoard]);
 
   const visibleOrders = useMemo(() => {
@@ -150,7 +155,10 @@ export function RestaurantOrderBoard({ mode }: { mode: BoardMode }) {
             <span className={`grid h-11 w-11 place-items-center rounded-2xl ${mode === "kitchen" ? "bg-amber-400 text-slate-950" : "bg-teal-400 text-slate-950"}`}>
               {mode === "kitchen" ? <ChefHat className="h-6 w-6" /> : <PackageCheck className="h-6 w-6" />}
             </span>
-            <div><h1 className="font-black">{title}</h1><p className="text-xs text-slate-400">{subtitle}</p></div>
+            <div>
+              <h1 className="font-black">{title}</h1>
+              <p className="text-xs text-slate-400">{subtitle}{employeeName ? ` | الموظف: ${employeeName}` : ""}</p>
+            </div>
           </div>
           <div className="flex items-center gap-2 text-xs text-slate-500">
             {lastUpdated && <span>آخر تحديث {lastUpdated.toLocaleTimeString("ar", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</span>}

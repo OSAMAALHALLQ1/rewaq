@@ -3,15 +3,50 @@ import type { Role } from "@/types/domain";
 const FULL_DASHBOARD_ROLES = new Set<Role>([
   "super_admin",
   "organization_owner",
-  "branch_manager",
 ]);
+
+const ROLE_EXACT_PATHS: Readonly<Partial<Record<Role, readonly string[]>>> = {
+  branch_manager: [
+    "/dashboard",
+    "/dashboard/accounting",
+    "/dashboard/accounting/expenses",
+    "/dashboard/food-cost",
+    "/dashboard/reports",
+  ],
+};
 
 const ROLE_PATH_PREFIXES: Readonly<Record<Role, readonly string[]>> = {
   super_admin: ["/dashboard"],
   organization_owner: ["/dashboard"],
-  branch_manager: ["/dashboard"],
+  branch_manager: [
+    "/d/pos",
+    "/d/waiter",
+    "/d/kitchen",
+    "/d/expo",
+    "/d/inventory",
+    "/dashboard/shifts",
+    "/dashboard/tables",
+    "/dashboard/customer-invoices",
+    "/dashboard/customers",
+    "/dashboard/sales-returns",
+    "/dashboard/inventory",
+    "/dashboard/items",
+    "/dashboard/warehouses",
+    "/dashboard/stock-movements",
+    "/dashboard/stock-counts",
+    "/dashboard/transfers",
+    "/dashboard/waste",
+    "/dashboard/suppliers",
+    "/dashboard/invoices",
+    "/dashboard/purchase-orders",
+    "/dashboard/recipes",
+    "/dashboard/production",
+    "/dashboard/menu-items",
+    "/dashboard/modifiers",
+  ],
   cashier: ["/d/pos"],
   inventory_manager: [
+    "/d/inventory",
     "/dashboard/inventory",
     "/dashboard/items",
     "/dashboard/warehouses",
@@ -48,12 +83,12 @@ const ROLE_HOME_PATHS: Readonly<Record<Role, string>> = {
   organization_owner: "/dashboard",
   branch_manager: "/dashboard",
   cashier: "/d/gate?next=/d/pos",
-  inventory_manager: "/dashboard/inventory/dashboard",
+  inventory_manager: "/d/gate?next=/d/inventory",
   purchasing_manager: "/dashboard/purchase-orders",
-  chef: "/d/kitchen",
+  chef: "/d/gate?next=/d/kitchen",
   marketing_manager: "/dashboard/digital-presence",
   accountant: "/dashboard/accounting",
-  staff: "/d/waiter",
+  staff: "/d/gate?next=/d/waiter",
 };
 
 function normalizePathname(pathname: string): string {
@@ -94,6 +129,10 @@ export function canRoleAccessPath(role: Role, pathname: string): boolean {
   }
 
   if (FULL_DASHBOARD_ROLES.has(role)) {
+    return true;
+  }
+
+  if (ROLE_EXACT_PATHS[role]?.includes(normalizedPath)) {
     return true;
   }
 
