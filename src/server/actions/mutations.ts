@@ -765,6 +765,9 @@ export async function saveInventoryItemAction(_prevState: ActionState, formData:
   try {
     const { admin, organizationId, userId, auth } = await resolveMutationScope("inventory");
     requireSensitiveActionCapability(auth, "inventory_catalog_write");
+    if (parsed.data.preparationRoute && !["super_admin", "organization_owner", "branch_manager"].includes(auth.role)) {
+      return invalid("ربط الوجبة بقسم التحضير يحتاج صلاحية المالك أو مدير نطاق التشغيل.");
+    }
 
     const supplierResult = parsed.data.primarySupplierId
       ? await admin
@@ -1873,6 +1876,7 @@ const catalogItemSchema = z.object({
   retailPrice: z.coerce.number().nonnegative("سعر التجزئة يجب ألا يكون سالبًا"),
   taxRate: z.coerce.number().nonnegative("نسبة الضريبة يجب ألا تكون سالبة"),
   barcode: z.string().optional(),
+  preparationRoute: z.string().optional(),
 });
 
 const invoiceSchema = z.object({
@@ -1915,7 +1919,8 @@ const returnSchema = z.object({
 });
 
 const branchSchema = z.object({
-  name: z.string().min(2, "اسم القسم مطلوب"),
+  branchId: z.string().uuid("معرف القسم غير صالح").optional().or(z.literal("")),
+  name: z.string().trim().min(2, "اسم القسم مطلوب").max(120, "اسم القسم طويل جدًا"),
 });
 
 // New Server Actions
@@ -1928,6 +1933,7 @@ export async function saveCatalogItemAction(_prevState: ActionState, formData: F
     retailPrice: formData.get("retailPrice"),
     taxRate: formData.get("taxRate"),
     barcode: formData.get("barcode") || undefined,
+    preparationRoute: formData.get("preparationRoute") || undefined,
   });
 
   if (!parsed.success) return invalid(parsed.error.issues[0]?.message ?? "بيانات الصنف غير صحيحة");
@@ -1959,6 +1965,22 @@ export async function saveCatalogItemAction(_prevState: ActionState, formData: F
 
     if (itemError) return invalid(itemError.message);
 
+    if (parsed.data.preparationRoute) {
+      const [branchId, stationId] = parsed.data.preparationRoute.split(":");
+      if (!z.string().uuid().safeParse(branchId).success || !z.string().uuid().safeParse(stationId).success) {
+        return invalid("قسم التحضير المحدد غير صالح.");
+      }
+      const { error: routeError } = await admin.rpc("upsert_catalog_item_kitchen_route_atomic", {
+        p_organization_id: organizationId,
+        p_branch_id: branchId,
+        p_catalog_item_id: createdItem.id,
+        p_station_id: stationId,
+        p_is_active: true,
+        p_actor_user_id: userId,
+      });
+      if (routeError) return invalid(routeError.message);
+    }
+
     if (parsed.data.barcode) {
       const { error: barcodeError } = await admin
         .from("item_barcodes")
@@ -1979,7 +2001,7 @@ export async function saveCatalogItemAction(_prevState: ActionState, formData: F
   }
 
   revalidatePath("/dashboard/items");
-  return ok("تم حفظ الصنف في الكتالوج بنجاح.");
+  return ok(parsed.data.preparationRoute ? "تم حفظ الوجبة وربطها بقسم التحضير تلقائياً." : "تم حفظ الصنف في الكتالوج بنجاح.");
 }
 
 
@@ -2327,6 +2349,7 @@ export async function saveReturnAction(_prevState: ActionState, formData: FormDa
 
 export async function saveBranchAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
   const parsed = branchSchema.safeParse({
+    branchId: formData.get("branchId") ?? "",
     name: formData.get("name"),
   });
 
@@ -2340,11 +2363,11 @@ export async function saveBranchAction(_prevState: ActionState, formData: FormDa
     const { admin, organizationId, userId, auth } = await resolveMutationScope("administration");
     requireSensitiveActionCapability(auth, "branch_write");
 
-    const { error } = await admin.from("branches").insert({
-      organization_id: organizationId,
-      name: parsed.data.name,
-      status: "active",
-      created_by: userId,
+    const { error } = await admin.rpc("upsert_branch_atomic", {
+      p_organization_id: organizationId,
+      p_branch_id: parsed.data.branchId || null,
+      p_name: parsed.data.name,
+      p_actor_user_id: userId,
     });
 
     if (error) return invalid(error.message);
@@ -2353,13 +2376,14 @@ export async function saveBranchAction(_prevState: ActionState, formData: FormDa
   }
 
   revalidatePath("/dashboard/settings");
+  revalidatePath("/dashboard/branches");
   revalidatePath("/dashboard/inventory");
   revalidatePath("/dashboard/purchase-orders");
   revalidatePath("/dashboard/transfers");
   revalidatePath("/dashboard/waste");
   revalidatePath("/dashboard/sales-returns");
   revalidatePath("/dashboard/reports");
-  return ok("تم حفظ القسم بنجاح.");
+  return ok(parsed.data.branchId ? "تم تعديل اسم القسم بنجاح." : "تمت إضافة القسم بنجاح.");
 }
 
 export async function closeSalesShiftAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {

@@ -12,9 +12,22 @@ import { formatNumber } from "@/lib/utils";
 import { getCatalogData } from "@/server/queries/app";
 import { ActionForm } from "@/components/action-form";
 import { saveCatalogItemAction } from "@/server/actions/mutations";
+import { getCurrentSession } from "@/lib/auth/session";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export default async function ItemsPage() {
   const { items, categories, permissions } = await getCatalogData();
+  const session = await getCurrentSession();
+  const admin = createAdminClient();
+  const [stationsResult, routesResult, branchesResult] = await Promise.all([
+    admin.from("kitchen_stations").select("id,branch_id,name").eq("organization_id", session.organizationId).eq("is_active", true).order("name"),
+    admin.from("catalog_item_kitchen_routes").select("catalog_item_id,station_id,branch_id").eq("organization_id", session.organizationId).eq("is_active", true),
+    admin.from("branches").select("id,name").eq("organization_id", session.organizationId).eq("status", "active").order("name"),
+  ]);
+  const stations = stationsResult.data ?? [];
+  const branchNameById = new Map((branchesResult.data ?? []).map((branch) => [branch.id, branch.name]));
+  const stationById = new Map(stations.map((station) => [station.id, station]));
+  const routeByItemId = new Map((routesResult.data ?? []).map((route) => [route.catalog_item_id, route]));
   const activeItems = items.filter((item) => item.isActive).length;
   const categoryNames = categories.map((category) => category.name);
 
@@ -77,6 +90,7 @@ export default async function ItemsPage() {
                   <TableHead>ضريبة</TableHead>
                   <TableHead>المخزون</TableHead>
                   <TableHead>الحالة</TableHead>
+                  <TableHead>قسم التحضير</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -118,6 +132,7 @@ export default async function ItemsPage() {
                     <TableCell>
                       <Badge tone={item.isActive ? "success" : "muted"}>{item.isActive ? "نشط" : "غير نشط"}</Badge>
                     </TableCell>
+                    <TableCell>{(() => { const route = routeByItemId.get(item.id); const station = route ? stationById.get(route.station_id) : null; return station ? <Badge>{station.name} — {branchNameById.get(station.branch_id) ?? ""}</Badge> : <span className="text-xs text-muted-foreground">مادة مخزنية / غير مربوط</span>; })()}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -166,6 +181,14 @@ export default async function ItemsPage() {
               <div className="grid gap-2">
                 <Label htmlFor="barcode">الباركود (اختياري)</Label>
                 <Input id="barcode" name="barcode" placeholder="مثال: 6281100..." />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="preparationRoute">قسم تحضير الوجبة</Label>
+                <Select id="preparationRoute" name="preparationRoute" defaultValue="">
+                  <option value="">ليس وجبة / لا ترسل إلى KDS</option>
+                  {stations.map((station) => <option key={station.id} value={`${station.branch_id}:${station.id}`}>{station.name} — {branchNameById.get(station.branch_id) ?? "نطاق التشغيل"}</option>)}
+                </Select>
+                <p className="text-xs text-muted-foreground">للوجبات اختر القسم هنا؛ بعدها يرسلها النادل تلقائياً إلى شاشة القسم.</p>
               </div>
             </ActionForm>
           </CardContent>

@@ -49,6 +49,7 @@ const checkoutSchema = z.object({
     ]),
     amount: z.coerce.number().positive(),
   })).optional(),
+  restaurantOrderId: z.string().uuid().optional(),
 });
 
 type PosCheckoutAtomicResult = {
@@ -404,6 +405,48 @@ export async function POST(request: Request) {
     );
   }
 
+  if (parsed.data.restaurantOrderId) {
+    const { data: restaurantOrder, error: orderError } = await auth.admin
+      .from("restaurant_orders")
+      .select("id,status,customer_invoice_id,discount_total,service_fee,delivery_fee")
+      .eq("id", parsed.data.restaurantOrderId)
+      .eq("organization_id", auth.device.organizationId)
+      .eq("branch_id", branchId)
+      .maybeSingle();
+    if (orderError || !restaurantOrder) return NextResponse.json({ success: false, error: "طلب المطعم غير موجود ضمن نطاق الكاشير." }, { status: 404 });
+    if (restaurantOrder.customer_invoice_id) return NextResponse.json({ success: false, error: "تم إصدار فاتورة لهذا الطلب مسبقاً." }, { status: 409 });
+    if (!['ready', 'served'].includes(restaurantOrder.status)) return NextResponse.json({ success: false, error: "لا يمكن فوترة الطلب قبل اكتمال التحضير." }, { status: 409 });
+    const { data: orderItems, error: itemError } = await auth.admin
+      .from("restaurant_order_items")
+      .select("catalog_item_id,quantity,unit_price,status")
+      .eq("organization_id", auth.device.organizationId)
+      .eq("branch_id", branchId)
+      .eq("order_id", restaurantOrder.id)
+      .neq("status", "cancelled");
+    if (itemError) return NextResponse.json({ success: false, error: "تعذر التحقق من أصناف طلب المطعم." }, { status: 500 });
+    const expected = new Map<string, { quantity: number; total: number }>();
+    for (const item of orderItems ?? []) {
+      const current = expected.get(item.catalog_item_id) ?? { quantity: 0, total: 0 };
+      current.quantity += Number(item.quantity);
+      current.total += Number(item.quantity) * Number(item.unit_price);
+      expected.set(item.catalog_item_id, current);
+    }
+    const received = new Map<string, { quantity: number; total: number }>();
+    for (const item of parsed.data.items) {
+      const current = received.get(item.catalogItemId) ?? { quantity: 0, total: 0 };
+      current.quantity += item.quantity;
+      current.total += item.quantity * Number(item.unitPrice ?? 0);
+      received.set(item.catalogItemId, current);
+    }
+    const matches = expected.size === received.size && [...expected].every(([itemId, value]) => {
+      const candidate = received.get(itemId);
+      return candidate && Math.abs(candidate.quantity - value.quantity) < 0.0001 && Math.abs(candidate.total - value.total) < 0.01;
+    });
+    if (!matches || Math.abs(parsed.data.discount - Number(restaurantOrder.discount_total)) >= 0.01 || Math.abs(parsed.data.serviceFee - Number(restaurantOrder.service_fee)) >= 0.01 || Math.abs(parsed.data.deliveryFee - Number(restaurantOrder.delivery_fee)) >= 0.01) {
+      return NextResponse.json({ success: false, error: "تم تعديل محتوى طلب المطعم قبل الفوترة. أعد تحميل الطلب الأصلي من قائمة طلبات المطعم." }, { status: 409 });
+    }
+  }
+
   const { data, error: rpcError } = await (auth.admin as unknown as PosCheckoutRpcClient).rpc("pos_checkout_atomic", {
     p_org_id: auth.device.organizationId,
     p_branch_id: branchId,
@@ -431,6 +474,22 @@ export async function POST(request: Request) {
 
   if (!data) {
     return NextResponse.json({ success: false, error: "لم يرجع مسار الدفع نتيجة من قاعدة البيانات." }, { status: 500 });
+  }
+
+  if (parsed.data.restaurantOrderId) {
+    const { error: linkError } = await (auth.admin as any).rpc("link_restaurant_order_invoice_atomic", {
+      p_organization_id: auth.device.organizationId,
+      p_branch_id: branchId,
+      p_order_id: parsed.data.restaurantOrderId,
+      p_customer_invoice_id: data.invoiceId,
+      p_idempotency_key: `${idempotencyKey}:restaurant-order`,
+      p_actor_user_id: auth.actor.id,
+      p_actor_device_id: auth.device.id,
+    });
+    if (linkError) {
+      console.error("Restaurant order invoice linking failed:", linkError);
+      return NextResponse.json({ success: false, error: "تم إنشاء الفاتورة لكن تعذر ربطها بطلب المطعم؛ أعد المحاولة بنفس الطلب لإكمال الربط." }, { status: 503 });
+    }
   }
 
   return NextResponse.json({

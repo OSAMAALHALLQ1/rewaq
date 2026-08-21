@@ -26,22 +26,18 @@ export async function GET(request: Request) {
 
   const organizationId = auth.device.organizationId;
   const branchId = auth.device.branchId;
-  const { data: assignments, error: assignmentError } = await auth.admin
-    .from("kitchen_station_devices")
-    .select("station_id")
-    .eq("organization_id", organizationId)
-    .eq("branch_id", branchId)
-    .eq("device_id", auth.device.id)
-    .eq("is_active", true);
-  if (assignmentError) {
-    console.error("Kitchen station assignment query failed:", assignmentError);
-    return NextResponse.json({ success: false, error: "تعذر التحقق من محطات الجهاز." }, { status: 500 });
+  const stationScope = mode === "expo"
+    ? await auth.admin.from("kitchen_stations").select("id").eq("organization_id", organizationId).eq("branch_id", branchId).eq("is_active", true)
+    : await auth.admin.from("kitchen_station_devices").select("station_id").eq("organization_id", organizationId).eq("branch_id", branchId).eq("device_id", auth.device.id).eq("is_active", true);
+  if (stationScope.error) {
+    console.error("Kitchen station scope query failed:", stationScope.error);
+    return NextResponse.json({ success: false, error: "تعذر التحقق من أقسام التحضير." }, { status: 500 });
   }
 
-  const stationIds = [...new Set((assignments ?? []).map((row: any) => row.station_id))];
+  const stationIds = [...new Set((stationScope.data ?? []).map((row: any) => mode === "expo" ? row.id : row.station_id))];
   if (stationIds.length === 0) {
     return NextResponse.json(
-      { success: false, error: "هذا الجهاز غير مربوط بأي محطة تحضير نشطة." },
+      { success: false, error: mode === "expo" ? "لا توجد أقسام تحضير نشطة ضمن نطاق التشغيل." : "هذا الجهاز غير مربوط بقسم تحضير نشط." },
       { status: 403 },
     );
   }
@@ -77,6 +73,7 @@ export async function GET(request: Request) {
   for (const item of itemsResult.data ?? []) {
     const relation = Array.isArray((item as any).order) ? (item as any).order[0] : (item as any).order;
     if (!relation) continue;
+    if (mode === "expo" && relation.status !== "ready") continue;
     const existing = ordersById.get(relation.id) ?? { ...relation, items: [] };
     existing.items.push({
       id: item.id,

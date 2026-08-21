@@ -52,6 +52,7 @@ const DEPARTMENT_CAPABILITY_ROLES = {
   waiter_write: new Set(["cashier", "manager", "staff"]),
   expo_write: new Set(["chef", "kitchen", "manager", "staff"]),
   inventory_write: new Set(["inventory_manager", "manager"]),
+  accounting_read: new Set(["accountant", "manager"]),
 } as const;
 
 const DEPARTMENT_MODULE_ENTITLEMENTS: Readonly<Record<string, RewaqModule>> = {
@@ -71,6 +72,7 @@ const DEPARTMENT_ROLE_MODULES: Readonly<Record<string, ReadonlySet<string>>> = {
   branch_manager: new Set(["pos", "inventory", "recipes", "purchasing", "waste", "reports", "waiter", "kitchen", "expo"]),
   organization_owner: new Set(["pos", "inventory", "recipes", "purchasing", "waste", "reports", "waiter", "kitchen", "expo"]),
   super_admin: new Set(["pos", "inventory", "recipes", "purchasing", "waste", "reports", "waiter", "kitchen", "expo"]),
+  accountant: new Set(["accounting"]),
 };
 
 const EMPLOYEE_ROLE_MODULES: Readonly<Partial<Record<Role, ReadonlySet<string>>>> = {
@@ -82,6 +84,7 @@ const EMPLOYEE_ROLE_MODULES: Readonly<Partial<Record<Role, ReadonlySet<string>>>
   purchasing_manager: new Set(["purchasing", "inventory", "reports"]),
   chef: new Set(["recipes", "inventory", "waste", "kitchen", "expo"]),
   staff: new Set(["waiter"]),
+  accountant: new Set(["accounting"]),
 };
 
 const PERSONAL_MANAGER_ROLES = new Set<Role>([

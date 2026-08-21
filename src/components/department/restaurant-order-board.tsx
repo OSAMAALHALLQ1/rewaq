@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   Check,
@@ -74,6 +74,8 @@ export function RestaurantOrderBoard({ mode }: { mode: BoardMode }) {
   const [error, setError] = useState("");
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [employeeName, setEmployeeName] = useState("");
+  const [newOrderNotice, setNewOrderNotice] = useState("");
+  const knownItemIds = useRef<Set<string> | null>(null);
 
   const loadBoard = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -104,6 +106,20 @@ export function RestaurantOrderBoard({ mode }: { mode: BoardMode }) {
       window.clearInterval(timer);
     };
   }, [loadBoard]);
+
+  useEffect(() => {
+    const currentIds = new Set(orders.flatMap((order) => order.items.map((item) => item.id)));
+    if (knownItemIds.current === null) {
+      knownItemIds.current = currentIds;
+      return;
+    }
+    const added = [...currentIds].filter((id) => !knownItemIds.current!.has(id));
+    knownItemIds.current = currentIds;
+    if (mode === "kitchen" && added.length > 0) {
+      setNewOrderNotice(`وصل ${added.length === 1 ? "طلب وجبة جديد" : `${added.length} طلبات وجبات جديدة`} إلى هذا القسم.`);
+      window.setTimeout(() => setNewOrderNotice(""), 7000);
+    }
+  }, [mode, orders]);
 
   const visibleOrders = useMemo(() => {
     if (stationFilter === "all") return orders;
@@ -170,6 +186,7 @@ export function RestaurantOrderBoard({ mode }: { mode: BoardMode }) {
 
       <div className="mx-auto max-w-[1600px] space-y-4 p-4">
         {error && <div className="flex items-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-200"><AlertTriangle className="h-5 w-5" />{error}</div>}
+        {newOrderNotice && <div role="status" className="flex items-center gap-2 rounded-xl border border-emerald-400/40 bg-emerald-500/15 p-3 text-sm font-black text-emerald-200"><ChefHat className="h-5 w-5" />{newOrderNotice}</div>}
         <div className="flex gap-2 overflow-x-auto">
           <Button size="sm" variant={stationFilter === "all" ? "default" : "outline"} onClick={() => setStationFilter("all")} className={stationFilter === "all" ? "bg-teal-500 text-slate-950" : "border-white/15 bg-transparent"}>كل المحطات</Button>
           {stations.map((station) => <Button key={station.id} size="sm" variant={stationFilter === station.id ? "default" : "outline"} onClick={() => setStationFilter(station.id)} className={stationFilter === station.id ? "bg-teal-500 text-slate-950" : "border-white/15 bg-transparent"}>{station.name}</Button>)}

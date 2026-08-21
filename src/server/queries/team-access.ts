@@ -3,6 +3,7 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAuth, requireRoleCapability } from "@/lib/auth/require-auth";
 import type { Role } from "@/types/domain";
+import { decryptEmployeeCode } from "@/lib/auth/employee-code-encryption";
 
 export type TeamAccessEmployee = {
   id: string;
@@ -13,6 +14,7 @@ export type TeamAccessEmployee = {
   departmentId: string | null;
   status: string;
   codeHint: string | null;
+  code: string | null;
   lastUsedAt: string | null;
   expiresAt: string;
   revokedAt: string | null;
@@ -30,7 +32,7 @@ export async function getTeamAccessWorkspaceData() {
     admin
       .from("team_invites")
       .select(
-        "id,full_name,email,role,branch_id,department_id,status,code_hint,last_used_at,expires_at,revoked_at,accepted_user_id,created_at",
+        "id,full_name,email,role,branch_id,department_id,status,code_hint,employee_code_ciphertext,last_used_at,expires_at,revoked_at,accepted_user_id,created_at",
       )
       .eq("organization_id", user.organizationId)
       .order("created_at", { ascending: false }),
@@ -60,6 +62,7 @@ export async function getTeamAccessWorkspaceData() {
     departmentId: row.department_id,
     status: row.status,
     codeHint: row.code_hint,
+    code: decryptEmployeeCode(row.employee_code_ciphertext),
     lastUsedAt: row.last_used_at,
     expiresAt: row.expires_at,
     revokedAt: row.revoked_at,

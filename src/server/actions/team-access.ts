@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { generateEmployeeCode, employeeCodeHint, hashEmployeeCode } from "@/lib/auth/employee-code";
+import { encryptEmployeeCode } from "@/lib/auth/employee-code-encryption";
 import { logAuditEvent } from "@/lib/audit/log";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAuth, requireRoleCapability } from "@/lib/auth/require-auth";
@@ -112,6 +113,7 @@ export async function createEmployeeAccessAction(
         organization_id: user.organizationId,
         email,
         invite_code: hashEmployeeCode(code),
+        employee_code_ciphertext: encryptEmployeeCode(code),
         full_name: parsed.data.fullName,
         code_hint: employeeCodeHint(code),
         code_issued_at: new Date().toISOString(),
@@ -152,7 +154,7 @@ export async function createEmployeeAccessAction(
     revalidatePath("/dashboard/settings/users");
     return {
       ok: true,
-      message: "تم إنشاء الموظف. احفظ الكود الآن؛ لن يظهر كاملًا مرة أخرى.",
+      message: "تم إنشاء الموظف. يستطيع المالك نسخ الكود من بطاقة الموظف عند الحاجة.",
       code,
       employeeId: invite.id,
     };
@@ -184,6 +186,7 @@ export async function rotateEmployeeCodeAction(employeeId: string): Promise<Empl
       .from("team_invites")
       .update({
         invite_code: hashEmployeeCode(code),
+        employee_code_ciphertext: encryptEmployeeCode(code),
         code_hint: employeeCodeHint(code),
         code_issued_at: new Date().toISOString(),
         status: existing.accepted_user_id ? "accepted" : "pending",

@@ -65,6 +65,7 @@ const ROLE_PATH_PREFIXES: Readonly<Record<Role, readonly string[]>> = {
     "/dashboard/digital-presence",
   ],
   accountant: [
+    "/d/accounting",
     "/dashboard/accounting",
     "/dashboard/cost-accounting",
     "/dashboard/customer-invoices",

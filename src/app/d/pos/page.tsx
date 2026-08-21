@@ -66,6 +66,7 @@ type OpenOrderDraft = {
   orderDiscount: number;
   serviceFee: number;
   deliveryFee: number;
+  restaurantOrderId: string | null;
 };
 
 type DeviceSession = {
@@ -160,6 +161,23 @@ type PosInvoice = {
   total: number;
   issuedAt: string;
   shiftId: string | null;
+};
+
+type RestaurantCashierOrder = {
+  id: string;
+  order_number: string;
+  status: string;
+  restaurant_table_id: string | null;
+  waiter_name: string | null;
+  customer_name: string | null;
+  channel: "dine_in" | "delivery" | "pickup";
+  notes: string | null;
+  discount_total: number;
+  service_fee: number;
+  delivery_fee: number;
+  total: number;
+  submitted_at: string;
+  items: Array<{ id: string; catalog_item_id: string; item_name: string; quantity: number; unit_price: number; tax_rate: number; notes: string | null }>;
 };
 
 type OrderType = "dine_in" | "takeaway" | "delivery";
@@ -279,6 +297,10 @@ export default function CashierPOSWorkspace() {
   const [heldOrders, setHeldOrders] = useState<HeldOrder[]>([]);
   const [showHeldPanel, setShowHeldPanel] = useState(false);
   const [holdBusy, setHoldBusy] = useState(false);
+  const [restaurantOrders, setRestaurantOrders] = useState<RestaurantCashierOrder[]>([]);
+  const [restaurantOrderId, setRestaurantOrderId] = useState<string | null>(null);
+  const [showRestaurantOrders, setShowRestaurantOrders] = useState(false);
+  const [restaurantOrdersLoading, setRestaurantOrdersLoading] = useState(false);
 
   // ── orders (today invoices) view ──
   const [view, setView] = useState<"sale" | "orders">("sale");
@@ -713,6 +735,7 @@ export default function CashierPOSWorkspace() {
       orderDiscount,
       serviceFee,
       deliveryFee,
+      restaurantOrderId,
     });
     setSavedOrderIndexes(Array.from(orderDrafts.current.keys()).sort((a, b) => a - b));
   };
@@ -728,6 +751,7 @@ export default function CashierPOSWorkspace() {
     setOrderDiscount(draft.orderDiscount);
     setServiceFee(draft.serviceFee);
     setDeliveryFee(draft.deliveryFee);
+    setRestaurantOrderId(draft.restaurantOrderId);
     setPayments([]); setCashReceived(""); setPayAmount(""); setSplitMode(false);
   };
 
@@ -739,6 +763,7 @@ export default function CashierPOSWorkspace() {
     }
     const nextIndex = lastOrderIndex + 1;
     resetOrder();
+    setRestaurantOrderId(null);
     setOrderIndex(nextIndex);
     setLastOrderIndex(nextIndex);
   };
@@ -1065,6 +1090,7 @@ export default function CashierPOSWorkspace() {
       serviceFee: +serviceFee.toFixed(2),
       deliveryFee: +deliveryFee.toFixed(2),
       payments: opts.splitPayments && opts.splitPayments.length > 1 ? opts.splitPayments : undefined,
+      restaurantOrderId: restaurantOrderId ?? undefined,
     };
     const receipt = {
       invoiceNumber: "PENDING-" + idempotencyKey.slice(0, 6).toUpperCase(),
@@ -1112,6 +1138,12 @@ export default function CashierPOSWorkspace() {
       if (settings.printOnCheckout) setTimeout(() => window.print(), 400);
     };
 
+    if (!isOnline && restaurantOrderId) {
+      setStatusMessage("فوترة طلب المطعم تحتاج اتصالاً مباشراً حتى تبقى الفاتورة والطلب مرتبطين دون تكرار.");
+      setPaymentOpen(false);
+      return;
+    }
+
     if (!isOnline) {
       await queueIt();
       if (tableId) {
@@ -1140,7 +1172,10 @@ export default function CashierPOSWorkspace() {
     } catch (err) {
       // فشل التحقق من الوردية أو الخصم يجب ألا يذهب لقائمة الأوفلاين
       const msg = err instanceof Error ? err.message : "";
-      if (msg.includes("وردية")) {
+      if (restaurantOrderId) {
+        setStatusMessage(msg || "تعذر فوترة طلب المطعم؛ بقي الطلب محفوظاً لإعادة المحاولة.");
+        setPaymentOpen(false);
+      } else if (msg.includes("وردية")) {
         setStatusMessage(msg);
         setPaymentOpen(false);
         refreshShift();
@@ -1168,6 +1203,45 @@ export default function CashierPOSWorkspace() {
     await fetch("/api/auth/department-session", { method: "DELETE" }).catch(() => undefined);
     ["rwq_dept_key", "rwq_dept_role", "rwq_dept_org_id", "rwq_dept_branch_id", "rwq_dept_allowed", "rwq_dept_device"].forEach((k) => localStorage.removeItem(k));
     router.push("/d/gate");
+  };
+
+  const loadRestaurantOrders = async () => {
+    setRestaurantOrdersLoading(true);
+    try {
+      const response = await fetch("/api/department/restaurant-orders/cashier", { headers: apiHeaders(), cache: "no-store" });
+      const payload = await response.json();
+      if (!response.ok || !payload.success) throw new Error(payload.error || "تعذر تحميل طلبات المطعم.");
+      setRestaurantOrders(payload.orders ?? []);
+    } catch (loadError) {
+      setStatusMessage(loadError instanceof Error ? loadError.message : "تعذر تحميل طلبات المطعم.");
+    } finally {
+      setRestaurantOrdersLoading(false);
+    }
+  };
+
+  const recallRestaurantOrder = (order: RestaurantCashierOrder) => {
+    if (cart.length > 0 && !confirm("سيتم استبدال السلة الحالية بطلب المطعم. متابعة؟")) return;
+    setCart(order.items.map((item) => ({
+      id: `restaurant-${order.id}-${item.id}`,
+      catalogItemId: item.catalog_item_id,
+      name: item.item_name,
+      price: Number(item.unit_price),
+      taxRate: Number(item.tax_rate),
+      qty: Number(item.quantity),
+      discount: 0,
+      note: item.notes ?? undefined,
+      selectedModifiers: [],
+    })));
+    setRestaurantOrderId(order.id);
+    setCustomerName(order.customer_name || order.order_number);
+    setOrderType(order.channel === "dine_in" ? "dine_in" : order.channel === "delivery" ? "delivery" : "takeaway");
+    setTableName(order.restaurant_table_id ? order.order_number : "");
+    setOrderNotes([`طلب مطعم ${order.order_number}`, order.waiter_name ? `النادل: ${order.waiter_name}` : "", order.notes ?? ""].filter(Boolean).join(" · "));
+    setOrderDiscount(Number(order.discount_total ?? 0));
+    setServiceFee(Number(order.service_fee ?? 0));
+    setDeliveryFee(Number(order.delivery_fee ?? 0));
+    setShowRestaurantOrders(false);
+    setStatusMessage(`تم تحميل ${order.order_number} — اختر طريقة الدفع لإصدار الفاتورة.`);
   };
 
   if (!authorized) return null;
@@ -1348,6 +1422,13 @@ export default function CashierPOSWorkspace() {
           >
             <PauseCircle className="h-4 w-4" />
             معلقة {heldOrders.length > 0 && <span className="bg-black/20 rounded px-1.5">{heldOrders.length}</span>}
+          </button>
+          <button
+            onClick={() => { setShowRestaurantOrders(true); void loadRestaurantOrders(); }}
+            className="h-9 px-3 rounded bg-teal-400 hover:bg-teal-300 text-slate-950 flex items-center gap-1.5 transition-colors font-bold text-xs"
+            title="طلبات الطاولات الجاهزة للفوترة"
+          >
+            <Utensils className="h-4 w-4" /> طلبات المطعم
           </button>
         </div>
 
@@ -2077,6 +2158,21 @@ export default function CashierPOSWorkspace() {
               >
                 {checkoutBusy ? <RotateCcw className="h-4 w-4 animate-spin" /> : <><Printer className="h-4 w-4" /> تأكيد وطباعة</>}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════ RESTAURANT ORDERS READY FOR CASHIER ═══════════ */}
+      {showRestaurantOrders && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 print:hidden">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden max-h-[85vh] flex flex-col">
+            <div className="bg-teal-500 text-slate-950 px-5 py-4 flex items-center justify-between shrink-0">
+              <h2 className="font-bold text-base flex items-center gap-2"><Utensils className="h-5 w-5" /> طلبات المطعم الجاهزة للفوترة</h2>
+              <button onClick={() => setShowRestaurantOrders(false)} className="hover:bg-black/10 p-1 rounded"><X className="h-5 w-5" /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4">
+              {restaurantOrdersLoading ? <div className="py-12 text-center text-sm text-gray-400"><RotateCcw className="mx-auto mb-2 h-6 w-6 animate-spin" /> جارٍ التحميل...</div> : restaurantOrders.length === 0 ? <div className="py-12 text-center text-sm text-gray-400">لا توجد طلبات مكتملة التحضير بانتظار الفاتورة.</div> : <div className="space-y-3">{restaurantOrders.map((order) => <div key={order.id} className="rounded-xl border border-gray-200 p-4"><div className="flex items-center justify-between gap-3"><div><strong className="text-sm text-gray-900">{order.order_number}</strong><p className="mt-1 text-xs text-gray-500">{order.waiter_name ? `النادل: ${order.waiter_name} · ` : ""}{order.items.map((item) => `${item.item_name} × ${Number(item.quantity)}`).join("، ")}</p></div><strong className="shrink-0 text-[#1363DF]">{cur} {Number(order.total).toFixed(2)}</strong></div><button onClick={() => recallRestaurantOrder(order)} className="mt-3 h-10 w-full rounded-lg bg-[#1363DF] text-xs font-bold text-white hover:bg-[#1237A8]">تحميل الطلب وإصدار الفاتورة</button></div>)}</div>}
             </div>
           </div>
         </div>

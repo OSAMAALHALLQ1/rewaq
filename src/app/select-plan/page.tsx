@@ -42,7 +42,7 @@ export default async function SelectPlanPage({
           </h1>
           <p className="mt-4 text-base leading-8 text-muted-foreground">
             اضغط الباقة المناسبة لتدخل النظام مباشرة. لن يتم تحصيل أي مبلغ الآن؛ ربط الدفع
-            وتغيير الباقة لاحقًا سيكونان من صفحة الفوترة.
+            وتغيير الباقة لاحقًا سيكونان من صفحة الفاتورة والاشتراك.
           </p>
         </header>
 

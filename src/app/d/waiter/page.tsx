@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   ChefHat,
@@ -31,6 +31,8 @@ type CatalogItem = {
   price: number;
   taxRate: number;
   imageUrl: string | null;
+  stationId: string | null;
+  stationName: string | null;
 };
 
 type RestaurantTable = {
@@ -42,12 +44,10 @@ type RestaurantTable = {
   status: string;
 };
 
-type KitchenStation = { id: string; code: string; name: string; displayOrder: number };
 type CartLine = {
   clientLineId: string;
   item: CatalogItem;
   quantity: number;
-  stationId: string;
   notes: string;
 };
 type ActiveOrder = {
@@ -77,7 +77,6 @@ function departmentHeaders(json = false): HeadersInit {
 export default function WaiterPage() {
   const [items, setItems] = useState<CatalogItem[]>([]);
   const [tables, setTables] = useState<RestaurantTable[]>([]);
-  const [stations, setStations] = useState<KitchenStation[]>([]);
   const [orders, setOrders] = useState<ActiveOrder[]>([]);
   const [cart, setCart] = useState<CartLine[]>([]);
   const [search, setSearch] = useState("");
@@ -91,6 +90,7 @@ export default function WaiterPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const knownReadyItems = useRef(new Set<string>());
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -112,7 +112,6 @@ export default function WaiterPage() {
       }
       setItems(catalogResult.items ?? []);
       setTables(catalogResult.tables ?? []);
-      setStations(catalogResult.stations ?? []);
       setOrders(ordersResult.orders ?? []);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "تعذر الاتصال بالخادم.");
@@ -123,7 +122,18 @@ export default function WaiterPage() {
 
   useEffect(() => {
     void loadData();
+    const timer = window.setInterval(() => void loadData(), 12000);
+    return () => window.clearInterval(timer);
   }, [loadData]);
+
+  useEffect(() => {
+    const readyItems = orders.flatMap((order) => order.items.filter((item) => item.status === "ready").map((item) => ({ ...item, orderNumber: order.order_number })));
+    const newlyReady = readyItems.filter((item) => !knownReadyItems.current.has(item.id));
+    readyItems.forEach((item) => knownReadyItems.current.add(item.id));
+    if (newlyReady.length > 0) {
+      setSuccess(`جاهز للاستلام: ${newlyReady.map((item) => `${item.item_name} (${item.orderNumber})`).join("، ")}`);
+    }
+  }, [orders]);
 
   const categories = useMemo(
     () => ["الكل", ...Array.from(new Set(items.map((item) => item.category)))],
@@ -143,8 +153,8 @@ export default function WaiterPage() {
   );
 
   const addItem = (item: CatalogItem) => {
-    if (!stations[0]) {
-      setError("لا توجد محطة تحضير نشطة. أنشئ جهاز المطبخ أو المحطة أولاً.");
+    if (!item.stationId) {
+      setError(`الوجبة «${item.name}» غير مربوطة بقسم تحضير بعد.`);
       return;
     }
     setCart((current) => {
@@ -162,7 +172,6 @@ export default function WaiterPage() {
           clientLineId: crypto.randomUUID(),
           item,
           quantity: 1,
-          stationId: stations[0].id,
           notes: "",
         },
       ];
@@ -183,10 +192,6 @@ export default function WaiterPage() {
 
   const submitOrder = async () => {
     if (cart.length === 0) return;
-    if (cart.some((line) => !line.stationId)) {
-      setError("حدد محطة التحضير لكل عنصر.");
-      return;
-    }
     setSubmitting(true);
     setError("");
     setSuccess("");
@@ -204,7 +209,6 @@ export default function WaiterPage() {
           allergens: allergens.split(",").map((value) => value.trim()).filter(Boolean),
           items: cart.map((line) => ({
             clientLineId: line.clientLineId,
-            stationId: line.stationId,
             catalogItemId: line.item.id,
             quantity: line.quantity,
             notes: line.notes || null,
@@ -274,7 +278,7 @@ export default function WaiterPage() {
           ) : (
             <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
               {visibleItems.map((item) => (
-                <button key={item.id} onClick={() => addItem(item)} className="rounded-2xl border border-white/10 bg-slate-900 p-3 text-right transition hover:-translate-y-0.5 hover:border-teal-400/50 hover:bg-slate-800">
+                <button key={item.id} onClick={() => addItem(item)} disabled={!item.stationId} className="rounded-2xl border border-white/10 bg-slate-900 p-3 text-right transition hover:-translate-y-0.5 hover:border-teal-400/50 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50">
                   <div className="mb-3 grid aspect-[4/3] place-items-center overflow-hidden rounded-xl bg-slate-800">
                     {item.imageUrl ? <img src={item.imageUrl} alt="" className="h-full w-full object-cover" /> : <ChefHat className="h-8 w-8 text-slate-600" />}
                   </div>
@@ -283,6 +287,7 @@ export default function WaiterPage() {
                     <span className="text-slate-500">{item.category}</span>
                     <strong className="text-teal-300">{item.price.toFixed(2)} د.أ</strong>
                   </div>
+                  <p className={`mt-2 text-[11px] font-bold ${item.stationId ? "text-blue-300" : "text-amber-300"}`}>{item.stationName ? `إلى: ${item.stationName}` : "غير مربوط بقسم تحضير"}</p>
                 </button>
               ))}
             </div>
@@ -298,7 +303,7 @@ export default function WaiterPage() {
                     <strong>{order.order_number}</strong>
                     <Badge variant="outline" className={order.priority === "rush" ? "border-rose-400 text-rose-300" : "border-white/15 text-slate-300"}>{orderStatusLabels[order.status] ?? order.status}</Badge>
                   </div>
-                  <p className="mt-2 text-xs text-slate-400">{order.items.map((item) => `${item.item_name} × ${Number(item.quantity)}`).join(" • ")}</p>
+                  <div className="mt-2 space-y-1 text-xs">{order.items.map((item) => <p key={item.id} className={item.status === "ready" ? "font-black text-emerald-300" : "text-slate-400"}>{item.item_name} × {Number(item.quantity)} — {item.status === "ready" ? "جاهزة للاستلام" : orderStatusLabels[item.status] ?? item.status}</p>)}</div>
                   <p className="mt-2 text-sm font-bold text-teal-300">{Number(order.total).toFixed(2)} د.أ</p>
                 </div>
               ))}
@@ -323,7 +328,7 @@ export default function WaiterPage() {
                 {cart.map((line) => (
                   <div key={line.clientLineId} className="space-y-2 rounded-xl border border-white/10 bg-slate-950/70 p-3">
                     <div className="flex items-start justify-between gap-2"><div><p className="text-sm font-bold">{line.item.name}</p><p className="text-xs text-teal-300">{(line.item.price * line.quantity).toFixed(2)} د.أ</p></div><div className="flex items-center gap-2"><button onClick={() => updateQuantity(line.clientLineId, -1)} aria-label="إنقاص"><CircleMinus className="h-5 w-5" /></button><b>{line.quantity}</b><button onClick={() => updateQuantity(line.clientLineId, 1)} aria-label="زيادة"><CirclePlus className="h-5 w-5" /></button></div></div>
-                    <select value={line.stationId} onChange={(event) => setCart((current) => current.map((value) => value.clientLineId === line.clientLineId ? { ...value, stationId: event.target.value } : value))} className="h-9 w-full rounded-md border border-white/10 bg-slate-900 px-2 text-xs">{stations.map((station) => <option key={station.id} value={station.id}>{station.name}</option>)}</select>
+                    <div className="rounded-md border border-blue-400/20 bg-blue-500/10 px-2 py-2 text-xs text-blue-200">يرسل تلقائياً إلى: <strong>{line.item.stationName}</strong></div>
                     <Input value={line.notes} onChange={(event) => setCart((current) => current.map((value) => value.clientLineId === line.clientLineId ? { ...value, notes: event.target.value } : value))} placeholder="ملاحظة للصنف..." className="h-9 border-white/10 bg-slate-900 text-xs" />
                   </div>
                 ))}

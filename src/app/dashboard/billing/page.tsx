@@ -33,7 +33,7 @@ export default async function BillingPage() {
   return (
     <>
       <PageHeader
-        title="الفوترة والاشتراك"
+        title="الفاتورة والاشتراك"
         description="راجع حالة اشتراك مؤسستك وحدود الباقة وقارن خيارات رواق المعتمدة."
         actions={
           <Button variant="outline" asChild>

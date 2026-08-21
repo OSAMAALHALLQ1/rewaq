@@ -13,6 +13,7 @@ const REQUESTED_MODULES: Record<string, string> = {
   "/d/kitchen": "kitchen",
   "/d/expo": "expo",
   "/d/waiter": "waiter",
+  "/d/accounting": "accounting",
 };
 
 function destinationFor(allowed: string[], requestedNext: string | null) {
@@ -29,6 +30,7 @@ function destinationFor(allowed: string[], requestedNext: string | null) {
   if (allowed.includes("expo")) return "/d/expo";
   if (allowed.includes("recipes")) return "/d/kitchen";
   if (allowed.includes("inventory")) return "/d/inventory";
+  if (allowed.includes("accounting")) return "/d/accounting";
   return null;
 }
 

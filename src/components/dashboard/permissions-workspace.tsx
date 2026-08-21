@@ -120,7 +120,7 @@ export default function PermissionsWorkspaceClient({ employees, branches, depart
           <CardContent className="flex flex-wrap items-center justify-between gap-4 p-5">
             <div>
               <div className="flex items-center gap-2 font-black text-emerald-900">
-                <BadgeCheck className="h-5 w-5" /> كود الموظف جاهز — يظهر كاملًا هذه المرة فقط
+                <BadgeCheck className="h-5 w-5" /> كود الموظف جاهز ومحفوظ بشكل مشفّر للمالك
               </div>
               <code className="mt-3 block select-all text-xl font-black tracking-wider text-slate-950" dir="ltr">{visibleIssuedCode}</code>
             </div>
@@ -175,7 +175,7 @@ export default function PermissionsWorkspaceClient({ employees, branches, depart
         <div className="space-y-4">
           <div className="flex items-center justify-between gap-3">
             <h2 className="flex items-center gap-2 text-lg font-black text-slate-950"><Users className="h-5 w-5 text-[#1363DF]" /> الموظفون ({employees.length})</h2>
-            <p className="text-xs text-slate-500">الكود الكامل لا يُخزن ولا يمكن استرجاعه؛ يمكن تدويره فقط.</p>
+            <p className="text-xs text-slate-500">الأكواد الجديدة تظهر كاملة للمالك فقط، وتبقى مشفّرة داخل قاعدة البيانات.</p>
           </div>
           {employees.length === 0 ? (
             <Card><CardContent className="grid min-h-48 place-items-center p-6 text-center text-sm text-slate-500">لا يوجد موظفون بعد. أضف أول موظف من النموذج.</CardContent></Card>
@@ -200,12 +200,21 @@ export default function PermissionsWorkspaceClient({ employees, branches, depart
                       <div className="rounded-xl bg-slate-50 p-3 text-sm"><div className="font-black text-slate-900">{role?.label ?? employee.role}</div><div className="mt-1 text-xs text-slate-500">{role?.workspace}</div></div>
                       <div className="grid grid-cols-2 gap-3 text-xs">
                         <div><span className="block text-slate-500">النطاق</span><strong>{branchName(employee.branchId)}{department ? ` / ${department}` : ""}</strong></div>
-                        <div><span className="block text-slate-500">تلميح الكود</span><strong dir="ltr">{employee.codeHint ?? "غير متوفر"}</strong></div>
+                        <div>
+                          <span className="block text-slate-500">كود الموظف</span>
+                          {employee.code ? (
+                            <button type="button" onClick={() => void copyCode(employee.code!)} className="mt-1 inline-flex items-center gap-1.5 font-mono font-black text-[#1363DF]" dir="ltr" title="نسخ الكود">
+                              <ClipboardCopy className="h-3.5 w-3.5" /> {employee.code}
+                            </button>
+                          ) : (
+                            <strong className="text-amber-700" dir="ltr">قديم: {employee.codeHint ?? "غير متوفر"}</strong>
+                          )}
+                        </div>
                         <div className="col-span-2"><span className="block text-slate-500">آخر دخول</span><strong>{formatDate(employee.lastUsedAt)}</strong></div>
                       </div>
                       <div className="flex flex-wrap gap-2 border-t pt-4">
                         <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => rotateCode(employee.id)} className="gap-2">
-                          {busy ? <RefreshCw className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />} {employee.revokedAt ? "إعادة التفعيل بكود جديد" : "تدوير الكود"}
+                          {busy ? <RefreshCw className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />} {employee.revokedAt ? "إعادة التفعيل بكود جديد" : employee.code ? "تغيير الكود" : "إصدار كود قابل للعرض"}
                         </Button>
                         {!employee.revokedAt ? <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => revokeAccess(employee.id)} className="gap-2 text-red-700 hover:text-red-800"><CircleOff className="h-4 w-4" /> إيقاف الدخول</Button> : null}
                       </div>

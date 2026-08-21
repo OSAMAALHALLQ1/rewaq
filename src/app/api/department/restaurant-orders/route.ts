@@ -8,7 +8,6 @@ import { canUseDemoFallback } from "@/lib/supabase/env";
 
 const orderItemSchema = z.object({
   clientLineId: z.string().trim().min(1).max(80),
-  stationId: z.string().uuid(),
   catalogItemId: z.string().uuid(),
   quantity: z.coerce.number().positive().max(999),
   notes: z.string().trim().max(500).optional().nullable(),
@@ -137,6 +136,26 @@ export async function POST(request: Request) {
     });
   }
 
+  const catalogItemIds = [...new Set(input.items.map((item) => item.catalogItemId))];
+  const { data: routes, error: routeError } = await auth.admin
+    .from("catalog_item_kitchen_routes")
+    .select("catalog_item_id,station_id")
+    .eq("organization_id", auth.device.organizationId)
+    .eq("branch_id", auth.device.branchId)
+    .eq("is_active", true)
+    .in("catalog_item_id", catalogItemIds);
+  if (routeError) {
+    return NextResponse.json({ success: false, error: "تعذر التحقق من أقسام تحضير الوجبات." }, { status: 500 });
+  }
+  const stationByItem = new Map((routes ?? []).map((route: any) => [route.catalog_item_id, route.station_id]));
+  const unroutedItem = input.items.find((item) => !stationByItem.has(item.catalogItemId));
+  if (unroutedItem) {
+    return NextResponse.json(
+      { success: false, error: "توجد وجبة غير مربوطة بقسم تحضير. اطلب من المالك ربطها قبل إرسال الطلب." },
+      { status: 409 },
+    );
+  }
+
   const { data, error } = await (auth.admin as any).rpc(
     "submit_restaurant_order_with_priority_atomic",
     {
@@ -145,7 +164,7 @@ export async function POST(request: Request) {
       p_idempotency_key: input.idempotencyKey,
       p_items: input.items.map((item) => ({
         client_line_id: item.clientLineId,
-        station_id: item.stationId,
+        station_id: stationByItem.get(item.catalogItemId),
         catalog_item_id: item.catalogItemId,
         quantity: item.quantity,
         notes: item.notes || null,

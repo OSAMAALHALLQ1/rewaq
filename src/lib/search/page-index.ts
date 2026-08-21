@@ -363,7 +363,7 @@ export const PAGE_INDEX: PageIndexEntry[] = [
   },
   {
     href: "/dashboard/billing",
-    title: "الفوترة والاشتراك",
+    title: "الفاتورة والاشتراك",
     section: "الإعدادات",
     description: "خطة الاشتراك في رواق والدفع والترقية",
     keywords: ["اشتراك", "فوترة", "خطة", "ترقية", "دفع اشتراك", "باقة"],

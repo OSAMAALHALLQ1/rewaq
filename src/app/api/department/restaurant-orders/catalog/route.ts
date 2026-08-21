@@ -28,6 +28,8 @@ export async function GET(request: Request) {
         price: Number(item.retailPrice ?? 0),
         taxRate: Number(item.taxRate ?? 0),
         imageUrl: item.imagePath ?? null,
+        stationId: "00000000-0000-4000-8000-000000000301",
+        stationName: "المطبخ الرئيسي",
       })),
       tables: [
         { id: "00000000-0000-4000-8000-000000000201", number: 1, name: "طاولة 1", zone: "الصالة", seats: 4, status: "available" },
@@ -41,7 +43,7 @@ export async function GET(request: Request) {
 
   const organizationId = auth.device.organizationId;
   const branchId = auth.device.branchId;
-  const [itemsResult, tablesResult, stationsResult] = await Promise.all([
+  const [itemsResult, tablesResult, stationsResult, routesResult] = await Promise.all([
     auth.admin
       .from("catalog_items")
       .select("id, code, name, category_name, main_unit, retail_price, branch_price, tax_rate, image_path, image_url")
@@ -67,9 +69,15 @@ export async function GET(request: Request) {
       .eq("is_active", true)
       .order("display_order")
       .order("name"),
+    auth.admin
+      .from("catalog_item_kitchen_routes")
+      .select("catalog_item_id,station_id")
+      .eq("organization_id", organizationId)
+      .eq("branch_id", branchId)
+      .eq("is_active", true),
   ]);
 
-  const queryError = itemsResult.error ?? tablesResult.error ?? stationsResult.error;
+  const queryError = itemsResult.error ?? tablesResult.error ?? stationsResult.error ?? routesResult.error;
   if (queryError) {
     console.error("Waiter catalog query failed:", queryError);
     return NextResponse.json(
@@ -78,10 +86,15 @@ export async function GET(request: Request) {
     );
   }
 
+  const stationNameById = new Map((stationsResult.data ?? []).map((station: any) => [station.id, station.name]));
+  const routeByItemId = new Map((routesResult.data ?? []).map((route: any) => [route.catalog_item_id, route.station_id]));
+
   return NextResponse.json({
     success: true,
     device: auth.device,
-    items: (itemsResult.data ?? []).map((item: any) => ({
+    items: (itemsResult.data ?? []).map((item: any) => {
+      const stationId = routeByItemId.get(item.id) as string | undefined;
+      return ({
       id: item.id,
       code: item.code,
       name: item.name,
@@ -90,7 +103,9 @@ export async function GET(request: Request) {
       price: Number(item.branch_price ?? item.retail_price ?? 0),
       taxRate: Number(item.tax_rate ?? 0),
       imageUrl: item.image_url ?? item.image_path ?? null,
-    })),
+      stationId: stationId ?? null,
+      stationName: stationId ? stationNameById.get(stationId) ?? null : null,
+    }); }),
     tables: (tablesResult.data ?? []).map((table: any) => ({
       id: table.id,
       number: table.number,

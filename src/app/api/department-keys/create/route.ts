@@ -9,7 +9,7 @@ import {
   requireOrganizationModule,
 } from "@/server/billing/entitlements";
 
-const allowedRoles = new Set(["chef", "cashier", "inventory_manager", "staff"]);
+const allowedRoles = new Set(["chef", "cashier", "inventory_manager", "staff", "accountant"]);
 const allowedModuleKeys = new Set([
   "inventory",
   "recipes",
@@ -20,6 +20,7 @@ const allowedModuleKeys = new Set([
   "waiter",
   "kitchen",
   "expo",
+  "accounting",
 ]);
 const workflowModuleKeys = new Set(["waiter", "kitchen", "expo"]);
 const moduleEntitlements: Readonly<Record<string, RewaqModule>> = {
@@ -32,12 +33,14 @@ const moduleEntitlements: Readonly<Record<string, RewaqModule>> = {
   waiter: "restaurant_workflow",
   kitchen: "restaurant_workflow",
   expo: "restaurant_workflow",
+  accounting: "accounting",
 };
 const roleModuleAllowlist: Readonly<Record<string, ReadonlySet<string>>> = {
   chef: new Set(["recipes", "inventory", "waste", "kitchen"]),
   cashier: new Set(["pos"]),
   inventory_manager: new Set(["inventory", "purchasing", "waste", "reports"]),
   staff: new Set(["inventory", "recipes", "waste", "pos", "waiter", "kitchen", "expo"]),
+  accountant: new Set(["accounting"]),
 };
 
 function generateRawKey(): string {
@@ -64,6 +67,7 @@ export async function POST(request: Request) {
     const body = (await request.json()) as Record<string, unknown>;
     const deviceName = typeof body.deviceName === "string" ? body.deviceName.trim() : "";
     const branchId = typeof body.branchId === "string" && body.branchId ? body.branchId : null;
+    const stationId = typeof body.stationId === "string" && body.stationId ? body.stationId : null;
     const role = typeof body.role === "string" ? body.role : "";
     const requestedModules = Array.isArray(body.allowedModules)
       ? [...new Set(body.allowedModules.filter((module): module is string => typeof module === "string"))]
@@ -100,6 +104,18 @@ export async function POST(request: Request) {
     if (isWorkflowDevice && !branchId) {
       return NextResponse.json(
         { success: false, error: "يجب تحديد قسم لجهاز النادل أو المطبخ أو Expo." },
+        { status: 400 },
+      );
+    }
+    if (normalizedModules.includes("kitchen") && !stationId) {
+      return NextResponse.json(
+        { success: false, error: "اختر قسم التحضير الذي ستعرضه شاشة KDS." },
+        { status: 400 },
+      );
+    }
+    if (!isWorkflowDevice && role !== "accountant" && !branchId) {
+      return NextResponse.json(
+        { success: false, error: "اختر نطاق التشغيل لهذا الجهاز." },
         { status: 400 },
       );
     }
@@ -190,10 +206,11 @@ export async function POST(request: Request) {
 
     if (isWorkflowDevice) {
       const { data, error } = await (admin as any).rpc(
-        "provision_restaurant_workflow_device_atomic",
+        "provision_restaurant_workflow_device_v2_atomic",
         {
           p_organization_id: session.organizationId,
           p_branch_id: branchId,
+          p_station_id: normalizedModules.includes("kitchen") ? stationId : null,
           p_device_name: deviceName,
           p_key_hash: keyHash,
           p_role: role,
@@ -214,10 +231,10 @@ export async function POST(request: Request) {
     } else {
       const { data, error } = await admin.rpc("provision_department_device_atomic", {
         p_organization_id: session.organizationId,
-        p_branch_id: branchId as string,
+        p_branch_id: branchId,
         p_device_name: deviceName,
         p_key_hash: keyHash,
-        p_role: role as "cashier" | "inventory_manager" | "staff",
+        p_role: role as "accountant" | "cashier" | "inventory_manager" | "staff",
         p_allowed_modules: normalizedModules,
         p_actor_user_id: session.user.id,
       });

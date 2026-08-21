@@ -224,7 +224,7 @@ export const appNav: NavGroup[] = [
         roles: ["super_admin", "organization_owner"],
       },
       {
-        title: "الفوترة والاشتراك",
+        title: "الفاتورة والاشتراك",
         href: "/dashboard/billing",
         icon: WalletCards,
         roles: ["super_admin", "organization_owner"],

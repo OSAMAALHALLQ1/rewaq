@@ -41,6 +41,8 @@ describe("role route access", () => {
     expect(canRoleAccessPath("inventory_manager", "/dashboard/inventory/items?low=1")).toBe(true);
     expect(canRoleAccessPath("inventory_manager", "/d/inventory")).toBe(true);
     expect(canRoleAccessPath("accountant", "/dashboard/accounting/trial-balance")).toBe(true);
+    expect(canRoleAccessPath("accountant", "/d/accounting")).toBe(true);
+    expect(canRoleAccessPath("cashier", "/d/accounting")).toBe(false);
     expect(canRoleAccessPath("marketing_manager", "/dashboard/digital-presence")).toBe(true);
     expect(canRoleAccessPath("marketing_manager", "/dashboard/social-publishing")).toBe(false);
   });

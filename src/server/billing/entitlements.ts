@@ -235,7 +235,7 @@ export async function requireOrganizationModule(
     throw new SubscriptionEntitlementError(
       module,
       entitlements.planCode,
-      "الاشتراك متوقف عن تنفيذ عمليات جديدة. يمكن مراجعة البيانات الحالية وطلب إعادة التفعيل من صفحة الفوترة.",
+      "الاشتراك متوقف عن تنفيذ عمليات جديدة. يمكن مراجعة البيانات الحالية وطلب إعادة التفعيل من صفحة الفاتورة والاشتراك.",
     );
   }
 

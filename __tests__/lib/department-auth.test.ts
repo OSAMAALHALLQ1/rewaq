@@ -114,12 +114,15 @@ describe("department role module boundary", () => {
   });
 
   it("routes employee roles only to their own operational interface", async () => {
-    const { employeeRoleAllowsModule } = await import("@/lib/department/auth");
+    const { employeeRoleAllowsModule, departmentRoleAllowsModule } = await import("@/lib/department/auth");
     expect(employeeRoleAllowsModule("cashier", "pos")).toBe(true);
     expect(employeeRoleAllowsModule("cashier", "kitchen")).toBe(false);
     expect(employeeRoleAllowsModule("chef", "kitchen")).toBe(true);
     expect(employeeRoleAllowsModule("staff", "waiter")).toBe(true);
     expect(employeeRoleAllowsModule("staff", "inventory")).toBe(false);
+    expect(employeeRoleAllowsModule("accountant", "accounting")).toBe(true);
+    expect(employeeRoleAllowsModule("accountant", "pos")).toBe(false);
+    expect(departmentRoleAllowsModule("accountant", "accounting")).toBe(true);
   });
 });
 

@@ -257,7 +257,7 @@ export default async function DashboardPage() {
               <h2 className="font-extrabold text-foreground">الربحية التفصيلية غير مشمولة حاليًا</h2>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
                 تظل بيانات المحاسبة مخفية لأن باقة {plan.shortName} لا تشمل وحدة المحاسبة.
-                يمكنك مراجعة الوحدات المتاحة من صفحة الفوترة.
+                يمكنك مراجعة الوحدات المتاحة من صفحة الفاتورة والاشتراك.
               </p>
             </div>
           </CardContent>
