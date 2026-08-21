@@ -1,6 +1,36 @@
 # rewaq
 
-منصة SaaS عربية RTL لإدارة عمليات المطاعم والفروع: المخزون، الموردون، المشتريات، تكلفة الوصفات، التقارير، التسويق الاجتماعي، الصلاحيات، ولوحة أدمن.
+منصة SaaS عربية RTL لإدارة المطاعم: الكاشير POS، الجرسون والطاولات، شاشات KDS وExpo، المخزون والمشتريات، الفواتير والمحاسبة، الموظفون والصلاحيات، ولوحة المالك.
+
+الإصدار التشغيلي الحالي منشور على [rewaq-two.vercel.app](https://rewaq-two.vercel.app)، ومخطط Supabase مطبق حتى migration `068`.
+
+## دورة طلب المطعم المتصلة
+
+دورة الطلب تعمل كوحدة واحدة داخل رواق:
+
+1. ينشئ المالك أقسام التحضير مثل المطبخ الساخن، الحلويات، والمشروبات من **الإعدادات ← الأجهزة وأكواد التشغيل ← توزيع الواجهات**.
+2. عند إضافة وجبة من **الأصناف والباركود** يحدد المالك قسم تحضيرها. يمكن ربط الوجبات القديمة أو تغيير ربطها من صفحة الأجهزة.
+3. يفتح الجرسون واجهته بكوده الشخصي وكود جهاز النادل، يختار الطاولة والوجبات، ثم يرسل الطلب. لا يستطيع تغيير قسم الوجبة يدوياً.
+4. كل وجبة تصل تلقائياً إلى KDS الخاص بقسمها، وتظهر للقسم رسالة عند وصول طلب جديد.
+5. يضغط القسم **بدء التحضير** ثم **جاهز**؛ تتحدث شاشة الجرسون تلقائياً وتعرض الوجبة الجاهزة للاستلام.
+6. تعرض شاشة Expo الطلب بعد اكتمال جميع أقسامه، لمطابقة العناصر وإثبات التقديم.
+7. يظهر الطلب الجاهز في شاشة الكاشير ضمن **طلبات المطعم**. يحمّله الكاشير ويصدر الفاتورة والدفع دون إعادة إدخال الأصناف، ويربط النظام الفاتورة بالطلب مع منع التكرار.
+
+الفرق بين الشاشتين:
+
+- **KDS:** شاشة داخل كل قسم تحضير؛ لا ترى إلا وجبات القسم وتدير حالة التحضير.
+- **Expo:** شاشة التجميع والتسليم النهائي؛ تجمع الطلب المكتمل من كل الأقسام قبل تقديمه.
+
+الوجبة غير المربوطة بقسم تظهر للمالك كغير مربوطة، وتكون معطلة عند الجرسون حتى لا يضيع الطلب.
+
+## الموظفون والأجهزة
+
+- لكل موظف كود شخصي ودور محدد: مالك، مدير، كاشير، جرسون، شيف، مخزون، مشتريات، أو محاسب.
+- المالك يستطيع رؤية الأكواد الجديدة كاملة ونسخها. تحفظ الأكواد بتشفير AES-256-GCM، بينما يبقى التحقق من الدخول بواسطة بصمة SHA-256.
+- الأكواد القديمة غير قابلة للاسترجاع؛ يستخدم المالك **إصدار كود قابل للعرض** لإلغاء القديم وإصدار كود مشفر جديد.
+- أكواد الأجهزة مستقلة عن أكواد الموظفين. تتوفر ملفات أجهزة للكاشير، النادل، كل قسم KDS، Expo، المخزون، والمحاسب.
+- جهاز المحاسب مركزي ولا يحتاج نطاق تشغيل؛ الموظف المحاسب لا يرى إلا الواجهات المحاسبية التي يسمح بها دوره.
+- يمكن تعديل اسم قسم التشغيل أو قسم التحضير دون تغيير المعرّف أو قطع ارتباط الأجهزة والطلبات والفواتير.
 
 ## Stack
 
@@ -45,6 +75,7 @@ https://thusfzjbzzcevvgddoxs.supabase.co
 NEXT_PUBLIC_SUPABASE_URL=https://thusfzjbzzcevvgddoxs.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
+EMPLOYEE_CODE_ENCRYPTION_KEY=
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
@@ -56,25 +87,13 @@ supabase login
 npm run db:link
 ```
 
-5. Apply the migrations:
+5. Apply the live migrations from `supabase/migrations/`:
 
 ```bash
 npm run db:push
 ```
 
-If you do not use the CLI, paste these files into Supabase SQL editor in order:
-
-```bash
-db/migrations/001_initial_schema.sql
-db/migrations/002_pos_inventory_backend.sql
-```
-
-On Windows, if the direct database host resolves to IPv6 only, use the Supabase
-**Transaction Pooler** connection string in `DATABASE_URL`, then run:
-
-```bash
-npm run db:apply
-```
+`db/migrations/` هو مسار قديم ولا يستخدم لإضافة مخطط إنتاجي جديد. آخر ترحيل مطلوب لهذه الدورة هو `068_secure_employee_codes_and_station_routing.sql`.
 
 6. Seed demo data:
 
@@ -100,6 +119,7 @@ Main tables:
 - Purchasing: `suppliers`, `purchase_orders`, `purchase_order_items`, `invoices`, `invoice_items`, `supplier_price_history`
 - Recipes/menu: `recipes`, `recipe_ingredients`, `menu_items`, `menu_item_recipe_mapping`
 - POS/backend: `catalog_items`, `item_barcodes`, `customer_invoice_payments`
+- Restaurant workflow: `restaurant_tables`, `restaurant_orders`, `restaurant_order_items`, `kitchen_stations`, `kitchen_station_devices`, `catalog_item_kitchen_routes`
 - Cost tracking: `daily_cost_entries`, `sales_daily_summaries`, `amwali_daily_summary`
 - Marketing: `social_accounts`, `social_posts`, `social_post_targets`, `social_media_assets`, `social_publish_jobs`, `social_publish_logs`, `social_templates`
 - Automation/notifications: `automation_rules`, `automation_runs`, `notifications`
@@ -213,3 +233,4 @@ Seed data includes:
 - Barcode lookup is handled by `find_catalog_item_by_barcode(...)` against `item_barcodes`.
 - Do not store social tokens as plain text in production.
 - Server code uses `@supabase/ssr` and `src/proxy.ts` to refresh sessions.
+- مراجعة migration 068 ومخاطره وخطة التصحيح الأمامي موثقة في `docs/audits/MIGRATION_068_REVIEW_AR.md`.

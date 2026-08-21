@@ -285,7 +285,7 @@ export default function WaiterPage() {
                   <p className="line-clamp-2 min-h-10 text-sm font-bold">{item.name}</p>
                   <div className="mt-2 flex items-center justify-between text-xs">
                     <span className="text-slate-500">{item.category}</span>
-                    <strong className="text-teal-300">{item.price.toFixed(2)} د.أ</strong>
+                    <strong className="text-teal-300">{item.price.toFixed(2)} ₪</strong>
                   </div>
                   <p className={`mt-2 text-[11px] font-bold ${item.stationId ? "text-blue-300" : "text-amber-300"}`}>{item.stationName ? `إلى: ${item.stationName}` : "غير مربوط بقسم تحضير"}</p>
                 </button>
@@ -304,7 +304,7 @@ export default function WaiterPage() {
                     <Badge variant="outline" className={order.priority === "rush" ? "border-rose-400 text-rose-300" : "border-white/15 text-slate-300"}>{orderStatusLabels[order.status] ?? order.status}</Badge>
                   </div>
                   <div className="mt-2 space-y-1 text-xs">{order.items.map((item) => <p key={item.id} className={item.status === "ready" ? "font-black text-emerald-300" : "text-slate-400"}>{item.item_name} × {Number(item.quantity)} — {item.status === "ready" ? "جاهزة للاستلام" : orderStatusLabels[item.status] ?? item.status}</p>)}</div>
-                  <p className="mt-2 text-sm font-bold text-teal-300">{Number(order.total).toFixed(2)} د.أ</p>
+                  <p className="mt-2 text-sm font-bold text-teal-300">{Number(order.total).toFixed(2)} ₪</p>
                 </div>
               ))}
             </CardContent>
@@ -327,7 +327,7 @@ export default function WaiterPage() {
                 {cart.length === 0 && <p className="py-8 text-center text-sm text-slate-500">اضغط على الأصناف لإضافتها.</p>}
                 {cart.map((line) => (
                   <div key={line.clientLineId} className="space-y-2 rounded-xl border border-white/10 bg-slate-950/70 p-3">
-                    <div className="flex items-start justify-between gap-2"><div><p className="text-sm font-bold">{line.item.name}</p><p className="text-xs text-teal-300">{(line.item.price * line.quantity).toFixed(2)} د.أ</p></div><div className="flex items-center gap-2"><button onClick={() => updateQuantity(line.clientLineId, -1)} aria-label="إنقاص"><CircleMinus className="h-5 w-5" /></button><b>{line.quantity}</b><button onClick={() => updateQuantity(line.clientLineId, 1)} aria-label="زيادة"><CirclePlus className="h-5 w-5" /></button></div></div>
+                    <div className="flex items-start justify-between gap-2"><div><p className="text-sm font-bold">{line.item.name}</p><p className="text-xs text-teal-300">{(line.item.price * line.quantity).toFixed(2)} ₪</p></div><div className="flex items-center gap-2"><button onClick={() => updateQuantity(line.clientLineId, -1)} aria-label="إنقاص"><CircleMinus className="h-5 w-5" /></button><b>{line.quantity}</b><button onClick={() => updateQuantity(line.clientLineId, 1)} aria-label="زيادة"><CirclePlus className="h-5 w-5" /></button></div></div>
                     <div className="rounded-md border border-blue-400/20 bg-blue-500/10 px-2 py-2 text-xs text-blue-200">يرسل تلقائياً إلى: <strong>{line.item.stationName}</strong></div>
                     <Input value={line.notes} onChange={(event) => setCart((current) => current.map((value) => value.clientLineId === line.clientLineId ? { ...value, notes: event.target.value } : value))} placeholder="ملاحظة للصنف..." className="h-9 border-white/10 bg-slate-900 text-xs" />
                   </div>
@@ -336,7 +336,7 @@ export default function WaiterPage() {
 
               <Input value={allergens} onChange={(event) => setAllergens(event.target.value)} placeholder="حساسيات عامة، مفصولة بفاصلة" className="border-amber-400/20 bg-slate-950" />
               <Input value={orderNotes} onChange={(event) => setOrderNotes(event.target.value)} placeholder="ملاحظات الطلب..." className="border-white/10 bg-slate-950" />
-              <div className="flex items-center justify-between border-t border-white/10 pt-3"><span className="text-sm text-slate-400">الإجمالي التقديري</span><strong className="text-xl text-teal-300">{estimatedTotal.toFixed(2)} د.أ</strong></div>
+              <div className="flex items-center justify-between border-t border-white/10 pt-3"><span className="text-sm text-slate-400">الإجمالي التقديري</span><strong className="text-xl text-teal-300">{estimatedTotal.toFixed(2)} ₪</strong></div>
               <Button onClick={() => void submitOrder()} disabled={submitting || cart.length === 0} className="h-12 w-full bg-teal-500 font-black text-slate-950 hover:bg-teal-400">
                 {submitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
                 إرسال للمطبخ
