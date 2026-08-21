@@ -765,10 +765,6 @@ export async function saveInventoryItemAction(_prevState: ActionState, formData:
   try {
     const { admin, organizationId, userId, auth } = await resolveMutationScope("inventory");
     requireSensitiveActionCapability(auth, "inventory_catalog_write");
-    if (parsed.data.preparationRoute && !["super_admin", "organization_owner", "branch_manager"].includes(auth.role)) {
-      return invalid("ربط الوجبة بقسم التحضير يحتاج صلاحية المالك أو مدير نطاق التشغيل.");
-    }
-
     const supplierResult = parsed.data.primarySupplierId
       ? await admin
           .from("suppliers")
@@ -1945,6 +1941,9 @@ export async function saveCatalogItemAction(_prevState: ActionState, formData: F
   try {
     const { admin, organizationId, userId, auth } = await resolveMutationScope("inventory");
     requireSensitiveActionCapability(auth, "inventory_catalog_write");
+    if (parsed.data.preparationRoute && !["super_admin", "organization_owner", "branch_manager"].includes(auth.role)) {
+      return invalid("ربط الوجبة بقسم التحضير يحتاج صلاحية المالك أو مدير نطاق التشغيل.");
+    }
 
     const { data: createdItem, error: itemError } = await admin
       .from("catalog_items")
