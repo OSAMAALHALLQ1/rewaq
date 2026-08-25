@@ -1,6 +1,6 @@
 import "server-only";
 
-const FALLBACK_ADMIN_EMAIL = "osaco221@gmail.com";
+import { EmailConfigurationError, sendEmail } from "@/lib/email/sender";
 
 type RegistrationNotificationInput = {
   ownerName: string;
@@ -18,7 +18,7 @@ type ApprovalMagicLinkInput = {
 };
 
 export function getRegistrationAdminEmail() {
-  return process.env.ADMIN_REGISTRATION_EMAIL || FALLBACK_ADMIN_EMAIL;
+  return process.env.ADMIN_REGISTRATION_EMAIL?.trim() || "";
 }
 
 function getAppUrl() {
@@ -41,37 +41,15 @@ function escapeHtml(value: string) {
     .replace(/"/g, "&quot;");
 }
 
-async function sendEmail({ to, subject, text, html }: { to: string; subject: string; text: string; html?: string }) {
-  if (process.env.RESEND_API_KEY && process.env.EMAIL_FROM) {
-    const response = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        from: process.env.EMAIL_FROM,
-        to,
-        subject,
-        text,
-        ...(html ? { html } : {}),
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => "");
-      throw new Error(`تعذر إرسال البريد: ${errorText || response.status}`);
-    }
-
-    return { sent: true, to };
-  }
-
-  console.info("Email notification", { to, subject, text });
-  return { sent: false, to };
-}
-
 export async function sendRegistrationRequestNotification(input: RegistrationNotificationInput) {
   const to = getRegistrationAdminEmail();
+
+  if (!to) {
+    throw new EmailConfigurationError(
+      "إعدادات إشعارات طلبات التسجيل غير مكتملة: عيّن ADMIN_REGISTRATION_EMAIL.",
+    );
+  }
+
   const adminUrl = `${getAppUrl()}/admin/users`;
   const subject = "طلب تفعيل حساب جديد";
   const text = [

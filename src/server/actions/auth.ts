@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { sendAccountApprovedMagicLink, sendRegistrationRequestNotification } from "@/lib/email/registration-notifications";
+import { assertEmailProviderConfigured, getSafeEmailErrorMessage } from "@/lib/email/sender";
 import {
   authSchema,
   registerSchema,
@@ -302,20 +303,24 @@ export async function registerAction(_prevState: ActionState, formData: FormData
   }
 
   try {
-    await sendRegistrationRequestNotification({
+    const delivery = await sendRegistrationRequestNotification({
       ownerName: parsed.data.name,
       organizationName: parsed.data.organizationName,
       email: parsed.data.email,
       phone: parsed.data.phone,
       businessType: parsed.data.businessType,
     });
-  } catch (error) {
+
+    if (!delivery.sent) {
+      return {
+        ok: false,
+        message: "تم تسجيل طلب الحساب، لكن لم يُرسل إشعار البريد إلى الإدارة. تحقق الإدارة من إعدادات مزود البريد.",
+      };
+    }
+  } catch {
     return {
-      ok: true,
-      message:
-        error instanceof Error
-          ? `تم إرسال طلب الحساب، لكن تعذر إرسال إشعار البريد للإدارة: ${error.message}`
-          : "تم إرسال طلب الحساب، لكن تعذر إرسال إشعار البريد للإدارة.",
+      ok: false,
+      message: "تم تسجيل طلب الحساب، لكن لم يُرسل إشعار البريد إلى الإدارة. يرجى التواصل مع الإدارة.",
     };
   }
 
@@ -429,9 +434,19 @@ export async function approveAccountRequestAction(_prevState: ActionState, formD
     return { ok: false, message: "طلب غير معروف" };
   }
 
-  if (hasSupabaseAdminEnv()) {
-    const currentAdmin = await requireAdminSession();
-    const admin = createAdminClient();
+  if (!hasSupabaseAdminEnv()) {
+    return { ok: false, message: "إعدادات Supabase الإدارية غير مكتملة." };
+  }
+
+  const currentAdmin = await requireAdminSession();
+
+  try {
+    assertEmailProviderConfigured();
+  } catch (error) {
+    return { ok: false, message: getSafeEmailErrorMessage(error) };
+  }
+
+  const admin = createAdminClient();
     const { data: request, error: requestError } = await admin
       .from("account_approval_requests")
       .select("id,email,owner_name,organization_name,business_type,phone,status,metadata")
@@ -585,27 +600,29 @@ export async function approveAccountRequestAction(_prevState: ActionState, formD
     });
 
     if (magicLinkError || !magicLinkData?.properties?.action_link) {
-      return { ok: true, message: magicLinkError?.message ?? "تمت الموافقة، لكن تعذر إنشاء رابط الدخول المباشر." };
+      return { ok: false, message: "تمت الموافقة، لكن تعذر إنشاء رابط الدخول المباشر." };
     }
 
     try {
-      await sendAccountApprovedMagicLink({
+      const delivery = await sendAccountApprovedMagicLink({
         to: normalizedEmail,
         ownerName: request.owner_name,
         organizationName: request.organization_name,
         actionLink: magicLinkData.properties.action_link,
       });
+
+      if (!delivery.sent) {
+        return {
+          ok: false,
+          message: "تمت الموافقة على الحساب، لكن لم يُرسل رابط الدخول. تحقق من إعدادات مزود البريد.",
+        };
+      }
     } catch (emailError) {
       return {
-        ok: true,
-        message:
-          emailError instanceof Error
-            ? `تمت الموافقة على الحساب، لكن تعذر إرسال رابط الدخول المباشر: ${emailError.message}`
-            : "تمت الموافقة على الحساب، لكن تعذر إرسال رابط الدخول المباشر.",
+        ok: false,
+        message: `تمت الموافقة على الحساب، لكن لم يُرسل رابط الدخول. ${getSafeEmailErrorMessage(emailError)}`,
       };
     }
-  }
-
   revalidatePath("/admin/account-requests");
   revalidatePath("/admin/users");
   return { ok: true, message: "تمت الموافقة على الحساب وإرسال رابط دخول مباشر لصاحب الحساب." };
