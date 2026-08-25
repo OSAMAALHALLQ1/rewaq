@@ -121,6 +121,29 @@ function getAppUrl() {
   return "http://localhost:3000";
 }
 
+function getApprovalCallbackUrl() {
+  const callbackUrl = new URL("/auth/callback", getAppUrl());
+  callbackUrl.searchParams.set("next", "/dashboard");
+  return callbackUrl.toString();
+}
+
+function isExpectedApprovalCallback(redirectTo: string | undefined, expectedRedirectTo: string) {
+  if (!redirectTo) return false;
+
+  try {
+    const actual = new URL(redirectTo);
+    const expected = new URL(expectedRedirectTo);
+
+    return (
+      actual.origin === expected.origin &&
+      actual.pathname === expected.pathname &&
+      actual.searchParams.get("next") === expected.searchParams.get("next")
+    );
+  } catch {
+    return false;
+  }
+}
+
 export async function loginAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
   const parsed = authSchema.safeParse({
     email: formData.get("email"),
@@ -138,6 +161,13 @@ export async function loginAction(_prevState: ActionState, formData: FormData): 
   const supabase = await createClient();
   const { data: signInData, error } = await supabase.auth.signInWithPassword(parsed.data);
   if (error) {
+    if ((error as { code?: string }).code === "email_not_confirmed") {
+      return {
+        ok: false,
+        message: "لم يُفعَّل البريد بعد. افتح أحدث رابط وصلك بعد الموافقة، ثم حاول مرة أخرى.",
+      };
+    }
+
     return { ok: false, message: "تعذر تسجيل الدخول. تحقق من البيانات وحاول مرة أخرى." };
   }
 
@@ -591,16 +621,25 @@ export async function approveAccountRequestAction(_prevState: ActionState, formD
       newData: { status: "approved", organizationId },
     });
 
+    const approvalCallbackUrl = getApprovalCallbackUrl();
     const { data: magicLinkData, error: magicLinkError } = await admin.auth.admin.generateLink({
       type: "magiclink",
       email: normalizedEmail,
       options: {
-        redirectTo: `${getAppUrl()}/auth/callback?next=/dashboard`,
+        redirectTo: approvalCallbackUrl,
       },
     });
 
     if (magicLinkError || !magicLinkData?.properties?.action_link) {
       return { ok: false, message: "تمت الموافقة، لكن تعذر إنشاء رابط الدخول المباشر." };
+    }
+
+    if (!isExpectedApprovalCallback(magicLinkData.properties.redirect_to, approvalCallbackUrl)) {
+      return {
+        ok: false,
+        message:
+          "تمت الموافقة، لكن لم يُرسل رابط الدخول. أضف مسار /auth/callback لنطاق الإنتاج إلى Redirect URLs في Supabase Auth.",
+      };
     }
 
     try {

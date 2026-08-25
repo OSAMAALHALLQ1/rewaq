@@ -109,6 +109,16 @@ Or run `db/seed.sql` in the SQL editor after the migration.
 npm run db:types
 ```
 
+### Supabase Auth redirect URLs
+
+لروابط الموافقة وتسجيل الدخول المباشر في الإنتاج، اجعل **Site URL** مساويًا لقيمة `NEXT_PUBLIC_APP_URL`، وأضف المسار التالي (بنطاق الإنتاج الفعلي) إلى **Redirect URLs** في Supabase Auth:
+
+```text
+https://your-production-domain/auth/callback
+```
+
+المسار المحلي مهيأ في `supabase/config.toml` عبر `http://localhost:3000/**`.
+
 ## Database
 
 Main tables:
