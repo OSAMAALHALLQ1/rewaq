@@ -26,6 +26,10 @@ import {
   oneOf,
   type AdminClient,
 } from "./_shared/utils";
+import {
+  requirePlatformAdminSession,
+  withPlatformAdmin,
+} from "./_shared/platform-admin";
 import { mapPurchaseOrder, mapStockMovement, mapSupplier } from "./_shared/mappers";
 import { isLowStock, quantitiesByItem } from "@/lib/inventory/ledger";
 
@@ -208,6 +212,7 @@ async function loadAdminBundle(admin: AdminClient) {
  */
 export async function getAdminData(): Promise<AdminBundle> {
   if (isDemoMode()) {
+    await requirePlatformAdminSession();
     return {
       metrics: [
         { label: "المؤسسات", value: "24", delta: "+3 هذا الشهر", tone: "success" },
@@ -242,38 +247,7 @@ export async function getAdminData(): Promise<AdminBundle> {
     };
   }
 
-  return withAdminScope(
-    {
-      metrics: [
-        { label: "المؤسسات", value: "24", delta: "+3 هذا الشهر", tone: "success" },
-        { label: "إيراد شهري متكرر", value: "₪18,900", delta: "+12%", tone: "success" },
-        { label: "طلبات دعم", value: "7", delta: "2 عالية الأولوية", tone: "warning" },
-        { label: "وظائف نشر فاشلة", value: "5", delta: "آخر 24 ساعة", tone: "danger" },
-      ],
-      organizations: [demoOrganization],
-      organization: demoOrganization,
-      branches: demoBranches,
-      users: [
-        { id: "user-1", name: "أحمد المالك", email: "ahmed@iwan.example", role: "organization_owner" },
-        { id: "user-2", name: "سارة النجار", email: "sara@iwan.example", role: "branch_manager" },
-      ],
-      plans: [
-        { id: "starter", name: "البداية", price: "₪129", features: ["قسم واحد", "مخزون", "تقارير أساسية"] },
-        { id: "growth", name: "النمو", price: "₪249", features: ["حتى 5 أقسام", "تسويق", "وصفات"] },
-        { id: "scale", name: "التوسع", price: "₪499", features: ["أقسام غير محدودة", "أتمتة", "صلاحيات متقدمة"] },
-      ],
-      flags: [
-        { key: "ربط_فيسبوك_الحقيقي", enabled: false, description: "تفعيل ربط فيسبوك الحقيقي" },
-        { key: "قراءة_الفواتير_آليًا", enabled: false, description: "قراءة الفواتير آليًا" },
-        { key: "استيراد_نقاط_البيع", enabled: false, description: "استيراد مبيعات نقاط البيع" },
-      ],
-      logs: systemLogs,
-      tickets: [
-        { id: "SUP-91", organization: "مطعم إيوان", subject: "ربط إنستغرام", status: "open", priority: "high" },
-      ],
-    },
-    (admin) => loadAdminBundle(admin),
-  );
+  return withPlatformAdmin((admin) => loadAdminBundle(admin));
 }
 
 /**
@@ -281,6 +255,7 @@ export async function getAdminData(): Promise<AdminBundle> {
  */
 export async function getAccountApprovalRequests(): Promise<AccountApprovalRequest[]> {
   if (isDemoMode()) {
+    await requirePlatformAdminSession();
     return [
       {
         id: "demo-request-1",
@@ -301,54 +276,35 @@ export async function getAccountApprovalRequests(): Promise<AccountApprovalReque
     ];
   }
 
-  return withAdminScope(
-    [
-      {
-        id: "demo-request-1",
-        email: "owner@iwan.example",
-        authUserId: null,
-        authEmailConfirmed: false,
-        authLastSignInAt: null,
-        organizationId: null,
-        ownerName: "مالك مطعم إيوان",
-        organizationName: "مطعم إيوان",
-        businessType: "restaurant",
-        phone: "0590000000",
-        status: "pending_owner_approval",
-        requestedAt: new Date().toISOString(),
-        approvedAt: null,
-        rejectionReason: null,
-      },
-    ],
-    async (admin) => {
-      const requests = await query(
-        (admin as any)
-          .from("account_approval_requests")
-          .select("id,email,owner_name,organization_name,business_type,phone,status,requested_at,approved_at,rejection_reason")
-          .order("requested_at", { ascending: false }),
-        "account_approval_requests",
-      ) as any[];
-      const authUsers = await admin.auth.admin.listUsers().catch(() => null);
-      const authUserByEmail = new Map(
-        (authUsers?.data.users ?? []).map((user) => [(user.email ?? "").toLowerCase(), user]),
-      );
-      const userIds = (authUsers?.data.users ?? []).map((user) => user.id);
-      const membershipRows = userIds.length
-        ? await query(
-            (admin as any)
-              .from("organization_memberships")
-              .select("organization_id,user_id,role")
-              .in("user_id", userIds),
-            "organization_memberships",
-          ) as any[]
-        : [];
-      const ownerOrgByUserId = new Map(
-        membershipRows
-          .filter((membership) => membership.role === "organization_owner" || membership.role === "super_admin")
-          .map((membership) => [membership.user_id, membership.organization_id]),
-      );
+  return withPlatformAdmin(async (admin) => {
+    const requests = await query(
+      (admin as any)
+        .from("account_approval_requests")
+        .select("id,email,owner_name,organization_name,business_type,phone,status,requested_at,approved_at,rejection_reason")
+        .order("requested_at", { ascending: false }),
+      "account_approval_requests",
+    ) as any[];
+    const authUsers = await admin.auth.admin.listUsers().catch(() => null);
+    const authUserByEmail = new Map(
+      (authUsers?.data.users ?? []).map((user) => [(user.email ?? "").toLowerCase(), user]),
+    );
+    const userIds = (authUsers?.data.users ?? []).map((user) => user.id);
+    const membershipRows = userIds.length
+      ? await query(
+          (admin as any)
+            .from("organization_memberships")
+            .select("organization_id,user_id,role")
+            .in("user_id", userIds),
+          "organization_memberships",
+        ) as any[]
+      : [];
+    const ownerOrgByUserId = new Map(
+      membershipRows
+        .filter((membership) => membership.role === "organization_owner" || membership.role === "super_admin")
+        .map((membership) => [membership.user_id, membership.organization_id]),
+    );
 
-      return requests.map((request) => ({
+    return requests.map((request) => ({
         authUserId: authUserByEmail.get(request.email.toLowerCase())?.id ?? null,
         authEmailConfirmed: Boolean(authUserByEmail.get(request.email.toLowerCase())?.email_confirmed_at),
         authLastSignInAt: authUserByEmail.get(request.email.toLowerCase())?.last_sign_in_at ?? null,
@@ -365,9 +321,8 @@ export async function getAccountApprovalRequests(): Promise<AccountApprovalReque
         requestedAt: request.requested_at,
         approvedAt: request.approved_at,
         rejectionReason: request.rejection_reason,
-      }));
-    },
-  );
+    }));
+  });
 }
 
 /**
@@ -375,10 +330,11 @@ export async function getAccountApprovalRequests(): Promise<AccountApprovalReque
  */
 export async function getSystemLogs(limit = 100) {
   if (isDemoMode()) {
+    await requirePlatformAdminSession();
     return systemLogs;
   }
 
-  return withAdminScope<SystemLog[]>(systemLogs, async (admin) => {
+  return withPlatformAdmin(async (admin) => {
     const { data } = await (admin as any)
       .from("system_logs")
       .select("*")
@@ -399,38 +355,34 @@ export async function getSystemLogs(limit = 100) {
  */
 export async function getSupportTickets(status?: "open" | "pending" | "closed") {
   if (isDemoMode()) {
+    await requirePlatformAdminSession();
     return [
       { id: "SUP-91", organization: "مطعم إيوان", subject: "ربط إنستغرام", status: "open", priority: "high" as const },
       { id: "SUP-92", organization: "كافيه تجريبي", subject: "سؤال عن الفاتورة", status: "pending", priority: "normal" as const },
     ];
   }
 
-  return withAdminScope(
-    [
-      { id: "SUP-91", organization: "مطعم إيوان", subject: "ربط إنستغرام", status: "open", priority: "high" as const },
-    ],
-    async (admin) => {
-      let queryBuilder = (admin as any)
-        .from("support_tickets")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(50);
+  return withPlatformAdmin(async (admin) => {
+    let queryBuilder = (admin as any)
+      .from("support_tickets")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(50);
 
-      if (status) {
-        queryBuilder = queryBuilder.eq("status", status);
-      }
+    if (status) {
+      queryBuilder = queryBuilder.eq("status", status);
+    }
 
-      const { data } = await queryBuilder;
+    const { data } = await queryBuilder;
 
-      return (data ?? []).map((row: any) => ({
+    return (data ?? []).map((row: any) => ({
         id: row.id,
         organization: row.organization_id ?? "عام",
         subject: row.subject,
         status: row.status,
         priority: row.priority,
-      }));
-    },
-  );
+    }));
+  });
 }
 
 /**
