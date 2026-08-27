@@ -247,16 +247,9 @@ export async function POST(request: Request) {
       categoryName: category || "عام",
       mainUnit: unit || "قطعة",
       units: [{ name: unit || "قطعة", factor: 1 }],
-      purchasePrice: 0,
-      retailPrice: price,
-      wholesalePrice: price,
-      branchPrice: price,
-      customerPrice: price,
-      minimumQuantity: 0,
       taxRate,
       isActive: true,
     };
-    demoCatalogItems.push(demoItem as any);
     return NextResponse.json({
       success: true,
       item: {

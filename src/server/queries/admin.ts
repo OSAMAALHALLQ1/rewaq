@@ -816,25 +816,36 @@ export async function getCatalogData(): Promise<CatalogBundle> {
       if (itemRows.error) throw new Error(itemRows.error.message);
       if (unitRows.error) throw new Error(unitRows.error.message);
 
+      const items = (itemRows.data ?? []).map((row: any) => ({
+        id: row.id,
+        organizationId: row.organization_id,
+        code: row.code ?? row.sku ?? row.id.slice(0, 8),
+        name: row.name ?? "",
+        barcodes: row.barcode ? [row.barcode] : [],
+        categoryName: row.category_name ?? row.category ?? "عام",
+        mainUnit: row.main_unit ?? "قطعة",
+        units: [],
+        purchasePrice: numberValue(row.purchase_price),
+        retailPrice: numberValue(row.price ?? row.retail_price),
+        wholesalePrice: numberValue(row.wholesale_price),
+        minimumQuantity: numberValue(row.minimum_quantity),
+        taxRate: numberValue(row.tax_rate),
+        isActive: row.status === "active",
+        stockQuantity: numberValue(row.stock_quantity),
+      }));
+
+      const uniqueCategoryNames = Array.from(new Set(items.map((i) => i.categoryName).filter(Boolean)));
+      const dynamicCategories = uniqueCategoryNames.map((name) => ({
+        id: name,
+        organizationId: scope.organizationId,
+        name,
+        description: "",
+        itemCount: items.filter((i) => i.categoryName === name).length,
+      }));
+
       return {
-        items: (itemRows.data ?? []).map((row: any) => ({
-          id: row.id,
-          organizationId: row.organization_id,
-          code: row.code ?? row.sku ?? row.id.slice(0, 8),
-          name: row.name ?? "",
-          barcodes: row.barcode ? [row.barcode] : [],
-          categoryName: row.category ?? "عام",
-          mainUnit: row.main_unit ?? "قطعة",
-          units: [],
-          purchasePrice: numberValue(row.purchase_price),
-          retailPrice: numberValue(row.price ?? row.retail_price),
-          wholesalePrice: numberValue(row.wholesale_price),
-          minimumQuantity: numberValue(row.minimum_quantity),
-          taxRate: numberValue(row.tax_rate),
-          isActive: row.status === "active",
-          stockQuantity: numberValue(row.stock_quantity),
-        })),
-        categories: demoCategories,
+        items,
+        categories: dynamicCategories.length > 0 ? dynamicCategories : [{ id: "عام", organizationId: scope.organizationId, name: "عام", description: "", itemCount: 0 }],
         permissions: demoPermissionSettings,
         units: (unitRows.data ?? []).map((row: any) => ({
           id: row.id,

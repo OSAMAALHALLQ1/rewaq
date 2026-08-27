@@ -21,28 +21,14 @@ import {
   saveSyncLog,
   getSyncLogs,
   clearSyncLogs,
-  type SyncLogEntry
+  type QueuedInvoice,
+  type SyncLogEntry,
 } from "@/lib/db/offline";
 
 // ─────────────────── Types ───────────────────
 type PayMethod = "cash" | "card" | "bank_transfer" | "delivery_app" | "receivable" | "wallet";
 
 type PaymentLine = { method: PayMethod; amount: number };
-
-type QueuedInvoice = {
-  id: string;
-  idempotencyKey: string;
-  paymentMethod: PayMethod;
-  customerName: string;
-  notes?: string;
-  discount: number;
-  serviceFee: number;
-  deliveryFee: number;
-  payments?: PaymentLine[];
-  items: Array<{ catalogItemId: string; quantity: number }>;
-  total: number;
-  timestamp: number;
-};
 
 type CartItem = {
   id: string;
@@ -354,28 +340,8 @@ export default function CashierPOSWorkspace() {
     "content-type": "application/json",
   }), []);
 
-  // الأصناف التي يضيفها الكاشير تبقى محفوظة محليًا وتظهر دائمًا (مرتبطة بالكتالوج)
-  const EXTRA_CATALOG_KEY = "rwq_pos_catalog_extra";
-  const loadExtraCatalog = (): PosCatalogItem[] => {
-    try {
-      const raw = localStorage.getItem(EXTRA_CATALOG_KEY);
-      const list = raw ? JSON.parse(raw) : [];
-      return Array.isArray(list) ? list : [];
-    } catch { return []; }
-  };
-  const saveExtraCatalog = (item: PosCatalogItem) => {
-    const list = loadExtraCatalog();
-    if (!list.find((i) => i.id === item.id)) {
-      list.push(item);
-      localStorage.setItem(EXTRA_CATALOG_KEY, JSON.stringify(list));
-    }
-  };
-  const mergeExtraCatalog = (items: PosCatalogItem[]): PosCatalogItem[] => {
-    const map = new Map<string, PosCatalogItem>();
-    for (const i of items) map.set(i.id, i);
-    for (const i of loadExtraCatalog()) if (!map.has(i.id)) map.set(i.id, i);
-    return Array.from(map.values());
-  };
+  // Helper to load tenant-scoped receipt design
+  const getReceiptDesignKey = (orgId?: string) => (orgId ? `rwq_receipt_design_${orgId}` : "rwq_receipt_design");
 
   // ── Online/offline tracking ──
   useEffect(() => {
@@ -384,12 +350,14 @@ export default function CashierPOSWorkspace() {
     const off = () => setIsOnline(false);
     window.addEventListener("online", on);
     window.addEventListener("offline", off);
-    getQueuedInvoices().then(setSyncQueue);
-    getSyncLogs().then(setSyncLogs);
-    const dz = localStorage.getItem("rwq_receipt_design");
-    if (dz) { try { setDesign({ ...DEFAULT_DESIGN, ...JSON.parse(dz) }); } catch { } }
+    if (device.orgId) {
+      getQueuedInvoices(device.orgId).then(setSyncQueue);
+      getSyncLogs(device.orgId).then(setSyncLogs);
+      const dz = localStorage.getItem(getReceiptDesignKey(device.orgId));
+      if (dz) { try { setDesign({ ...DEFAULT_DESIGN, ...JSON.parse(dz) }); } catch { } }
+    }
     return () => { window.removeEventListener("online", on); window.removeEventListener("offline", off); };
-  }, []);
+  }, [device.orgId]);
 
   useEffect(() => { if (isOnline && syncQueue.length > 0) syncPendingInvoices(); }, [isOnline, syncQueue.length]);
 
@@ -417,6 +385,8 @@ export default function CashierPOSWorkspace() {
           await deleteQueuedInvoice(inv.id);
           await saveSyncLog({
             id: inv.id,
+            organizationId: inv.organizationId,
+            branchId: inv.branchId,
             idempotencyKey: inv.idempotencyKey,
             customerName: inv.customerName,
             total: inv.total,
@@ -429,6 +399,8 @@ export default function CashierPOSWorkspace() {
             await deleteQueuedInvoice(inv.id);
             await saveSyncLog({
               id: inv.id,
+              organizationId: inv.organizationId,
+              branchId: inv.branchId,
               idempotencyKey: inv.idempotencyKey,
               customerName: inv.customerName,
               total: inv.total,
@@ -440,6 +412,8 @@ export default function CashierPOSWorkspace() {
             failed.push(inv);
             await saveSyncLog({
               id: inv.id,
+              organizationId: inv.organizationId,
+              branchId: inv.branchId,
               idempotencyKey: inv.idempotencyKey,
               customerName: inv.customerName,
               total: inv.total,
@@ -453,6 +427,8 @@ export default function CashierPOSWorkspace() {
         failed.push(inv);
         await saveSyncLog({
           id: inv.id,
+          organizationId: inv.organizationId,
+          branchId: inv.branchId,
           idempotencyKey: inv.idempotencyKey,
           customerName: inv.customerName,
           total: inv.total,
@@ -464,7 +440,7 @@ export default function CashierPOSWorkspace() {
     }
     
     setSyncQueue(failed);
-    const logs = await getSyncLogs();
+    const logs = await getSyncLogs(device.orgId);
     setSyncLogs(logs);
     setCheckoutBusy(false);
     setStatusMessage(failed.length === 0 ? "تمت المزامنة" : `${failed.length} فواتير معلقة`);
@@ -515,7 +491,7 @@ export default function CashierPOSWorkspace() {
         .then(async (r) => {
           const p = await r.json();
           if (!r.ok || !p.success) throw new Error(p.error || "تعذر تحميل الكتالوج");
-          setMenuItems(mergeExtraCatalog(p.items ?? []));
+          setMenuItems(p.items ?? []);
           setStatusMessage(p.items?.length ? `${p.items.length} صنف متاح` : "لا توجد أصناف");
         })
       .catch((e) => setStatusMessage(e instanceof Error ? e.message : "خطأ في التحميل"));
@@ -872,7 +848,6 @@ export default function CashierPOSWorkspace() {
       const p = await r.json();
       if (!r.ok || !p.success) throw new Error(p.error || "تعذر إضافة الصنف");
       const fullItem: PosCatalogItem = { ...p.item, modifierGroups: [] };
-      saveExtraCatalog(fullItem);
       setMenuItems((prev) => [...prev, fullItem]);
       handleAddToCart(fullItem);
       setShowAddItem(false);
@@ -887,7 +862,7 @@ export default function CashierPOSWorkspace() {
   const updateDesign = (patch: Partial<ReceiptDesign>) => {
     setDesign((prev) => {
       const next = { ...prev, ...patch };
-      localStorage.setItem("rwq_receipt_design", JSON.stringify(next));
+      localStorage.setItem(getReceiptDesignKey(device.orgId), JSON.stringify(next));
       return next;
     });
   };
@@ -1113,12 +1088,21 @@ export default function CashierPOSWorkspace() {
     };
 
     const queueIt = async () => {
-      const qi: QueuedInvoice = { id: crypto.randomUUID(), ...payloadBody, total: invoiceTotal, timestamp: Date.now() } as QueuedInvoice;
+      const qi: QueuedInvoice = {
+        id: crypto.randomUUID(),
+        organizationId: device.orgId,
+        branchId: device.branchId || undefined,
+        ...payloadBody,
+        total: invoiceTotal,
+        timestamp: Date.now(),
+      } as QueuedInvoice;
       await saveQueuedInvoice(qi);
       const nq = [...syncQueue, qi];
       setSyncQueue(nq);
       await saveSyncLog({
         id: qi.id,
+        organizationId: device.orgId,
+        branchId: device.branchId,
         idempotencyKey: qi.idempotencyKey,
         customerName: qi.customerName,
         total: qi.total,
@@ -1126,7 +1110,7 @@ export default function CashierPOSWorkspace() {
         status: "failed",
         message: "تم الحفظ محلياً في وضع عدم الاتصال",
       });
-      const logs = await getSyncLogs();
+      const logs = await getSyncLogs(device.orgId);
       setSyncLogs(logs);
     };
 
@@ -1201,7 +1185,19 @@ export default function CashierPOSWorkspace() {
 
   const handleLogout = async () => {
     await fetch("/api/auth/department-session", { method: "DELETE" }).catch(() => undefined);
-    ["rwq_dept_key", "rwq_dept_role", "rwq_dept_org_id", "rwq_dept_branch_id", "rwq_dept_allowed", "rwq_dept_device"].forEach((k) => localStorage.removeItem(k));
+    [
+      "rwq_dept_key",
+      "rwq_dept_role",
+      "rwq_dept_org_id",
+      "rwq_dept_branch_id",
+      "rwq_dept_allowed",
+      "rwq_dept_device",
+      "rwq_pos_catalog_extra",
+      "rwq_receipt_design",
+    ].forEach((k) => localStorage.removeItem(k));
+    if (device.orgId) {
+      localStorage.removeItem(getReceiptDesignKey(device.orgId));
+    }
     router.push("/d/gate");
   };
 
@@ -2873,7 +2869,7 @@ export default function CashierPOSWorkspace() {
                         يُحفظ التصميم تلقائيًا على هذا الجهاز وينطبق على كل الفواتير
                       </p>
                       <button
-                        onClick={() => { localStorage.removeItem("rwq_receipt_design"); setDesign(DEFAULT_DESIGN); }}
+                        onClick={() => { localStorage.removeItem(getReceiptDesignKey(device.orgId)); setDesign(DEFAULT_DESIGN); }}
                         className="shrink-0 inline-flex items-center gap-1.5 text-xs font-medium text-red-500 hover:text-white hover:bg-red-500 border border-red-200 hover:border-red-500 rounded-lg px-3 h-8 transition-colors"
                       >
                         <RotateCcw className="h-3.5 w-3.5" />
